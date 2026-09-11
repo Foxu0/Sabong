@@ -38,11 +38,26 @@ PORT = int(os.environ.get("PORT", 10000))
 ROOM_CODE_LENGTH = 4
 ROOM_TIMEOUT_SECS = 300
 
+def _extract_client_ip(ws: WebSocketServerProtocol) -> str:
+    if hasattr(ws, "request_headers") and ws.request_headers:
+        forwarded = ws.request_headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        cf = ws.request_headers.get("cf-connecting-ip")
+        if cf:
+            return cf.strip()
+    if ws.remote_address:
+        return str(ws.remote_address[0])
+    return ""
+
 # Room Registry
 class Room:
-    def __init__(self, code: str, host_name: str):
+    def __init__(self, code: str, host_name: str, host_public_ip: str = "", host_local_ip: str = "", host_port: int = 7777):
         self.code = code
         self.host_name = host_name
+        self.host_public_ip = host_public_ip
+        self.host_local_ip = host_local_ip
+        self.host_port = host_port
         self.created_at = time.time()
         self.host_ws: Optional[WebSocketServerProtocol] = None
         self.client_ws: Optional[WebSocketServerProtocol] = None
@@ -89,17 +104,22 @@ async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
     role = parts[2].lower()
 
     if code_or_new == "NEW" and role == "host":
+        host_public_ip = _extract_client_ip(websocket)
         try:
             raw = await asyncio.wait_for(websocket.recv(), timeout=10)
             data = json.loads(raw)
             host_name = str(data.get("host_name", "Anonymous"))[:32]
+            host_local_ip = str(data.get("local_ip", ""))
+            host_port = int(data.get("port", 7777))
         except Exception:
             host_name = "Anonymous"
+            host_local_ip = ""
+            host_port = 7777
         code = _generate_code()
-        room = Room(code, host_name)
+        room = Room(code, host_name, host_public_ip, host_local_ip, host_port)
         room.host_ws = websocket
         rooms[code] = room
-        log.info("Room %s created by '%s'", code, host_name)
+        log.info("Room %s created by '%s' (pub=%s, local=%s:%d)", code, host_name, host_public_ip, host_local_ip, host_port)
         await websocket.send(json.dumps({"type": "room_created", "code": code}))
         await _host_loop(room, websocket)
         return
@@ -119,11 +139,28 @@ async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
             await websocket.send(json.dumps({"type": "error", "msg": "Host not connected"}))
             await websocket.close(1008, "No host")
             return
+        
+        client_public_ip = _extract_client_ip(websocket)
+        # If client and host share the same public IP (e.g. same home network/Wi-Fi),
+        # use the host's LAN local IP to bypass router NAT loopback blocks.
+        if client_public_ip and client_public_ip == room.host_public_ip and room.host_local_ip:
+            chosen_ip = room.host_local_ip
+            log.info("Room %s: client is on same LAN as host (%s), using local IP %s", code, client_public_ip, chosen_ip)
+        else:
+            chosen_ip = room.host_public_ip or room.host_local_ip
+            log.info("Room %s: client joining from %s -> host at %s", code, client_public_ip, chosen_ip)
+
         room.client_ws = websocket
         room.started = True
         log.info("Room %s: client joined, starting relay", code)
-        await room.host_ws.send(json.dumps({"type": "client_joined"}))
-        await room.client_ws.send(json.dumps({"type": "host_ready"}))
+        await room.host_ws.send(json.dumps({"type": "client_joined", "client_ip": client_public_ip}))
+        await room.client_ws.send(json.dumps({
+            "type": "host_ready",
+            "host_ip": chosen_ip,
+            "host_public_ip": room.host_public_ip,
+            "host_local_ip": room.host_local_ip,
+            "host_port": room.host_port
+        }))
         await _relay_loop(room)
         return
 
