@@ -632,25 +632,67 @@ func _open_settings_modal() -> void:
 	vbox.add_child(fs_check)
 
 func _open_credits_modal() -> void:
-	var vbox := _create_modal_base("GAME CREDITS", 820, 560)
+	var vbox := _create_modal_base("GAME CREDITS", 860, 680)
+	
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 520)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	
 	var rtext := RichTextLabel.new()
 	rtext.bbcode_enabled = true
 	rtext.fit_content = true
-	rtext.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	UIFontStyle.style_rich_text(rtext, 18)
-	rtext.text = """[b][color=gold]SABONG LEGENDS: CLUCK COCK[/color][/b]
-[i]The Ultimate 3D Anime Cockpit Card Battler[/i]
+	rtext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rtext.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UIFontStyle.style_rich_text(rtext, 17)
+	rtext.text = """[center][b][color=gold]SABONG LEGENDS: CLUCK COCK[/color][/b]
+[i][color=#8ecae6]The Ultimate 3D Anime Cockpit Card Battler[/color][/i][/center]
 
-[b]Game Architecture & Design:[/b]
-Pair Programming with Google DeepMind & Antigravity Agentic AI
+[color=#ffb703][b]── 3D VOXEL ASSETS & ENVIRONMENT ──[/b][/color]
+• [b]Max Parata[/b] — Voxel Country Side 3D Props Pack (Environment & Scenery)
+• [b]Vedia Games[/b] — Fantasy Voxel Furniture & Props Pack (Arena & Tabletop Props)
+• [b]Jublian[/b] — Rocky Voxel Pack (Cliff with Grass, Mossy Boulders, Stone Stairs)
+• [b]CraftPix.net[/b] — 3D Voxel World Models & Environment Kit
+• [b]Kenney (Kenney.nl)[/b] — Retro Urban & Tabletop Props
 
-[b]Voxel Models & Visual Assets:[/b]
-MagicaVoxel Anime Rooster Champions & Tabletop Arena Props
+[color=#ffb703][b]── ORIGINAL SOUNDTRACK & AUDIO ──[/b][/color]
+• [b]Abstraction Music / Tallbeard Studios (Benjamin Burnes)[/b]
+  Music Loop Bundle (CC-0) — [i]abstractionmusic.com[/i]
+  - [i]Retro Lounge (Melody)[/i] — Main Menu & Character Select Theme
+  - [i]Ruined Lands (Wasteland)[/i] — 3D Arena Battle Theme
+  - [i]Lost in Space[/i] — Tournament Bracket & Standings Theme
 
-[b]Anime Inspirations:[/b]
-Dragon Ball, JoJo's Bizarre Adventure, One Piece, Re:Zero,
-My Hero Academia, Attack on Titan, Demon Slayer, Death Note.
+[color=#ffb703][b]── TYPOGRAPHY & DIGITAL FONTS ──[/b][/color]
+• [b]Google Fonts (SIL Open Font License)[/b]
+  - Anton & Staatliches — Action Headers, Mode Selector & Menu Buttons
+  - Bangers — Combat Damage, Critical Strikes & Battle Overlays
+  - PT Sans (Regular & Bold) — Card Stats, Moveset Descriptions & UI Body
+  - Silkscreen & Press Start 2P — Digital Billboards & Retroware Badges
+• [b]Digital 7-Segment[/b] — Cockpit Match Timer & HP Display
 
-[color=gray]Thank you for playing![/color]"""
-	vbox.add_child(rtext)
+[color=#ffb703][b]── TOOLS & OPEN SOURCE SOFTWARE ──[/b][/color]
+• [b]Godot Engine 4.7[/b] — Juan Linietsky, Ariel Manzur & the Godot Community
+• [b]MagicaVoxel Importer with Extensions (MIT)[/b]
+  Created & Extended by: Scayze, n3rdw1z4rd, JohnCWakley, CloneDeath, Violgamba, bakacandy
+• [b]MagicaVoxel[/b] — Ephtracy (Voxel Modeling Suite)
+
+[color=#ffb703][b]── ANIME PARODY INSPIRATIONS ──[/b][/color]
+• [b]Dragon Ball[/b] — Hen-Goku (Super Saiyan Golden Rooster)
+• [b]JoJo's Bizarre Adventure[/b] — Cocktaro (Star Platinum Ora-Ora)
+• [b]One Piece[/b] — Cluckey D. Puffy (Gear 5 Gum-Gum Slashing)
+• [b]Re:Zero[/b] — Daniel (Return by Cluck & Unseen Hand)
+• [b]My Hero Academia[/b] — Decluck (One For All Smash)
+• [b]Attack on Titan[/b] — Eren Pecker (Rumbling Titan Stomp)
+• [b]Demon Slayer[/b] — Nechicko (Demon Form & Ketchup Aura)
+• [b]Death Note[/b] — Chick Yagami (Chick Note Execution)
+
+[color=#ffb703][b]── GAME ARCHITECTURE & ENGINEERING ──[/b][/color]
+• Built with pair programming assistance from [b]Google DeepMind & Antigravity Agentic AI[/b]
+• Online Multiplayer Relay & Tournament System Architecture
+
+[center][color=#8ecae6]Huge heartfelt thanks to all the indie artists, modelers, and musicians who generously share their work with game creators![/color]
+
+[b][color=gold]Thank you for playing Sabong Legends: Cluck Cock![/color][/b][/center]"""
+	scroll.add_child(rtext)
+	vbox.add_child(scroll)
