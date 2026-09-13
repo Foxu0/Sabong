@@ -68,10 +68,9 @@ func get_stream(path: String) -> AudioStream:
 		if res is AudioStream:
 			stream = res
 	
-	# 2. Runtime fallback via AudioStreamOggVorbis.load_from_file if not yet imported by Godot editor
+	# 2. Runtime fallback via AudioStreamOggVorbis.load_from_file
 	if not stream and FileAccess.file_exists(path):
-		if ClassDB.class_exists("AudioStreamOggVorbis") and AudioStreamOggVorbis.has_method("load_from_file"):
-			stream = AudioStreamOggVorbis.load_from_file(path)
+		stream = AudioStreamOggVorbis.load_from_file(path)
 	
 	if stream:
 		if "loop" in stream:

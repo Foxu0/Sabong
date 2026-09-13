@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://n2omn4yi7wfq"
+path="res://.godot/imported/Week 11 - Lost in Space.ogg-3319ade8a82d00a52156ccedb8e513e7.oggvorbisstr"
+
+[deps]
+
+source_file="res://resources/Game music options/Week 11 - Lost in Space.ogg"
+dest_files=["res://.godot/imported/Week 11 - Lost in Space.ogg-3319ade8a82d00a52156ccedb8e513e7.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
