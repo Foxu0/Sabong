@@ -120,7 +120,7 @@ func _build_menu_ui() -> void:
 
 	# Version Badge (Anchored cleanly to PRESET_BOTTOM_LEFT)
 	ver_label = Label.new()
-	ver_label.text = "v1.0.0 • Google DeepMind & Antigravity"
+	ver_label.text = "v1.0.0"
 	ver_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	UIFontStyle.style_body(ver_label, 15)
 	ver_label.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85, 0.75))
@@ -686,10 +686,6 @@ func _open_credits_modal() -> void:
 • [b]Attack on Titan[/b] — Eren Pecker (Rumbling Titan Stomp)
 • [b]Demon Slayer[/b] — Nechicko (Demon Form & Ketchup Aura)
 • [b]Death Note[/b] — Chick Yagami (Chick Note Execution)
-
-[color=#ffb703][b]── GAME ARCHITECTURE & ENGINEERING ──[/b][/color]
-• Built with pair programming assistance from [b]Google DeepMind & Antigravity Agentic AI[/b]
-• Online Multiplayer Relay & Tournament System Architecture
 
 [center][color=#8ecae6]Huge heartfelt thanks to all the indie artists, modelers, and musicians who generously share their work with game creators![/color]
 
