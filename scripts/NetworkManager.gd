@@ -132,6 +132,9 @@ func _process(delta: float) -> void:
 ## Also starts UDP discovery beacon so clients can find this host automatically.
 func host_match(port: int = DEFAULT_PORT, mode: MatchMode = MatchMode.DUEL_1V1, max_players: int = 2) -> Error:
 	current_match_mode = mode
+	if OS.has_feature("web"):
+		push_warning("[NetworkManager] Direct UDP LAN hosting is not supported in Web browsers. Please use Online Relay rooms.")
+		return ERR_UNAVAILABLE
 	peer = ENetMultiplayerPeer.new()
 	var max_clients: int = 1
 	if mode == MatchMode.TOURNAMENT:
@@ -158,6 +161,9 @@ func host_match(port: int = DEFAULT_PORT, mode: MatchMode = MatchMode.DUEL_1V1, 
 ## Joins an existing host
 func join_match(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Error:
 	stop_lan_scan()
+	if OS.has_feature("web"):
+		push_warning("[NetworkManager] Direct UDP LAN join is not supported in Web browsers. Please use Online Relay rooms.")
+		return ERR_UNAVAILABLE
 	peer = ENetMultiplayerPeer.new()
 	var error := peer.create_client(address, port)
 	if error != OK:
@@ -174,6 +180,7 @@ func join_match(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Erro
 
 ## Starts sending UDP broadcast beacons so clients on the LAN can find this host.
 func _start_discovery_beacon() -> void:
+	if OS.has_feature("web"): return
 	_stop_discovery_beacon()
 	_udp_broadcast = PacketPeerUDP.new()
 	_udp_broadcast.set_broadcast_enabled(true)
@@ -214,6 +221,7 @@ func _send_discovery_beacon() -> void:
 ## Starts listening for host beacons on the LAN.
 ## Emits host_discovered(ip, host_name) for each unique host found.
 func start_lan_scan() -> void:
+	if OS.has_feature("web"): return
 	stop_lan_scan()
 	_discovered_hosts.clear()
 	hosts_cleared.emit()
@@ -764,6 +772,7 @@ func _get_local_ipv4() -> String:
 	return ""
 
 func _start_upnp_async() -> void:
+	if OS.has_feature("web"): return
 	_cleanup_upnp()
 	_upnp_thread = Thread.new()
 	_upnp_thread.start(func():
