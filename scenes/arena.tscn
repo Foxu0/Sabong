@@ -1,0 +1,967 @@
+[gd_scene format=3 uid="uid://cqim3xxlaovnc"]
+
+[ext_resource type="PackedScene" uid="uid://yyp4x5ktcu8x" path="res://resources/world/arena.vox" id="1_7ft05"]
+[ext_resource type="PackedScene" uid="uid://d3c1ut64hjk6d" path="res://resources/world/roosterstage.vox" id="2_4ag8t"]
+[ext_resource type="PackedScene" uid="uid://caf5movfvglmp" path="res://resources/world/Jublian_Rocky_Pack/Cliff/cliff.vox" id="3_dpxgc"]
+[ext_resource type="PackedScene" uid="uid://b7tsfmmiluavk" path="res://resources/world/PineFluffy.vox" id="4_oexds"]
+[ext_resource type="Texture2D" uid="uid://c3103wle0y8tt" path="res://resources/world/Clouds/Clouds 5/1.png" id="5_naajo"]
+[ext_resource type="Script" uid="uid://w8a42qlg2eqh" path="res://scripts/MatchUI.gd" id="6_4ag8t"]
+[ext_resource type="Script" uid="uid://dm0rgpb5m2sr8" path="res://scripts/ArenaController.gd" id="7_arena"]
+[ext_resource type="Script" uid="uid://c2fbuorlfce8b" path="res://scripts/RoosterVisual3D.gd" id="8_visual"]
+[ext_resource type="PackedScene" uid="uid://djv6lj4vhq2d2" path="res://resources/world/prop_table_light_brown/prop_table_light_brown.fbx" id="9_naajo"]
+[ext_resource type="PackedScene" uid="uid://cyyiwnujytd5g" path="res://resources/world/prop_glass_water/dae/prop_glass_water.dae" id="10_xsx6r"]
+[ext_resource type="PackedScene" uid="uid://djgh0d57hwgui" path="res://resources/world/TayaCoins.vox" id="11_ajq0i"]
+[ext_resource type="Texture2D" uid="uid://b5iaqtltksf30" path="res://resources/world/Apple-0.png" id="11_ixwup"]
+[ext_resource type="ArrayMesh" uid="uid://12mhkj3lanct" path="res://resources/world/Apple-0.obj" id="12_a43o1"]
+[ext_resource type="PackedScene" uid="uid://dl1k41r0uv84b" path="res://resources/world/bellendturn.vox" id="14_ow1aj"]
+[ext_resource type="Texture2D" uid="uid://bags1vifqp3fx" path="res://resources/cards/BackCard.png" id="15_a43o1"]
+[ext_resource type="Shader" uid="uid://dp4gc4akjpovk" path="res://scenes/card.gdshader" id="16_ow1aj"]
+[ext_resource type="PackedScene" uid="uid://dy2b3cilcktyq" path="res://resources/world/hpclock.vox" id="17_ow1aj"]
+[ext_resource type="FontFile" path="res://resources/world/digital_7segment.tres" id="18_dseg"]
+[ext_resource type="Script" uid="uid://ba5r1svjjqgsw" path="res://scripts/duel/DuelPhaseManager.gd" id="21_phase_manager"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_41jku"]
+albedo_texture = ExtResource("5_naajo")
+
+[sub_resource type="BoxMesh" id="BoxMesh_37uve"]
+size = Vector3(83.794525, 0.001, 36.68882)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_arena"]
+sky_top_color = Color(0.12, 0.18, 0.35, 1)
+sky_horizon_color = Color(0.42, 0.52, 0.68, 1)
+sky_curve = 0.09
+ground_bottom_color = Color(0.06, 0.07, 0.09, 1)
+ground_horizon_color = Color(0.28, 0.32, 0.38, 1)
+ground_curve = 0.04
+sun_angle_max = 45.0
+sun_curve = 0.25
+
+[sub_resource type="Sky" id="Sky_6joey"]
+sky_material = SubResource("ProceduralSkyMaterial_arena")
+
+[sub_resource type="Environment" id="Environment_arena"]
+background_mode = 2
+background_energy_multiplier = 0.95
+sky = SubResource("Sky_6joey")
+ambient_light_source = 3
+ambient_light_color = Color(0.7, 0.78, 0.92, 1)
+ambient_light_sky_contribution = 0.6
+ambient_light_energy = 0.6
+tonemap_mode = 2
+tonemap_exposure = 1.15
+ssr_enabled = true
+ssr_max_steps = 32
+ssr_depth_tolerance = 0.2
+ssao_enabled = true
+ssao_radius = 1.2
+ssao_intensity = 1.8
+ssil_enabled = true
+ssil_radius = 3.0
+ssil_intensity = 0.6
+glow_enabled = true
+glow_levels/1 = 1.0
+glow_levels/2 = 1.0
+glow_levels/3 = 1.0
+glow_levels/4 = 0.0
+glow_intensity = 0.6
+glow_strength = 1.2
+glow_bloom = 0.15
+glow_blend_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.45, 0.52, 0.65, 1)
+fog_light_energy = 0.15
+fog_sun_scatter = 0.15
+fog_density = 0.002
+fog_aerial_perspective = 0.15
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.003
+volumetric_fog_albedo = Color(0.7, 0.75, 0.88, 1)
+volumetric_fog_gi_inject = 0.25
+volumetric_fog_length = 32.0
+adjustment_enabled = true
+adjustment_brightness = 1.02
+adjustment_contrast = 1.06
+adjustment_saturation = 1.12
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(5.3041687, 1.4971313, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall"]
+size = Vector3(40, 10, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6joey"]
+albedo_texture = ExtResource("11_ixwup")
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_adnfk"]
+size = Vector3(3.2711182, 1.802124, 2.1982422)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7wjmx"]
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+cull_mode = 2
+shading_mode = 0
+albedo_texture = ExtResource("15_a43o1")
+albedo_texture_force_srgb = true
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_adnfk"]
+size = Vector2(0.32, 0.461)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_adnfk"]
+render_priority = 0
+shader = ExtResource("16_ow1aj")
+shader_parameter/corner_radius = 0.08
+shader_parameter/aspect_ratio = 1.4
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_37uve"]
+size = Vector2(4.7, 1.7)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bqssw"]
+shading_mode = 0
+albedo_color = Color(0.02, 0.02, 0.02, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_37uve"]
+size = Vector3(4.9956665, 2.4874268, 1.4169922)
+
+[node name="Arena" type="Node3D" unique_id=1629187076 node_paths=PackedStringArray("camera_p1", "camera_p2", "p1_rooster_anchor", "p2_rooster_anchor")]
+script = ExtResource("7_arena")
+camera_p1 = NodePath("CameraP1")
+camera_p2 = NodePath("CameraP2")
+p1_rooster_anchor = NodePath("P1_RoosterAnchor")
+p2_rooster_anchor = NodePath("P2_RoosterAnchor")
+
+[node name="DuelPhaseManager" type="Node" parent="." unique_id=1982736450]
+script = ExtResource("21_phase_manager")
+
+[node name="arena" parent="." unique_id=1666954605 instance=ExtResource("1_7ft05")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0, 0)
+metadata/_edit_lock_ = true
+
+[node name="CameraP1" type="Camera3D" parent="." unique_id=1229045849]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 5, 2, 0)
+current = true
+
+[node name="CameraP2" type="Camera3D" parent="." unique_id=255819626]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -5, 2, 0)
+
+[node name="roosterstage" parent="." unique_id=1199070683 instance=ExtResource("2_4ag8t")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.003, 0, 4)
+
+[node name="roosterstage2" parent="." unique_id=1325853400 instance=ExtResource("2_4ag8t")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
+
+[node name="P1_RoosterAnchor" type="Node3D" parent="." unique_id=571658091 node_paths=PackedStringArray("opponent_visual")]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, -0.003, 1.7, 4)
+script = ExtResource("8_visual")
+opponent_visual = NodePath("../P2_RoosterAnchor")
+
+[node name="P2_RoosterAnchor" type="Node3D" parent="." unique_id=91371611 node_paths=PackedStringArray("opponent_visual")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -4)
+script = ExtResource("8_visual")
+duelist_id = 2
+opponent_visual = NodePath("../P1_RoosterAnchor")
+
+[node name="wall" parent="." unique_id=1592041932 instance=ExtResource("3_dpxgc")]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -15, -2.197, -7.736)
+metadata/_edit_lock_ = true
+
+[node name="cliff" parent="wall" unique_id=1126163458 instance=ExtResource("3_dpxgc")]
+transform = Transform3D(-0.31895927, 0, 0.94776845, 0, 1, 0, -0.94776845, 0, -0.31895927, 7.27356, 1.0985, 11.964404)
+
+[node name="cliff2" parent="wall/cliff" unique_id=983235989 instance=ExtResource("3_dpxgc")]
+transform = Transform3D(-0.99433786, 0, -0.10626399, 0, 1, 0, 0.10626399, 0, -0.99433786, 15.65624, 0, 5.2689066)
+
+[node name="cliff3" parent="wall" unique_id=226420466 instance=ExtResource("3_dpxgc")]
+transform = Transform3D(0.6984153, 0, 0.71569276, 0, 1, 0, -0.71569276, 0, 0.6984153, -0.9925575, 0, 8.42177)
+
+[node name="wall2" parent="wall" unique_id=1197368321 instance=ExtResource("3_dpxgc")]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 15, 0, 7.0959997)
+
+[node name="cliff3" parent="wall/wall2" unique_id=592501635 instance=ExtResource("3_dpxgc")]
+transform = Transform3D(0.6984153, 0, 0.71569276, 0, 1, 0, -0.71569276, 0, 0.6984153, 0.56731987, -0.26477635, 8.558729)
+
+[node name="PineFluffy" parent="." unique_id=611017761 instance=ExtResource("4_oexds")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.993029, 3.9100509, 7.485921)
+metadata/_edit_lock_ = true
+
+[node name="PineFluffy4" parent="PineFluffy" unique_id=1030298808 instance=ExtResource("4_oexds")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.331093, -0.7436981, -13.976655)
+
+[node name="PineFluffy5" parent="PineFluffy" unique_id=115982696 instance=ExtResource("4_oexds")]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 39.331093, 0.45966816, -4.200473)
+
+[node name="PineFluffy7" parent="PineFluffy" unique_id=1131734205 instance=ExtResource("4_oexds")]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 39.331093, -1.7715216, 2.8750648)
+
+[node name="PineFluffy8" parent="PineFluffy" unique_id=866043539 instance=ExtResource("4_oexds")]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 39.331093, -1.7715216, -31.120785)
+
+[node name="PineFluffy9" parent="PineFluffy" unique_id=1633644091 instance=ExtResource("4_oexds")]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, -2.6252842, -1.7715216, -13.68974)
+
+[node name="PineFluffy10" parent="PineFluffy" unique_id=471606599 instance=ExtResource("4_oexds")]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, -2.6252842, 0.32628918, -7.207507)
+
+[node name="PineFluffy11" parent="PineFluffy" unique_id=1576943156 instance=ExtResource("4_oexds")]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, -2.6252842, 0.32628918, 12.822545)
+
+[node name="PineFluffy2" parent="PineFluffy" unique_id=1036478685 instance=ExtResource("4_oexds")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.19528, 1.5826387, 9.723659)
+
+[node name="PineFluffy3" parent="PineFluffy" unique_id=1776795562 instance=ExtResource("4_oexds")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36.403908, -2.8650312, 9.723659)
+
+[node name="PineFluffy6" parent="PineFluffy" unique_id=1485932248 instance=ExtResource("4_oexds")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.424201, 0.4349599, -21.34259)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1815186049]
+transform = Transform3D(-4.371139e-08, -0.9766723, 0.21473534, 0, 0.21473534, 0.9766723, -1, 4.2691703e-08, -9.38638e-09, 27.134708, 16.980738, 0.489769)
+material_override = SubResource("StandardMaterial3D_41jku")
+mesh = SubResource("BoxMesh_37uve")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=186923770]
+transform = Transform3D(-4.371139e-08, 0.9766723, 0.21473522, 0, 0.21473522, -0.9766723, -1, -4.2691703e-08, -9.386375e-09, -31.657087, 16.981, 0.49)
+material_override = SubResource("StandardMaterial3D_41jku")
+mesh = SubResource("BoxMesh_37uve")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=773412091]
+environment = SubResource("Environment_arena")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1026845637]
+transform = Transform3D(0.9914449, 0.07891602, -0.10396802, 0, 0.7965298, 0.6045991, 0.1305262, -0.5994266, 0.78971547, 0, 5.8807387, 0)
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 1.25
+shadow_enabled = true
+
+[node name="DirectionalLight3D2" type="DirectionalLight3D" parent="." unique_id=1876632854]
+transform = Transform3D(0.9914449, 0.10971596, 0.07070709, 0, -0.541708, 0.8405667, 0.1305262, -0.83337545, -0.5370737, 0, 5.8807387, 0)
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 1.25
+shadow_enabled = true
+
+[node name="ArenaFloorCollision" type="StaticBody3D" parent="." unique_id=621984210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+
+[node name="FloorShape" type="CollisionShape3D" parent="ArenaFloorCollision" unique_id=1850695213]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0017242432, 0.24856566, 0)
+shape = SubResource("BoxShape3D_floor")
+
+[node name="ArenaWalls" type="StaticBody3D" parent="." unique_id=741098231]
+
+[node name="WallNorth" type="CollisionShape3D" parent="ArenaWalls" unique_id=111724039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 5.5)
+shape = SubResource("BoxShape3D_wall")
+
+[node name="WallSouth" type="CollisionShape3D" parent="ArenaWalls" unique_id=36314141]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -5.5)
+shape = SubResource("BoxShape3D_wall")
+
+[node name="WallEast" type="CollisionShape3D" parent="ArenaWalls" unique_id=1500244132]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 4.5, 3, 0)
+shape = SubResource("BoxShape3D_wall")
+
+[node name="WallWest" type="CollisionShape3D" parent="ArenaWalls" unique_id=1028750664]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -4.5, 3, 0)
+shape = SubResource("BoxShape3D_wall")
+
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=991443396]
+
+[node name="MatchUI" type="Control" parent="UILayer" unique_id=2007063449 node_paths=PackedStringArray("arena_controller")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("6_4ag8t")
+arena_controller = NodePath("../..")
+
+[node name="prop_table_light_brown" parent="." unique_id=1330734423 instance=ExtResource("9_naajo")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 3.2218194, -0.4676212, 0)
+
+[node name="prop_glass_water" parent="prop_table_light_brown" unique_id=2856624 instance=ExtResource("10_xsx6r")]
+transform = Transform3D(0.194562, 0, 0.4605927, 0, 0.5, 0, -0.4605927, 0, 0.194562, -1.3145494, 1.1458117, 0.21325159)
+
+[node name="Apple0" type="MeshInstance3D" parent="prop_table_light_brown" unique_id=2045076414]
+transform = Transform3D(-0.18137975, 0, 0.23895895, 0, 0.3, 0, -0.23895895, 0, -0.18137975, -1.3551173, 1.4307344, -0.13927269)
+material_override = SubResource("StandardMaterial3D_6joey")
+mesh = ExtResource("12_a43o1")
+skeleton = NodePath("../..")
+
+[node name="prop_table_light_brown2" parent="prop_table_light_brown" unique_id=358280947 instance=ExtResource("9_naajo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.8199368e-08, 0, -1.102673)
+
+[node name="StaticBody3D" type="StaticBody3D" parent="prop_table_light_brown" unique_id=1866820568]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="prop_table_light_brown/StaticBody3D" unique_id=1719420219]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.034973145, 0.401062, -0.5991211)
+shape = SubResource("BoxShape3D_adnfk")
+
+[node name="prop_table_light_brown2" parent="." unique_id=845872163 instance=ExtResource("9_naajo")]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -3.222, -0.468, 0)
+
+[node name="prop_glass_water" parent="prop_table_light_brown2" unique_id=2121248266 instance=ExtResource("10_xsx6r")]
+transform = Transform3D(0.1556496, 0, 0.36847416, 0, 0.4, 0, -0.36847416, 0, 0.1556496, -1.3145494, 1.1458117, 0.21325159)
+
+[node name="Apple0" type="MeshInstance3D" parent="prop_table_light_brown2" unique_id=1523548414]
+transform = Transform3D(-0.18137975, 0, 0.23895895, 0, 0.3, 0, -0.23895895, 0, -0.18137975, -1.3551173, 1.4307344, -0.08101225)
+material_override = SubResource("StandardMaterial3D_6joey")
+mesh = ExtResource("12_a43o1")
+skeleton = NodePath("../..")
+
+[node name="prop_table_light_brown2" parent="prop_table_light_brown2" unique_id=1489286347 instance=ExtResource("9_naajo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.8199368e-08, 0, -1.102673)
+
+[node name="StaticBody3D" type="StaticBody3D" parent="prop_table_light_brown2" unique_id=159096491]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="prop_table_light_brown2/StaticBody3D" unique_id=686578633]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.034973145, 0.401062, -0.5991211)
+shape = SubResource("BoxShape3D_adnfk")
+
+[node name="TayaCoins" parent="." unique_id=34058824 instance=ExtResource("11_ajq0i")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 2.8978148, 0.81823885, 1.2497724)
+
+[node name="TayaCoins2" parent="." unique_id=934757525 instance=ExtResource("11_ajq0i")]
+transform = Transform3D(0.3, 0, 0, 0, 0.27574062, 0.11818258, 0, -0.11818258, 0.27574062, 2.8978148, 0.845852, 1.1386514)
+
+[node name="TayaCoins3" parent="." unique_id=1779495895 instance=ExtResource("11_ajq0i")]
+transform = Transform3D(0.27635562, 0.11673719, 0, -0.11673719, 0.27635562, 0, 0, 0, 0.3, 2.9970746, 0.8392732, 1.3298913)
+
+[node name="TayaCoins4" parent="." unique_id=1134058824 instance=ExtResource("11_ajq0i")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, -2.8978148, 0.81823885, -1.2497724)
+
+[node name="TayaCoins5" parent="." unique_id=1193475752 instance=ExtResource("11_ajq0i")]
+transform = Transform3D(0.3, 0, 0, 0, 0.27574062, -0.11818258, 0, 0.11818258, 0.27574062, -2.8978148, 0.845852, -1.1386514)
+
+[node name="TayaCoins6" parent="." unique_id=1117794958 instance=ExtResource("11_ajq0i")]
+transform = Transform3D(0.27635562, -0.11673719, 0, 0.11673719, 0.27635562, 0, 0, 0, 0.3, -2.9970746, 0.8392732, -1.3298913)
+
+[node name="bellendturn" parent="." unique_id=945989944 instance=ExtResource("14_ow1aj")]
+transform = Transform3D(0.20952459, 0, -0.21470784, 0, 0.3, 0, 0.21470784, 0, 0.20952459, 3.356273, 0.8250408, -1.0110722)
+
+[node name="bellendturn2" parent="." unique_id=754881837 instance=ExtResource("14_ow1aj")]
+transform = Transform3D(0.20952459, 0, -0.21470784, 0, 0.3, 0, 0.21470784, 0, 0.20952459, -3.356, 0.825, 1.011)
+
+[node name="cardstack" type="MeshInstance3D" parent="." unique_id=2024106756]
+transform = Transform3D(-0.21473531, 0, 0.9766723, 0, 1, 0, -0.9766723, 0, -0.21473531, 4.0303383, 0.8326918, -1.0365635)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack17" type="MeshInstance3D" parent="cardstack" unique_id=1795925944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02715385, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack16" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1848716218]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.018220007, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack15" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=2108692719]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.016284406, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack14" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1806601899]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.014994502, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack13" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1372442246]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.020963073, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack12" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1651533716]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.022331476, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack10" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=604442290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.025556982, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack9" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1778595953]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.013626099, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack8" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=688696442]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011930883, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack7" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1305150112]
+transform = Transform3D(0.9766723, 0, -0.21473533, 0, 1, 0, 0.21473533, 0, 0.9766723, 0, 0.009995282, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack6" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=538189000]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.008705378, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack5" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1888889142]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.007336974, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack2" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1156133529]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0013684034, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack3" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1468147349]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0026583076, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack4" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=441782228]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004593909, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack11" type="MeshInstance3D" parent="cardstack/cardstack17" unique_id=1606016915]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02362138, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack16" type="MeshInstance3D" parent="cardstack" unique_id=1253510650]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.018220007, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack15" type="MeshInstance3D" parent="cardstack" unique_id=650789403]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.016284406, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack14" type="MeshInstance3D" parent="cardstack" unique_id=28543136]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.014994502, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack13" type="MeshInstance3D" parent="cardstack" unique_id=893146500]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.020963073, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack12" type="MeshInstance3D" parent="cardstack" unique_id=1373223250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.022331476, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack10" type="MeshInstance3D" parent="cardstack" unique_id=2117409063]
+transform = Transform3D(0.9766723, 0, -0.21473533, 0, 1, 0, 0.21473533, 0, 0.9766723, 0, 0.025556982, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack9" type="MeshInstance3D" parent="cardstack" unique_id=113775478]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.013626099, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack8" type="MeshInstance3D" parent="cardstack" unique_id=631005271]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011930883, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack7" type="MeshInstance3D" parent="cardstack" unique_id=1286829588]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.009995282, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack6" type="MeshInstance3D" parent="cardstack" unique_id=2071885168]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.008705378, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack5" type="MeshInstance3D" parent="cardstack" unique_id=799885056]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.007336974, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack2" type="MeshInstance3D" parent="cardstack" unique_id=619826933]
+transform = Transform3D(0.9766723, 0, 0.21473533, 0, 1, 0, -0.21473533, 0, 0.9766723, 0, 0.0013684034, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack3" type="MeshInstance3D" parent="cardstack" unique_id=866079223]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0026583076, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack4" type="MeshInstance3D" parent="cardstack" unique_id=1362139708]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004593909, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack11" type="MeshInstance3D" parent="cardstack" unique_id=2093384112]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02362138, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack2" type="MeshInstance3D" parent="." unique_id=295747333]
+transform = Transform3D(0.19765733, 0, -0.98027116, 0, 1, 0, 0.98027116, 0, 0.19765733, -4.03, 0.833, 1.037)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack17" type="MeshInstance3D" parent="cardstack2" unique_id=1076062128]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02715385, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack16" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=1204239770]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.018220007, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack15" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=2065687465]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.016284406, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack14" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=730594571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.014994502, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack13" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=1159490764]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.020963073, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack12" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=581374404]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.022331476, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack10" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=401009328]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.025556982, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack9" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=1280075152]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.013626099, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack8" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=1219738989]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011930883, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack7" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=176244333]
+transform = Transform3D(0.9766723, 0, -0.21473533, 0, 1, 0, 0.21473533, 0, 0.9766723, 0, 0.009995282, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack6" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=1816686391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.008705378, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack5" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=1255423250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.007336974, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack2" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=600033303]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0013684034, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack3" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=760186869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0026583076, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack4" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=1490019037]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004593909, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack11" type="MeshInstance3D" parent="cardstack2/cardstack17" unique_id=442386584]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02362138, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack16" type="MeshInstance3D" parent="cardstack2" unique_id=521488158]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.018220007, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack15" type="MeshInstance3D" parent="cardstack2" unique_id=387759234]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.016284406, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack14" type="MeshInstance3D" parent="cardstack2" unique_id=502446656]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.014994502, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack13" type="MeshInstance3D" parent="cardstack2" unique_id=1833087522]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.020963073, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack12" type="MeshInstance3D" parent="cardstack2" unique_id=402521375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.022331476, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack10" type="MeshInstance3D" parent="cardstack2" unique_id=1814710062]
+transform = Transform3D(0.9766723, 0, -0.21473533, 0, 1, 0, 0.21473533, 0, 0.9766723, 0, 0.025556982, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack9" type="MeshInstance3D" parent="cardstack2" unique_id=1155516382]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.013626099, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack8" type="MeshInstance3D" parent="cardstack2" unique_id=654926047]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011930883, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack7" type="MeshInstance3D" parent="cardstack2" unique_id=1515192363]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.009995282, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack6" type="MeshInstance3D" parent="cardstack2" unique_id=573919896]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.008705378, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack5" type="MeshInstance3D" parent="cardstack2" unique_id=1920905384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.007336974, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack2" type="MeshInstance3D" parent="cardstack2" unique_id=1719314604]
+transform = Transform3D(0.9766723, 0, 0.21473533, 0, 1, 0, -0.21473533, 0, 0.9766723, 0, 0.0013684034, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack3" type="MeshInstance3D" parent="cardstack2" unique_id=1711206469]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0026583076, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack4" type="MeshInstance3D" parent="cardstack2" unique_id=1459063715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004593909, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="cardstack11" type="MeshInstance3D" parent="cardstack2" unique_id=1727717497]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02362138, 0)
+material_override = SubResource("StandardMaterial3D_7wjmx")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_adnfk")
+skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("ShaderMaterial_adnfk")
+
+[node name="hpclock" parent="." unique_id=1025461698 instance=ExtResource("17_ow1aj")]
+transform = Transform3D(-7.430936e-09, 0, 0.17, 0, 0.17, 0, -0.17, 0, -7.430936e-09, 2.8018296, 0.8291249, 0)
+
+[node name="screen" type="MeshInstance3D" parent="hpclock" unique_id=900486121]
+transform = Transform3D(1, 0, 2.1175824e-22, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -1.8026299e-08, 0.9847779, 0.41239357)
+mesh = SubResource("PlaneMesh_37uve")
+surface_material_override/0 = SubResource("StandardMaterial3D_bqssw")
+
+[node name="HPLabel" type="Label3D" parent="hpclock/screen" unique_id=1849204123]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0.02, 0)
+pixel_size = 0.012
+double_sided = false
+modulate = Color(2, 0.2, 0.2, 1)
+outline_modulate = Color(0.35, 0, 0, 0.9)
+text = "30 : 30"
+font = ExtResource("18_dseg")
+font_size = 96
+outline_size = 8
+
+[node name="StaticBody3D" type="StaticBody3D" parent="hpclock" unique_id=2018127878]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="hpclock/StaticBody3D" unique_id=670897580]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0003357144, 0.7437134, -0.2084961)
+shape = SubResource("BoxShape3D_37uve")
+
+[node name="hpclock2" parent="." unique_id=966610972 instance=ExtResource("17_ow1aj")]
+transform = Transform3D(-7.430936e-09, 0, -0.17, 0, 0.17, 0, 0.17, 0, -7.430936e-09, -2.802, 0.829, 0)
+
+[node name="screen" type="MeshInstance3D" parent="hpclock2" unique_id=937707793]
+transform = Transform3D(1, 0, 2.1175824e-22, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -1.8026299e-08, 0.9847779, 0.41239357)
+mesh = SubResource("PlaneMesh_37uve")
+surface_material_override/0 = SubResource("StandardMaterial3D_bqssw")
+
+[node name="HPLabel" type="Label3D" parent="hpclock2/screen" unique_id=1498273612]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0.02, 0)
+pixel_size = 0.012
+double_sided = false
+modulate = Color(2, 0.2, 0.2, 1)
+outline_modulate = Color(0.35, 0, 0, 0.9)
+text = "30 : 30"
+font = ExtResource("18_dseg")
+font_size = 96
+outline_size = 8
+
+[node name="StaticBody3D" type="StaticBody3D" parent="hpclock2" unique_id=120765767]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="hpclock2/StaticBody3D" unique_id=1435803418]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0003357144, 0.7437134, -0.2084961)
+shape = SubResource("BoxShape3D_37uve")

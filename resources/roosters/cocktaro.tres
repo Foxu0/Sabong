@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RoosterData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/RoosterData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/cards/cocktaro_ora_ora.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/cards/cocktaro_platinum_shield.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/cards/cocktaro_platinum_chick.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+rooster_id = "cocktaro"
+display_name = "Cocktaro"
+anime_reference = "JoJo Bizarre Adventure (Jotaro)"
+base_hp = 24
+portrait_path = "res://resources/cards/Cocktaro.png"
+passive_description = "Stand user counter-striker with Platinum Chick."
+model_path = "res://resources/models/cocktaro/kotaro.vox"
+alt_model_path = "res://resources/models/cocktaro/kotarostand.vox"
+dice_model_path = "res://resources/models/cocktaro/kotarodice.vox"
+stand_model_path = "res://resources/models/cocktaro/kotarostand.vox"
+moveset = [ExtResource("2"), ExtResource("3"), ExtResource("4")]
+theme_color = Color(0.2, 0.2, 0.8, 1)

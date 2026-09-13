@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "dice_nudge_plus"
+display_name = "Loaded Spur +1"
+card_type = 5
+is_universal = true
+character_id = ""
+taya_cost = 1
+is_variable_cost = false
+dice_requirement = 1
+base_value = 0
+value_per_taya = 0
+self_damage = 0
+is_dice_reroll = false
+roll_delta = 1
+usage_gate = 0
+required_state = ""
+effect_text = "Adds +1 to your own roll during manipulation window (max 6)."
+art_path = "res://resources/cards/BackCard.png"
+vfx_type = "spark"

@@ -1,0 +1,16 @@
+# Godot 4
+.godot/
+*.translation
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+
+# Build & Logs
+*.log
+out.txt
+*.zip
+scratch/

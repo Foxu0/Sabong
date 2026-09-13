@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "eren_titan_stomp"
+display_name = "Titan Stomp"
+card_type = 0
+is_universal = false
+character_id = "eren_pecker"
+taya_cost = 2
+is_variable_cost = false
+dice_requirement = 2
+base_value = 6
+value_per_taya = 0
+self_damage = 2
+usage_gate = 1
+required_state = "titan_mode_active"
+locks_out_card_type = 1
+effect_text = "Deals 6 damage (-2 self HP). Scales +1/+2/+4 ATK in Titan Mode. Locks out Guard."
+art_path = "res://resources/cards/TitanStomp.png"
+vfx_type = "stomp"
+

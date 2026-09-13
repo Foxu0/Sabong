@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_lobby_scene"]
+
+[ext_resource type="Script" path="res://tests/test_lobby_instantiate.gd" id="1_tl"]
+
+[node name="TestLobby" type="Node"]
+script = ExtResource("1_tl")

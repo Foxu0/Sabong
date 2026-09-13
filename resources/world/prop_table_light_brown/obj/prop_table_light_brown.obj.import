@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://b0t5i1jb7u5y"
+path="res://.godot/imported/prop_table_light_brown.obj-26143e98e810549253239e0a6d2c7d74.mesh"
+
+[deps]
+
+files=["res://.godot/imported/prop_table_light_brown.obj-26143e98e810549253239e0a6d2c7d74.mesh"]
+
+source_file="res://resources/world/prop_table_light_brown/obj/prop_table_light_brown.obj"
+dest_files=["res://.godot/imported/prop_table_light_brown.obj-26143e98e810549253239e0a6d2c7d74.mesh", "res://.godot/imported/prop_table_light_brown.obj-26143e98e810549253239e0a6d2c7d74.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

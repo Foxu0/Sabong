@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://kbew1m3snoq6"]
+
+[node name="Main" type="Node2D" unique_id=1851964087]
+
+[node name="Label" type="Label" parent="." unique_id=193973101]
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 600.0
+offset_bottom = 80.0
+text = "Sabong Roosters — project loaded. Next: build card resources."

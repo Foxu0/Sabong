@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "decluck_all_for_one_punch"
+display_name = "All for one punch"
+card_type = 0
+is_universal = false
+character_id = "decluck"
+taya_cost = 1
+is_variable_cost = true
+dice_requirement = 1
+base_value = 1
+value_per_taya = 2
+self_damage = 0
+required_state = ""
+effect_text = "Deals 1. Each additional taya committed adds +2 power (+4 during All For One Cock)."
+art_path = "res://resources/cards/Onepunch.png"
+vfx_type = "punch"

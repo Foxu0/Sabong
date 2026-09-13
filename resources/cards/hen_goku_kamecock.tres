@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "hen_goku_kamecock"
+display_name = "Kame-cock"
+card_type = 0
+is_universal = false
+character_id = "hen_goku"
+taya_cost = 2
+is_variable_cost = false
+dice_requirement = 2
+base_value = 4
+value_per_taya = 0
+self_damage = 0
+usage_gate = 0
+required_state = ""
+effect_text = "Energy beam dealing 4 + missing HP ratio damage."
+art_path = "res://resources/cards/Kamecock.png"
+vfx_type = "beam"

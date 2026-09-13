@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RoosterData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/RoosterData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/cards/daniel_unseen_claw.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/cards/daniel_chickens_heart.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/cards/daniel_chick_to_zero.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+rooster_id = "daniel"
+display_name = "Daniel"
+anime_reference = "Re:Zero (Subaru)"
+base_hp = 15
+portrait_path = "res://resources/cards/Daniel.png"
+passive_description = "Turn-scaling claw & heart. Revives via Return by Death."
+model_path = "res://resources/models/daniel/daniel.vox"
+alt_model_path = ""
+dice_model_path = "res://resources/models/daniel/dice.vox"
+stand_model_path = ""
+moveset = [ExtResource("2"), ExtResource("3"), ExtResource("4")]
+theme_color = Color(0.3, 0.7, 0.6, 1)

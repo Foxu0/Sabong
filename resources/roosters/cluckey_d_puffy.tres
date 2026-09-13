@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RoosterData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/RoosterData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/cards/cluckey_gum_slash.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/cards/cluckey_gum_barrier.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/cards/cluckey_5th_gear.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+rooster_id = "cluckey_d_puffy"
+display_name = "Cluckey D Puffy"
+anime_reference = "One Piece (Luffy)"
+base_hp = 21
+portrait_path = "res://resources/cards/Puffy.png"
+passive_description = "Builds Tension to awaken 5th Gear (7 DMG Bajrang Gun, 6 Shield Balloon)."
+model_path = "res://resources/models/cluckey_d_puffy/luffy.vox"
+alt_model_path = "res://resources/models/cluckey_d_puffy/luffy5th gear.vox"
+dice_model_path = "res://resources/models/cluckey_d_puffy/fruitdice.vox"
+stand_model_path = ""
+moveset = [ExtResource("2"), ExtResource("3"), ExtResource("4")]
+theme_color = Color(0.9, 0.1, 0.1, 1)

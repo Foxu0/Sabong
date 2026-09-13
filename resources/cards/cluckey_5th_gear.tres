@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "cluckey_5th_gear"
+display_name = "5th Gear"
+card_type = 4
+is_universal = false
+character_id = "cluckey_d_puffy"
+taya_cost = 2
+is_variable_cost = false
+dice_requirement = 4
+base_value = 0
+value_per_taya = 0
+self_damage = 0
+usage_gate = 1
+required_state = "tension_ge_5"
+effect_text = "Awakens 5th Gear: Gum Slash deals 7 DMG (50% Shield Pierce) & Gum Barrier gives 6 Shield."
+art_path = "res://resources/cards/5thGear.png"
+vfx_type = "golden"

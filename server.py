@@ -29,12 +29,20 @@ from typing import Optional
 import websockets
 from websockets.server import WebSocketServerProtocol
 
+try:
+    from db_manager import db
+except ImportError:
+    try:
+        from scripts.db_manager import db
+    except ImportError:
+        db = None
+
 # Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("sabong-relay")
 
 # Config
-PORT = int(os.environ.get("PORT", 10000))
+PORT = int(os.environ.get("PORT", 10005))
 ROOM_CODE_LENGTH = 4
 ROOM_TIMEOUT_SECS = 300
 
@@ -52,23 +60,35 @@ def _extract_client_ip(ws: WebSocketServerProtocol) -> str:
 
 # Room Registry
 class Room:
-    def __init__(self, code: str, host_name: str, host_public_ip: str = "", host_local_ip: str = "", host_port: int = 7777):
+    def __init__(self, code: str, host_name: str, host_public_ip: str = "", host_local_ip: str = "", host_port: int = 7777, mode: str = "duel", max_players: int = 2):
         self.code = code
         self.host_name = host_name
         self.host_public_ip = host_public_ip
         self.host_local_ip = host_local_ip
         self.host_port = host_port
+        self.mode = mode  # "duel" or "tournament"
+        self.max_players = max_players
         self.created_at = time.time()
         self.host_ws: Optional[WebSocketServerProtocol] = None
-        self.client_ws: Optional[WebSocketServerProtocol] = None
+        self.clients: list[WebSocketServerProtocol] = []
         self.started = False
         self.closed = False
 
     def is_open(self) -> bool:
-        return self.host_ws is not None and not self.started and not self.closed
+        if self.host_ws is None or self.started or self.closed:
+            return False
+        max_clients = 1 if self.mode == "duel" else max(1, self.max_players - 1)
+        return len(self.clients) < max_clients
 
     def to_dict(self) -> dict:
-        return {"code": self.code, "host_name": self.host_name, "created_at": int(self.created_at)}
+        return {
+            "code": self.code,
+            "host": self.host_name,
+            "mode": self.mode,
+            "current_players": len(self.clients) + (1 if self.host_ws else 0),
+            "max_players": self.max_players,
+            "created_at": int(self.created_at)
+        }
 
 rooms: dict = {}
 
@@ -93,6 +113,16 @@ async def http_handler(path: str, request_headers) -> Optional[tuple]:
         body = json.dumps(open_rooms).encode()
         headers = [("Content-Type", "application/json"), ("Content-Length", str(len(body))), ("Access-Control-Allow-Origin", "*")]
         return (200, headers, body)
+    if path == "/leaderboard" and request_headers.get("upgrade", "").lower() != "websocket":
+        lb = db.get_leaderboard(20) if db else []
+        body = json.dumps(lb, default=str).encode()
+        headers = [("Content-Type", "application/json"), ("Content-Length", str(len(body))), ("Access-Control-Allow-Origin", "*")]
+        return (200, headers, body)
+    if path == "/health" and request_headers.get("upgrade", "").lower() != "websocket":
+        db_ok = db.test_connection() if db else False
+        body = json.dumps({"status": "ok", "database": "connected" if db_ok else "disconnected"}).encode()
+        headers = [("Content-Type", "application/json"), ("Content-Length", str(len(body))), ("Access-Control-Allow-Origin", "*")]
+        return (200, headers, body)
     return None
 
 async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
@@ -111,16 +141,24 @@ async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
             host_name = str(data.get("host_name", "Anonymous"))[:32]
             host_local_ip = str(data.get("local_ip", ""))
             host_port = int(data.get("port", 7777))
+            mode = str(data.get("mode", "duel")).lower()
+            if mode not in ["duel", "tournament"]:
+                mode = "duel"
+            max_players = int(data.get("max_players", 2 if mode == "duel" else 8))
+            max_players = max(2, min(16, max_players))
         except Exception:
             host_name = "Anonymous"
             host_local_ip = ""
             host_port = 7777
+            mode = "duel"
+            max_players = 2
+
         code = _generate_code()
-        room = Room(code, host_name, host_public_ip, host_local_ip, host_port)
+        room = Room(code, host_name, host_public_ip, host_local_ip, host_port, mode, max_players)
         room.host_ws = websocket
         rooms[code] = room
-        log.info("Room %s created by '%s' (pub=%s, local=%s:%d)", code, host_name, host_public_ip, host_local_ip, host_port)
-        await websocket.send(json.dumps({"type": "room_created", "code": code}))
+        log.info("Room %s (%s, max %d) created by '%s' (pub=%s, local=%s:%d)", code, mode, max_players, host_name, host_public_ip, host_local_ip, host_port)
+        await websocket.send(json.dumps({"type": "room_created", "code": code, "mode": mode, "max_players": max_players}))
         await _host_loop(room, websocket)
         return
 
@@ -131,7 +169,7 @@ async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
             await websocket.close(1008, "Room not found")
             return
         room = rooms[code]
-        if room.started or room.closed:
+        if not room.is_open():
             await websocket.send(json.dumps({"type": "error", "msg": "Room already full or closed"}))
             await websocket.close(1008, "Room full")
             return
@@ -150,18 +188,27 @@ async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
             chosen_ip = room.host_public_ip or room.host_local_ip
             log.info("Room %s: client joining from %s -> host at %s", code, client_public_ip, chosen_ip)
 
-        room.client_ws = websocket
-        room.started = True
-        log.info("Room %s: client joined, starting relay", code)
-        await room.host_ws.send(json.dumps({"type": "client_joined", "client_ip": client_public_ip}))
-        await room.client_ws.send(json.dumps({
+        room.clients.append(websocket)
+        if room.mode == "duel":
+            room.started = True
+
+        log.info("Room %s (%s): client %d joined, total clients: %d", code, room.mode, len(room.clients), len(room.clients))
+        await room.host_ws.send(json.dumps({
+            "type": "client_joined",
+            "client_ip": client_public_ip,
+            "client_index": len(room.clients),
+            "total_clients": len(room.clients)
+        }))
+        await websocket.send(json.dumps({
             "type": "host_ready",
             "host_ip": chosen_ip,
             "host_public_ip": room.host_public_ip,
             "host_local_ip": room.host_local_ip,
-            "host_port": room.host_port
+            "host_port": room.host_port,
+            "mode": room.mode,
+            "player_number": len(room.clients) + 1
         }))
-        await _relay_loop(room)
+        await _client_loop(room, websocket)
         return
 
     await websocket.close(1008, "Unknown role")
@@ -169,36 +216,48 @@ async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
 async def _host_loop(room: Room, host_ws: WebSocketServerProtocol) -> None:
     try:
         async for message in host_ws:
-            if room.started and room.client_ws and not room.client_ws.closed:
-                await room.client_ws.send(message)
+            try:
+                data = json.loads(message)
+                if data.get("type") == "start_tournament":
+                    room.started = True
+                    log.info("Room %s: tournament started by host, room locked", room.code)
+            except Exception:
+                pass
+
+            for client_ws in list(room.clients):
+                if not client_ws.closed:
+                    try:
+                        await client_ws.send(message)
+                    except Exception:
+                        pass
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
         log.info("Room %s: host disconnected", room.code)
         room.closed = True
-        if room.client_ws and not room.client_ws.closed:
-            await room.client_ws.send(json.dumps({"type": "host_left"}))
-            await room.client_ws.close()
+        for client_ws in list(room.clients):
+            if not client_ws.closed:
+                try:
+                    await client_ws.send(json.dumps({"type": "host_left"}))
+                    await client_ws.close()
+                except Exception:
+                    pass
 
-async def _relay_loop(room: Room) -> None:
-    host_ws = room.host_ws
-    client_ws = room.client_ws
-
-    async def forward(src, dst, label: str):
-        try:
-            async for message in src:
-                if not dst.closed:
-                    await dst.send(message)
-        except websockets.exceptions.ConnectionClosed:
-            pass
-        finally:
-            log.info("Room %s: %s disconnected", room.code, label)
+async def _client_loop(room: Room, client_ws: WebSocketServerProtocol) -> None:
+    try:
+        async for message in client_ws:
+            if room.host_ws and not room.host_ws.closed:
+                await room.host_ws.send(message)
+    except websockets.exceptions.ConnectionClosed:
+        pass
+    finally:
+        log.info("Room %s: a client disconnected", room.code)
+        if client_ws in room.clients:
+            room.clients.remove(client_ws)
+        if room.host_ws and not room.host_ws.closed:
+            await room.host_ws.send(json.dumps({"type": "client_left", "total_clients": len(room.clients)}))
+        if room.mode == "duel":
             room.closed = True
-            if not dst.closed:
-                await dst.send(json.dumps({"type": f"{label}_left"}))
-                await dst.close()
-
-    await asyncio.gather(forward(host_ws, client_ws, "host"), forward(client_ws, host_ws, "client"))
 
 async def main():
     log.info("Sabong Roosters Relay starting on port %d", PORT)

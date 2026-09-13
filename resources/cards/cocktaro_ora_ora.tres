@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "cocktaro_ora_ora"
+display_name = "Ora Ora"
+card_type = 0
+is_universal = false
+character_id = "cocktaro"
+taya_cost = 1
+is_variable_cost = false
+dice_requirement = 2
+base_value = 3
+value_per_taya = 0
+self_damage = 0
+usage_gate = 0
+required_state = ""
+effect_text = "Rapid pecks dealing 3 damage (+2 if Shield active)."
+art_path = "res://resources/cards/OraOra.png"
+vfx_type = "oraora"

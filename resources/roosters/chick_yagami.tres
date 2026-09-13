@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RoosterData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/RoosterData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/cards/yagami_chick_note.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/cards/yagami_chixecution.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/cards/yagami_ryuks_watch.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+rooster_id = "chick_yagami"
+display_name = "Chick Yagami"
+anime_reference = "Death Note (Light)"
+base_hp = 16
+portrait_path = "res://resources/cards/ChickYagami.png"
+passive_description = "Master of Poop DoT stacks and prediction mindgames."
+model_path = "res://resources/models/chick_yagami/Yagami.vox"
+alt_model_path = "res://resources/models/chick_yagami/ryuk.vox"
+dice_model_path = "res://resources/models/chick_yagami/yagamidice.vox"
+stand_model_path = "res://resources/models/chick_yagami/ryuk.vox"
+moveset = [ExtResource("2"), ExtResource("3"), ExtResource("4")]
+theme_color = Color(0.5, 0.1, 0.7, 1)

@@ -1,0 +1,23 @@
+[remap]
+
+importer="MagicaVoxel.With.Extensions.To.Scene"
+importer_version=4
+type="PackedScene"
+uid="uid://caq6hfw013abw"
+path="res://.godot/imported/yagami book.vox-6a26821c951ba02cf309ddff93933583.scn"
+
+[deps]
+
+source_file="res://resources/models/chick_yagami/yagami book.vox"
+dest_files=["res://.godot/imported/yagami book.vox-6a26821c951ba02cf309ddff93933583.scn"]
+
+[params]
+
+Scale=0.1
+GreedyMeshGenerator=true
+SnapToGround=false
+OriginsToGeometry=false
+ImportAnimation=true
+AnimationFPS=8.0
+AnimationLoop=true
+AnimationAutoplay=false

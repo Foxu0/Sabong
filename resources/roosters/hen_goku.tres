@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RoosterData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/RoosterData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/cards/hen_goku_kamecock.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/cards/hen_goku_kikiriki_barrier.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/cards/hen_goku_golden_form.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+rooster_id = "hen_goku"
+display_name = "Hen-Goku"
+anime_reference = "Dragon Ball (Goku)"
+base_hp = 22
+portrait_path = "res://resources/cards/HengokuCard.png"
+passive_description = "Automatically awakens Golden Form (+3 flat ATK) when at or below 50% HP."
+model_path = "res://resources/models/hen_goku/Cluck Kakarot.vox"
+alt_model_path = "res://resources/models/hen_goku/Golden Cluck Kakarot.vox"
+dice_model_path = "res://resources/models/hen_goku/kakarotdice.vox"
+stand_model_path = ""
+moveset = [ExtResource("2"), ExtResource("3"), ExtResource("4")]
+theme_color = Color(1, 0.5, 0.1, 1)

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "yagami_chick_note"
+display_name = "Chick Note"
+card_type = 3
+is_universal = false
+character_id = "chick_yagami"
+taya_cost = 2
+is_variable_cost = false
+dice_requirement = 2
+base_value = 5
+value_per_taya = 0
+self_damage = 0
+usage_gate = 0
+required_state = ""
+effect_text = "Writes name in Chick Note (+5 Poop DoT stacks)."
+art_path = "res://resources/cards/ChickNote.png"
+vfx_type = "note"

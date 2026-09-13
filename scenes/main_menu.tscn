@@ -1,0 +1,157 @@
+[gd_scene format=3 uid="uid://b036fsoy1kd7j"]
+
+[ext_resource type="PackedScene" uid="uid://b7l6k8t0pyns4" path="res://resources/world/Package/CountrySide_Source.vox" id="1_rcqid"]
+[ext_resource type="PackedScene" uid="uid://caf5movfvglmp" path="res://resources/world/Jublian_Rocky_Pack/Cliff/cliff.vox" id="2_1ajci"]
+[ext_resource type="Texture2D" uid="uid://c3103wle0y8tt" path="res://resources/world/Clouds/Clouds 5/1.png" id="3_7b55j"]
+[ext_resource type="PackedScene" uid="uid://b7tsfmmiluavk" path="res://resources/world/PineFluffy.vox" id="4_5pajh"]
+[ext_resource type="PackedScene" uid="uid://c1uhsqheyvjxv" path="res://resources/models/chick_yagami/Yagami.vox" id="5_j7ex8"]
+[ext_resource type="PackedScene" uid="uid://caq6hfw013abw" path="res://resources/models/chick_yagami/yagami book.vox" id="6_a8gd2"]
+[ext_resource type="PackedScene" uid="uid://bjcq8xgw1smcx" path="res://resources/models/cluckey_d_puffy/luffy.vox" id="7_hstxw"]
+[ext_resource type="PackedScene" uid="uid://bx0kvup38isap" path="res://resources/models/cocktaro/kotaro.vox" id="8_8egab"]
+[ext_resource type="PackedScene" uid="uid://bw466vjqvlt4i" path="res://resources/models/daniel/daniel.vox" id="9_gw5y6"]
+[ext_resource type="PackedScene" uid="uid://73y0qqwomc6m" path="res://resources/models/decluck/Decluck.vox" id="10_svtp6"]
+[ext_resource type="PackedScene" uid="uid://lra5rjsw8bht" path="res://resources/models/nechicko/Nezuko.vox" id="11_1dfpl"]
+[ext_resource type="PackedScene" uid="uid://ccbetf4ivsess" path="res://resources/models/eren_pecker/eren.vox" id="12_qywvv"]
+[ext_resource type="PackedScene" uid="uid://d1x1css1wui4k" path="res://resources/models/hen_goku/Cluck Kakarot.vox" id="13_3wgol"]
+[ext_resource type="Script" uid="uid://bswwjl5ss38fr" path="res://scripts/MainMenu.gd" id="14_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1acrt"]
+albedo_texture = ExtResource("3_7b55j")
+
+[sub_resource type="BoxMesh" id="BoxMesh_vr8o3"]
+size = Vector3(83.794525, 0.001, 36.68882)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_rcqid"]
+sky_top_color = Color(0.12, 0.18, 0.35, 1)
+sky_horizon_color = Color(0.42, 0.52, 0.68, 1)
+sky_curve = 0.09
+ground_bottom_color = Color(0.06, 0.07, 0.09, 1)
+ground_horizon_color = Color(0.28, 0.32, 0.38, 1)
+ground_curve = 0.04
+sun_angle_max = 45.0
+sun_curve = 0.25
+
+[sub_resource type="Sky" id="Sky_arena"]
+sky_material = SubResource("ProceduralSkyMaterial_rcqid")
+
+[sub_resource type="Environment" id="Environment_1ajci"]
+background_mode = 2
+background_energy_multiplier = 0.95
+sky = SubResource("Sky_arena")
+ambient_light_source = 3
+ambient_light_color = Color(0.7, 0.78, 0.92, 1)
+ambient_light_sky_contribution = 0.6
+ambient_light_energy = 0.6
+tonemap_mode = 2
+tonemap_exposure = 1.15
+ssr_enabled = true
+ssr_max_steps = 32
+ssr_depth_tolerance = 0.2
+ssao_enabled = true
+ssao_radius = 1.2
+ssao_intensity = 1.8
+ssil_enabled = true
+ssil_radius = 3.0
+ssil_intensity = 0.6
+glow_enabled = true
+glow_levels/1 = 1.0
+glow_levels/2 = 1.0
+glow_levels/3 = 1.0
+glow_levels/4 = 0.0
+glow_intensity = 0.6
+glow_strength = 1.2
+glow_bloom = 0.15
+glow_blend_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.45, 0.52, 0.65, 1)
+fog_light_energy = 0.15
+fog_sun_scatter = 0.15
+fog_density = 0.002
+fog_aerial_perspective = 0.15
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.003
+volumetric_fog_albedo = Color(0.7, 0.75, 0.88, 1)
+volumetric_fog_gi_inject = 0.25
+volumetric_fog_length = 32.0
+adjustment_enabled = true
+adjustment_brightness = 1.02
+adjustment_contrast = 1.06
+adjustment_saturation = 1.12
+
+[node name="MainMenu" type="Node3D" unique_id=478971938]
+script = ExtResource("14_script")
+
+[node name="CountrySide_Source" parent="." unique_id=2146500794 instance=ExtResource("1_rcqid")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0010375977, -0.16051292, -3.5092745)
+
+[node name="wall" parent="." unique_id=322638885 instance=ExtResource("2_1ajci")]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -15, -2.197, -7.736)
+metadata/_edit_lock_ = true
+
+[node name="cliff" parent="wall" unique_id=1989422701 instance=ExtResource("2_1ajci")]
+transform = Transform3D(-0.31895927, 0, 0.94776845, 0, 1, 0, -0.94776845, 0, -0.31895927, 7.27356, 0.04759729, 6.7133102)
+
+[node name="cliff3" parent="wall" unique_id=1625224811 instance=ExtResource("2_1ajci")]
+transform = Transform3D(0.6984153, 0, 0.71569276, 0, 1, 0, -0.71569276, 0, 0.6984153, 2.9949656, 0, 4.4804826)
+
+[node name="wall2" parent="wall" unique_id=260931750 instance=ExtResource("2_1ajci")]
+transform = Transform3D(-0.98728025, 0, 0.15980949, 0, 1, 0, -0.15898961, 0, -0.99237144, 14.4604, 0, 7.0959997)
+
+[node name="cliff3" parent="wall/wall2" unique_id=1616681135 instance=ExtResource("2_1ajci")]
+transform = Transform3D(0.69080216, 0, 0.72304416, 0, 1, 0, -0.72304404, 0, 0.690802, 2.1871128, 0.6028079, 6.3575225)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1236534832]
+transform = Transform3D(0.84531844, -0.5253491, 0.09718689, 0.017512396, 0.2090566, 0.9777469, -0.53397566, -0.82480514, 0.1859195, 8.673662, 12.410266, 14.237104)
+material_override = SubResource("StandardMaterial3D_1acrt")
+mesh = SubResource("BoxMesh_vr8o3")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=840895806]
+transform = Transform3D(-0.82658994, 0.090466596, -0.55548614, 0, 0.9869964, 0.16074245, 0.56280464, 0.1328681, -0.8158413, -0.99738693, 2.2780643, -5.168497)
+
+[node name="Camera3D2" type="Camera3D" parent="." unique_id=1851165890]
+transform = Transform3D(-0.4027508, 0.14712916, -0.9034073, 0, 0.98699635, 0.1607425, 0.91530967, 0.064739175, -0.39751357, -1.6126633, 1.8959403, -0.54273796)
+
+[node name="PineFluffy" parent="." unique_id=115982696 instance=ExtResource("4_5pajh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6440786, 4.6232867, 8.553807)
+
+[node name="PineFluffy2" parent="." unique_id=1088128466 instance=ExtResource("4_5pajh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.110171, 4.6232867, 8.553807)
+
+[node name="PineFluffy3" parent="." unique_id=858796844 instance=ExtResource("4_5pajh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.110171, 0.5149777, -3.4169626)
+
+[node name="Yagami" parent="." unique_id=1002810713 instance=ExtResource("5_j7ex8")]
+transform = Transform3D(-0.3832438, 0, -0.11456089, 0, 0.4, 0, 0.11456089, 0, -0.3832438, 3.1249814, 1.1279051, -1.4460983)
+
+[node name="yagami book" parent="." unique_id=931542351 instance=ExtResource("6_a8gd2")]
+transform = Transform3D(0.016809916, 0, 0.2995287, 0, 0.29999998, 0, -0.2995287, 0, 0.016809916, 3.2795136, 1.1212711, -1.5095218)
+
+[node name="luffy" parent="." unique_id=185635236 instance=ExtResource("7_hstxw")]
+transform = Transform3D(-0.12404521, 0, -0.2731534, 0, 0.29999998, 0, 0.2731534, 0, -0.12404521, 1.7531786, 2.2387397, -1.2974122)
+
+[node name="kotaro" parent="." unique_id=1740735317 instance=ExtResource("8_8egab")]
+transform = Transform3D(-0.29988405, 0, -0.008339152, 0, 0.29999998, 0, 0.008339152, 0, -0.29988405, 2.2919674, 4.040659, -1.4393071)
+
+[node name="daniel" parent="." unique_id=1889782877 instance=ExtResource("9_gw5y6")]
+transform = Transform3D(-0.0006968081, 0, -0.2999991, 0, 0.29999995, 0, 0.2999991, 0, -0.0006968081, 0.25054437, 0.9435346, -0.7419795)
+
+[node name="Decluck" parent="." unique_id=1792492467 instance=ExtResource("10_svtp6")]
+transform = Transform3D(-0.2943723, 0, -0.057835437, 0, 0.29999995, 0, 0.057835437, 0, -0.2943723, 1.0927336, 0.5380771, -1.1173856)
+
+[node name="Nezuko" parent="." unique_id=792640500 instance=ExtResource("11_1dfpl")]
+transform = Transform3D(-0.05763121, 0, -0.29441234, 0, 0.29999998, 0, 0.29441234, 0, -0.05763121, 1.9391742, 0.7422576, -3.4687161)
+
+[node name="eren" parent="." unique_id=262231313 instance=ExtResource("12_qywvv")]
+transform = Transform3D(-0.13131477, 0, -0.269734, 0, 0.29999998, 0, 0.269734, 0, -0.13131477, 0.5113772, 2.2334762, 2.487492)
+
+[node name="Cluck Kakarot" parent="." unique_id=599034359 instance=ExtResource("13_3wgol")]
+transform = Transform3D(0.09254688, 0, -0.28536832, 0, 0.29999998, 0, 0.28536832, 0, 0.09254688, 7.7174444, 3.0015562, -3.4036427)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=150712479]
+environment = SubResource("Environment_1ajci")
+
+[node name="DirectionalLight3D2" type="DirectionalLight3D" parent="WorldEnvironment" unique_id=1626924867]
+transform = Transform3D(0.9914449, 0.10971596, 0.07070709, 0, -0.541708, 0.8405667, 0.1305262, -0.83337545, -0.5370737, 0, 5.8807387, 0)
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 1.25
+shadow_enabled = true

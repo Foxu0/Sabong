@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RoosterData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/RoosterData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/cards/decluck_all_for_one_punch.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/cards/decluck_all_for_one_heart.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/cards/decluck_all_for_one_cock.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+rooster_id = "decluck"
+display_name = "Decluck"
+anime_reference = "My Hero Academia (Deku)"
+base_hp = 20
+portrait_path = "res://resources/cards/Decluck.png"
+passive_description = "Variable Taya user. 2x power during All For One Cock."
+model_path = "res://resources/models/decluck/Decluck.vox"
+alt_model_path = "res://resources/models/decluck/Decluckpowered.vox"
+dice_model_path = "res://resources/models/decluck/dekudice.vox"
+stand_model_path = ""
+moveset = [ExtResource("2"), ExtResource("3"), ExtResource("4")]
+theme_color = Color(0.2, 0.8, 0.4, 1)

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CardData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+card_id = "nechicko_demon_form"
+display_name = "Demon Form"
+card_type = 4
+is_universal = false
+character_id = "nechicko"
+taya_cost = 3
+is_variable_cost = false
+dice_requirement = 3
+base_value = 0
+value_per_taya = 0
+self_damage = 0
+usage_gate = 0
+required_state = ""
+buff_stat = "heal"
+buff_amount = 2
+buff_duration = 3
+effect_text = "Awakens Demon Form (+2 to all heals for 3 turns)."
+art_path = "res://resources/cards/DemonForm.png"
+vfx_type = "golden"
+

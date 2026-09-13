@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://sim_tourney_client_001"]
+
+[ext_resource type="Script" path="res://tests/sim_tourney_client.gd" id="1_client"]
+
+[node name="SimTourneyClient" type="Node"]
+script = ExtResource("1_client")

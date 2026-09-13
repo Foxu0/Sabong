@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://sim_host_test_scene"]
+
+[ext_resource type="Script" path="res://tests/sim_host_node.gd" id="1_test"]
+
+[node name="SimHost" type="Node"]
+script = ExtResource("1_test")
