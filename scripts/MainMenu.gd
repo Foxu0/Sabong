@@ -13,6 +13,14 @@ var camera_tween: Tween
 var ui_layer: CanvasLayer
 var cam1_container: Control
 var cam2_container: Control
+var cam1_margin: MarginContainer
+var cam2_margin: MarginContainer
+var title_label: Label
+var sub_title_label: Label
+var subtitle_label: Label
+var mode_title: Label
+var ver_label: Label
+var menu_buttons: Array[Button] = []
 var active_modal: Control = null
 
 func _ready() -> void:
@@ -25,6 +33,9 @@ func _ready() -> void:
 
 	_build_menu_ui()
 
+	if not get_viewport().size_changed.is_connected(_on_viewport_size_changed):
+		get_viewport().size_changed.connect(_on_viewport_size_changed)
+
 func _build_menu_ui() -> void:
 	ui_layer = CanvasLayer.new()
 	add_child(ui_layer)
@@ -35,29 +46,38 @@ func _build_menu_ui() -> void:
 	cam1_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(cam1_container)
 
+	cam1_margin = MarginContainer.new()
+	cam1_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cam1_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cam1_container.add_child(cam1_margin)
+
+	var cam1_vbox := VBoxContainer.new()
+	cam1_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cam1_vbox.add_theme_constant_override("separation", 24)
+	cam1_margin.add_child(cam1_vbox)
+
 	# Title Banner & Subtitle
 	var title_box := VBoxContainer.new()
-	title_box.position = Vector2(90, 45)
 	title_box.add_theme_constant_override("separation", 6)
-	cam1_container.add_child(title_box)
+	cam1_vbox.add_child(title_box)
 
 	var title_hbox := HBoxContainer.new()
 	title_hbox.add_theme_constant_override("separation", 18)
 	title_box.add_child(title_hbox)
 
-	var title_label := Label.new()
+	title_label = Label.new()
 	title_label.text = "SABONG LEGENDS:"
 	UIFontStyle.style_title(title_label, 92)
 	title_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	title_hbox.add_child(title_label)
 
-	var sub_title_label := Label.new()
+	sub_title_label = Label.new()
 	sub_title_label.text = "CLUCK COCK"
 	UIFontStyle.style_title(sub_title_label, 92)
 	sub_title_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2))
 	title_hbox.add_child(sub_title_label)
 
-	var subtitle_label := Label.new()
+	subtitle_label = Label.new()
 	subtitle_label.text = "Sloppier version of the 2d one"
 	UIFontStyle.style_body(subtitle_label, 26, true)
 	subtitle_label.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0, 0.95))
@@ -65,36 +85,40 @@ func _build_menu_ui() -> void:
 
 	# Menu Buttons List (Large, bold smooth text buttons)
 	var btn_vbox := VBoxContainer.new()
-	btn_vbox.position = Vector2(90, 230)
-	btn_vbox.custom_minimum_size = Vector2(650, 0)
-	btn_vbox.add_theme_constant_override("separation", 20)
-	cam1_container.add_child(btn_vbox)
+	btn_vbox.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	btn_vbox.add_theme_constant_override("separation", 16)
+	cam1_vbox.add_child(btn_vbox)
 
 	var btn_start := _create_menu_button("START GAME", 46, "swords")
 	btn_start.pressed.connect(_on_start_game_pressed)
 	btn_vbox.add_child(btn_start)
+	menu_buttons.append(btn_start)
 
 	var btn_leader := _create_menu_button("LEADERBOARDS", 46, "trophy")
 	btn_leader.pressed.connect(_open_leaderboard_modal)
 	btn_vbox.add_child(btn_leader)
+	menu_buttons.append(btn_leader)
 
 	var btn_settings := _create_menu_button("SETTINGS", 46, "key")
 	btn_settings.pressed.connect(_open_settings_modal)
 	btn_vbox.add_child(btn_settings)
+	menu_buttons.append(btn_settings)
 
 	var btn_credits := _create_menu_button("CREDITS", 46, "users")
 	btn_credits.pressed.connect(_open_credits_modal)
 	btn_vbox.add_child(btn_credits)
+	menu_buttons.append(btn_credits)
 
 	var btn_exit := _create_menu_button("EXIT", 46, "arrow_left")
 	btn_exit.pressed.connect(func(): get_tree().quit())
 	btn_vbox.add_child(btn_exit)
+	menu_buttons.append(btn_exit)
 
-	# Version Badge
-	var ver_label := Label.new()
+	# Version Badge (Anchored cleanly to PRESET_BOTTOM_LEFT)
+	ver_label = Label.new()
 	ver_label.text = "v1.0.0 • Google DeepMind & Antigravity"
-	ver_label.position = Vector2(90, 750)
-	UIFontStyle.style_body(ver_label, 16)
+	ver_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	UIFontStyle.style_body(ver_label, 15)
 	ver_label.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85, 0.75))
 	cam1_container.add_child(ver_label)
 
@@ -107,12 +131,21 @@ func _build_menu_ui() -> void:
 	cam2_container.modulate.a = 0.0
 	ui_layer.add_child(cam2_container)
 
-	var mode_title_box := VBoxContainer.new()
-	mode_title_box.position = Vector2(90, 45)
-	mode_title_box.add_theme_constant_override("separation", 6)
-	cam2_container.add_child(mode_title_box)
+	cam2_margin = MarginContainer.new()
+	cam2_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cam2_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cam2_container.add_child(cam2_margin)
 
-	var mode_title := Label.new()
+	var cam2_vbox := VBoxContainer.new()
+	cam2_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cam2_vbox.add_theme_constant_override("separation", 20)
+	cam2_margin.add_child(cam2_vbox)
+
+	var mode_title_box := VBoxContainer.new()
+	mode_title_box.add_theme_constant_override("separation", 6)
+	cam2_vbox.add_child(mode_title_box)
+
+	mode_title = Label.new()
 	mode_title.text = "CHOOSE GAME MODE"
 	UIFontStyle.style_title(mode_title, 84)
 	mode_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
@@ -120,16 +153,16 @@ func _build_menu_ui() -> void:
 
 	var mode_subtitle := Label.new()
 	mode_subtitle.text = "Select your battlefield challenge"
+	mode_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UIFontStyle.style_body(mode_subtitle, 26, true)
 	mode_subtitle.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0, 0.9))
 	mode_title_box.add_child(mode_subtitle)
 
 	# Menu Buttons List (Exact same bold, flat style as the main menu)
 	var mode_vbox := VBoxContainer.new()
-	mode_vbox.position = Vector2(90, 220)
-	mode_vbox.custom_minimum_size = Vector2(850, 0)
-	mode_vbox.add_theme_constant_override("separation", 20)
-	cam2_container.add_child(mode_vbox)
+	mode_vbox.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	mode_vbox.add_theme_constant_override("separation", 16)
+	cam2_vbox.add_child(mode_vbox)
 
 	var default_hint := "Select your battlefield challenge"
 
@@ -140,6 +173,7 @@ func _build_menu_ui() -> void:
 	btn_online.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_online.pressed.connect(func(): _launch_game_mode(GameManager.GameMode.TOURNAMENT_ONLINE))
 	mode_vbox.add_child(btn_online)
+	menu_buttons.append(btn_online)
 
 	var btn_casual := _create_menu_button("CASUAL (TOURNAMENT WITH BOTS)", 44, "trophy")
 	btn_casual.mouse_entered.connect(func():
@@ -148,6 +182,7 @@ func _build_menu_ui() -> void:
 	btn_casual.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_casual.pressed.connect(func(): _launch_game_mode(GameManager.GameMode.CASUAL_BOTS))
 	mode_vbox.add_child(btn_casual)
+	menu_buttons.append(btn_casual)
 
 	var btn_1v1 := _create_menu_button("1V1 QUICK DUEL", 44, "swords")
 	btn_1v1.mouse_entered.connect(func():
@@ -156,6 +191,7 @@ func _build_menu_ui() -> void:
 	btn_1v1.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_1v1.pressed.connect(func(): _launch_game_mode(GameManager.GameMode.VERSUS_1V1))
 	mode_vbox.add_child(btn_1v1)
+	menu_buttons.append(btn_1v1)
 
 	var btn_tutorial := _create_menu_button("TUTORIAL (TRAINING GROUND)", 44, "shield")
 	btn_tutorial.mouse_entered.connect(func():
@@ -164,6 +200,7 @@ func _build_menu_ui() -> void:
 	btn_tutorial.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_tutorial.pressed.connect(func(): _launch_game_mode(GameManager.GameMode.TUTORIAL))
 	mode_vbox.add_child(btn_tutorial)
+	menu_buttons.append(btn_tutorial)
 
 	var btn_back := _create_menu_button("BACK TO MAIN MENU", 44, "arrow_left")
 	btn_back.mouse_entered.connect(func():
@@ -172,6 +209,9 @@ func _build_menu_ui() -> void:
 	btn_back.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_back.pressed.connect(_on_back_to_menu_pressed)
 	mode_vbox.add_child(btn_back)
+	menu_buttons.append(btn_back)
+
+	_update_responsive_layout()
 
 
 func _create_menu_button(label_text: String, font_sz: int = 46, icon_name: String = "") -> Button:
@@ -184,7 +224,7 @@ func _create_menu_button(label_text: String, font_sz: int = 46, icon_name: Strin
 		btn.add_theme_color_override("icon_hover_color", Color(1.0, 0.85, 0.2))
 		btn.add_theme_color_override("icon_pressed_color", Color(0.9, 0.7, 0.1))
 	btn.flat = true
-	btn.custom_minimum_size = Vector2(850, 64)
+	btn.custom_minimum_size = Vector2(0, 56)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	UIFontStyle.style_button(btn, font_sz)
@@ -195,6 +235,51 @@ func _create_menu_button(label_text: String, font_sz: int = 46, icon_name: Strin
 	btn.add_theme_stylebox_override("pressed", empty_style)
 	btn.add_theme_stylebox_override("focus", empty_style)
 	return btn
+
+
+func _on_viewport_size_changed() -> void:
+	_update_responsive_layout()
+
+
+func _update_responsive_layout() -> void:
+	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
+	var margin_x: float = clampf(vp_size.x * 0.055, 48.0, 140.0)
+	var margin_y: float = clampf(vp_size.y * 0.045, 28.0, 60.0)
+
+	var title_sz: int = int(clampf(vp_size.x * 0.046, 40.0, 88.0))
+	var sub_sz: int = int(clampf(vp_size.x * 0.015, 18.0, 26.0))
+	var btn_sz: int = int(clampf(vp_size.y * 0.042, 26.0, 44.0))
+
+	if is_instance_valid(cam1_margin):
+		cam1_margin.add_theme_constant_override("margin_left", int(margin_x))
+		cam1_margin.add_theme_constant_override("margin_top", int(margin_y))
+		cam1_margin.add_theme_constant_override("margin_bottom", int(margin_y))
+		cam1_margin.add_theme_constant_override("margin_right", int(margin_x))
+
+	if is_instance_valid(cam2_margin):
+		cam2_margin.add_theme_constant_override("margin_left", int(margin_x))
+		cam2_margin.add_theme_constant_override("margin_top", int(margin_y))
+		cam2_margin.add_theme_constant_override("margin_bottom", int(margin_y))
+		cam2_margin.add_theme_constant_override("margin_right", int(margin_x))
+
+	if is_instance_valid(title_label):
+		UIFontStyle.style_title(title_label, title_sz)
+	if is_instance_valid(sub_title_label):
+		UIFontStyle.style_title(sub_title_label, title_sz)
+	if is_instance_valid(subtitle_label):
+		UIFontStyle.style_body(subtitle_label, sub_sz, true)
+	if is_instance_valid(mode_title):
+		UIFontStyle.style_title(mode_title, int(title_sz * 0.90))
+
+	for btn in menu_buttons:
+		if is_instance_valid(btn):
+			UIFontStyle.style_button(btn, btn_sz)
+
+	if is_instance_valid(ver_label):
+		ver_label.offset_left = margin_x
+		ver_label.offset_bottom = -22.0
+		ver_label.offset_top = -52.0
+		ver_label.offset_right = margin_x + 450.0
 
 
 # ---------------------------------------------------------------------------
@@ -330,8 +415,11 @@ func _create_modal_base(title: String, width: float = 640, height: float = 520) 
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.add_child(center)
 	
+	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
+	var final_w: float = minf(width, vp_size.x - 48.0)
+	var final_h: float = minf(height, vp_size.y - 48.0)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(width, height)
+	panel.custom_minimum_size = Vector2(final_w, final_h)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.10, 0.16, 0.95)
 	style.border_color = Color.GOLD

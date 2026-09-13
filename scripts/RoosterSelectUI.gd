@@ -49,28 +49,48 @@ func _build_ui() -> void:
 	bg.color = Color(0.05, 0.05, 0.09, 0.96)
 	add_child(bg)
 
+	var main_margin := MarginContainer.new()
+	main_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main_margin.add_theme_constant_override("margin_left", 48)
+	main_margin.add_theme_constant_override("margin_right", 48)
+	main_margin.add_theme_constant_override("margin_top", 24)
+	main_margin.add_theme_constant_override("margin_bottom", 24)
+	add_child(main_margin)
+
+	var root_vbox := VBoxContainer.new()
+	root_vbox.add_theme_constant_override("separation", 16)
+	main_margin.add_child(root_vbox)
+
 	var title: Label = Label.new()
 	title.text = "CHOOSE YOUR ROOSTER CHAMPION"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(0, 20)
-	title.size = Vector2(1280, 48)
-	UIFontStyle.style_title(title, 24)
+	UIFontStyle.style_title(title, 32)
 	title.add_theme_color_override("font_color", Color.GOLD)
-	add_child(title)
+	root_vbox.add_child(title)
+
+	var center_content := HBoxContainer.new()
+	center_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center_content.add_theme_constant_override("separation", 28)
+	root_vbox.add_child(center_content)
 
 	# Character Grid (Left side)
+	var grid_scroll := ScrollContainer.new()
+	grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center_content.add_child(grid_scroll)
+
 	var grid: GridContainer = GridContainer.new()
 	grid.columns = 4
-	grid.position = Vector2(50, 85)
-	grid.add_theme_constant_override("h_separation", 16)
-	grid.add_theme_constant_override("v_separation", 16)
-	add_child(grid)
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	grid_scroll.add_child(grid)
 
 	buttons.clear()
 	for r in roosters:
 		var card_btn: Button = Button.new()
-		card_btn.custom_minimum_size = Vector2(145, 215)
+		card_btn.custom_minimum_size = Vector2(140, 200)
 		card_btn.text = ""
+		card_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		if r.portrait_path != "" and ResourceLoader.exists(r.portrait_path):
 			card_btn.icon = load(r.portrait_path)
 			card_btn.expand_icon = true
@@ -82,69 +102,58 @@ func _build_ui() -> void:
 
 	# Info Details Panel (Right side)
 	var info_panel: PanelContainer = PanelContainer.new()
-	info_panel.position = Vector2(710, 85)
-	info_panel.custom_minimum_size = Vector2(520, 520)
+	info_panel.custom_minimum_size = Vector2(480, 0)
+	info_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var p_style := StyleBoxFlat.new()
 	p_style.bg_color = Color(0.08, 0.08, 0.14, 0.9)
 	p_style.border_color = Color.GOLD
 	p_style.set_border_width_all(2)
 	p_style.set_corner_radius_all(10)
-	p_style.content_margin_left = 20
-	p_style.content_margin_right = 20
-	p_style.content_margin_top = 18
-	p_style.content_margin_bottom = 18
+	p_style.content_margin_left = 24
+	p_style.content_margin_right = 24
+	p_style.content_margin_top = 20
+	p_style.content_margin_bottom = 20
 	info_panel.add_theme_stylebox_override("panel", p_style)
-	add_child(info_panel)
+	center_content.add_child(info_panel)
 
 	var info_vbox: VBoxContainer = VBoxContainer.new()
 	info_vbox.add_theme_constant_override("separation", 12)
 	info_panel.add_child(info_vbox)
 
 	name_label = Label.new()
-	UIFontStyle.style_title(name_label, 20)
+	UIFontStyle.style_title(name_label, 26)
 	name_label.add_theme_color_override("font_color", Color.GOLD)
 	info_vbox.add_child(name_label)
 
 	anime_label = Label.new()
-	UIFontStyle.style_body(anime_label, 14, true)
+	UIFontStyle.style_body(anime_label, 16, true)
 	anime_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
 	info_vbox.add_child(anime_label)
 
 	hp_label = Label.new()
-	UIFontStyle.style_subheading(hp_label, 18)
+	UIFontStyle.style_subheading(hp_label, 20)
 	hp_label.add_theme_color_override("font_color", Color.GREEN_YELLOW)
 	info_vbox.add_child(hp_label)
 
 	desc_label = Label.new()
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UIFontStyle.style_body(desc_label, 13)
+	UIFontStyle.style_body(desc_label, 14)
 	info_vbox.add_child(desc_label)
 
 	moves_label = Label.new()
 	moves_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UIFontStyle.style_body(moves_label, 13, true)
+	UIFontStyle.style_body(moves_label, 14, true)
 	moves_label.add_theme_color_override("font_color", Color.CYAN)
 	info_vbox.add_child(moves_label)
 
-	# Start Battle Button
-	var start_btn: Button = Button.new()
-	start_btn.text = "ENTER SABONG ARENA"
-	start_btn.custom_minimum_size = Vector2(280, 56)
-	start_btn.position = Vector2(830, 625)
-	var btn_style := StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.85, 0.2, 0.2, 1.0)
-	btn_style.set_corner_radius_all(8)
-	start_btn.add_theme_stylebox_override("normal", btn_style)
-	UIFontStyle.style_button(start_btn, 18)
-	start_btn.pressed.connect(_on_start_battle_pressed)
-	add_child(start_btn)
+	var bottom_row := HBoxContainer.new()
+	bottom_row.add_theme_constant_override("separation", 24)
+	root_vbox.add_child(bottom_row)
 
-	# Back Button
 	var back_btn: Button = Button.new()
 	back_btn.text = "BACK"
-	back_btn.custom_minimum_size = Vector2(120, 42)
-	back_btn.position = Vector2(50, 635)
-	UIFontStyle.style_button(back_btn, 16)
+	back_btn.custom_minimum_size = Vector2(160, 48)
+	UIFontStyle.style_button(back_btn, 18)
 	back_btn.pressed.connect(func():
 		var gm := get_node_or_null("/root/GameManager")
 		if gm and gm.has_method("change_scene"):
@@ -152,7 +161,22 @@ func _build_ui() -> void:
 		else:
 			get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 	)
-	add_child(back_btn)
+	bottom_row.add_child(back_btn)
+
+	var b_spacer := Control.new()
+	b_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom_row.add_child(b_spacer)
+
+	var start_btn: Button = Button.new()
+	start_btn.text = "ENTER SABONG ARENA"
+	start_btn.custom_minimum_size = Vector2(280, 48)
+	var btn_style := StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.85, 0.2, 0.2, 1.0)
+	btn_style.set_corner_radius_all(8)
+	start_btn.add_theme_stylebox_override("normal", btn_style)
+	UIFontStyle.style_button(start_btn, 18)
+	start_btn.pressed.connect(_on_start_battle_pressed)
+	bottom_row.add_child(start_btn)
 
 func _on_rooster_card_clicked(r: RoosterData) -> void:
 	p1_selected = r

@@ -22,6 +22,9 @@ var anime_label: Label
 var roster_buttons: Array[Button] = []
 var card_rest_positions: Array[Vector2] = []
 var card_rest_rotations: Array[float] = []
+var current_card_scale: float = 1.0
+var roster_layer: Control = null
+var top_margin: MarginContainer = null
 
 # 3D Name Stadium Banner (Arena phase notif style behind the rooster)
 var name_banner_3d: Node3D = null
@@ -56,6 +59,9 @@ func _ready() -> void:
 	_setup_3d_name_banner()
 	_build_select_ui()
 	_spawn_initial_rooster(roosters[current_index])
+
+	if not get_viewport().size_changed.is_connected(_on_viewport_size_changed):
+		get_viewport().size_changed.connect(_on_viewport_size_changed)
 
 func _spawn_initial_rooster(r: RoosterData) -> void:
 	if not rooster_anchor:
@@ -189,8 +195,8 @@ func _highlight_active_roster_button() -> void:
 		if is_sel:
 			if style:
 				style.border_color = Color.GOLD
-				style.set_border_width_all(4)
-				style.shadow_size = 28
+				style.set_border_width_all(int(maxf(2.0, 4.0 * current_card_scale)))
+				style.shadow_size = int(28.0 * current_card_scale)
 				style.shadow_color = Color(1.0, 0.85, 0.2, 0.85)
 			btn.z_index = 20
 			# Only golden champion glow — stays at standard 1.0 scale matching the fanned lineup
@@ -1094,13 +1100,21 @@ func _build_select_ui() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(root)
 
-	# --- Top Header Bar ---
+	# --- Top Header Bar (Responsive Anchor to TOP_WIDE) ---
+	top_margin = MarginContainer.new()
+	top_margin.name = "TopBarMargin"
+	top_margin.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_margin.add_theme_constant_override("margin_left", 40)
+	top_margin.add_theme_constant_override("margin_right", 40)
+	top_margin.add_theme_constant_override("margin_top", 24)
+	top_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(top_margin)
+
 	var top_bar := HBoxContainer.new()
-	top_bar.position = Vector2(40, 24)
-	top_bar.custom_minimum_size = Vector2(1840, 68)
+	top_bar.custom_minimum_size = Vector2(0, 68)
 	top_bar.add_theme_constant_override("separation", 24)
 	top_bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	root.add_child(top_bar)
+	top_margin.add_child(top_bar)
 
 	var btn_back := Button.new()
 	btn_back.text = "MAIN MENU"
@@ -1170,44 +1184,20 @@ func _build_select_ui() -> void:
 	fight_btn.pressed.connect(_confirm_and_start_battle)
 	top_bar.add_child(fight_btn)
 
-
-	# --- Bottom Roster Selection Cards: Large Fanned Overlapping Deck Lineup (300x420 px) ---
-	var roster_layer := Control.new()
+	# --- Bottom Roster Selection Cards: Dynamically Scaled & Centered Deck Lineup ---
+	roster_layer = Control.new()
 	roster_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	roster_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(roster_layer)
 
 	var total_cards := roosters.size()
-	var mid: float = float(total_cards - 1) * 0.5
-	var card_w: float = 300.0
-	var card_h: float = 420.0
-	var step_x: float = 160.0
-	var center_x: float = 1920.0 * 0.5
-	var base_y: float = 1080.0 - card_h - 40.0 # 620.0 (40px clean breathing room above screen bottom)
-
-	card_rest_positions.clear()
-	card_rest_rotations.clear()
 	roster_buttons.clear()
 
 	for i in range(total_cards):
 		var r: RoosterData = roosters[i]
-		var offset: float = float(i) - mid
-		var rx: float = center_x + offset * step_x - (card_w * 0.5)
-		var ry: float = base_y + abs(offset) * 4.5
-		var rrot: float = offset * 2.0
-		var base_z: int = total_cards - i
-
-		card_rest_positions.append(Vector2(rx, ry))
-		card_rest_rotations.append(rrot)
-
 		var r_btn := Button.new()
-		r_btn.custom_minimum_size = Vector2(card_w, card_h)
-		r_btn.size = Vector2(card_w, card_h)
-		r_btn.position = Vector2(rx, ry)
-		r_btn.rotation_degrees = rrot
-		r_btn.pivot_offset = Vector2(card_w * 0.5, card_h * 0.5)
-		r_btn.z_index = base_z
 		r_btn.text = ""
+		r_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		
 		if r.portrait_path != "" and ResourceLoader.exists(r.portrait_path):
 			r_btn.icon = load(r.portrait_path)
@@ -1231,27 +1221,86 @@ func _build_select_ui() -> void:
 		# Smooth hover fan lift (temporarily raises card to inspect, then settles back flush into the fan)
 		r_btn.mouse_entered.connect(func():
 			r_btn.z_index = 35
+			var rest_y: float = card_rest_positions[i].y if i < card_rest_positions.size() else r_btn.position.y
+			var rest_rot: float = card_rest_rotations[i] if i < card_rest_rotations.size() else r_btn.rotation_degrees
+			var lift: float = 45.0 * current_card_scale
 			var tw := r_btn.create_tween()
 			if tw:
 				tw.set_parallel(true)
-				tw.tween_property(r_btn, "position:y", ry - 45.0, 0.12).set_trans(Tween.TRANS_QUAD)
-				tw.tween_property(r_btn, "rotation_degrees", rrot * 0.3, 0.12)
+				tw.tween_property(r_btn, "position:y", rest_y - lift, 0.12).set_trans(Tween.TRANS_QUAD)
+				tw.tween_property(r_btn, "rotation_degrees", rest_rot * 0.3, 0.12)
 				tw.tween_property(r_btn, "scale", Vector2(1.06, 1.06), 0.12)
 		)
 		r_btn.mouse_exited.connect(func():
 			var is_sel: bool = (current_index == i)
 			r_btn.z_index = 20 if is_sel else (total_cards - i)
+			var rest_y: float = card_rest_positions[i].y if i < card_rest_positions.size() else r_btn.position.y
+			var rest_rot: float = card_rest_rotations[i] if i < card_rest_rotations.size() else r_btn.rotation_degrees
 			var tw := r_btn.create_tween()
 			if tw:
 				tw.set_parallel(true)
-				tw.tween_property(r_btn, "position:y", ry, 0.12).set_trans(Tween.TRANS_QUAD)
-				tw.tween_property(r_btn, "rotation_degrees", rrot, 0.12)
+				tw.tween_property(r_btn, "position:y", rest_y, 0.12).set_trans(Tween.TRANS_QUAD)
+				tw.tween_property(r_btn, "rotation_degrees", rest_rot, 0.12)
 				tw.tween_property(r_btn, "scale", Vector2.ONE, 0.12)
 		)
 		
 		r_btn.pressed.connect(_on_roster_card_clicked.bind(i))
 		roster_layer.add_child(r_btn)
 		roster_buttons.append(r_btn)
+
+	_update_card_layout()
+
+func _on_viewport_size_changed() -> void:
+	_update_card_layout()
+	_highlight_active_roster_button()
+
+func _update_card_layout() -> void:
+	var total_cards := roster_buttons.size()
+	if total_cards == 0:
+		return
+
+	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
+	var mid: float = float(total_cards - 1) * 0.5
+	var card_w_base: float = 300.0
+	var card_h_base: float = 420.0
+	var step_x_base: float = 160.0
+
+	# Calculate responsive scale factor so cards never overflow horizontal or vertical space
+	var total_span_base: float = (float(total_cards - 1) * step_x_base) + card_w_base # 1420px
+	var available_w: float = vp_size.x - 64.0
+	var scale_w: float = clampf(available_w / total_span_base, 0.38, 1.0)
+	
+	var max_allowed_h: float = vp_size.y * 0.40
+	var scale_h: float = clampf(max_allowed_h / card_h_base, 0.38, 1.0)
+	
+	current_card_scale = minf(scale_w, scale_h)
+
+	var card_w: float = card_w_base * current_card_scale
+	var card_h: float = card_h_base * current_card_scale
+	var step_x: float = step_x_base * current_card_scale
+	var center_x: float = vp_size.x * 0.5
+	var base_y: float = vp_size.y - card_h - (36.0 * current_card_scale)
+
+	card_rest_positions.clear()
+	card_rest_rotations.clear()
+
+	for i in range(total_cards):
+		var offset: float = float(i) - mid
+		var rx: float = center_x + offset * step_x - (card_w * 0.5)
+		var ry: float = base_y + abs(offset) * (4.5 * current_card_scale)
+		var rrot: float = offset * 2.0
+		var base_z: int = total_cards - i
+
+		card_rest_positions.append(Vector2(rx, ry))
+		card_rest_rotations.append(rrot)
+
+		var r_btn: Button = roster_buttons[i]
+		r_btn.custom_minimum_size = Vector2(card_w, card_h)
+		r_btn.size = Vector2(card_w, card_h)
+		r_btn.pivot_offset = Vector2(card_w * 0.5, card_h * 0.5)
+		r_btn.z_index = 20 if i == current_index else base_z
+		r_btn.position = Vector2(rx, ry)
+		r_btn.rotation_degrees = rrot
 
 func _confirm_and_start_battle() -> void:
 	if is_transitioning:
