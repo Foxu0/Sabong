@@ -36,6 +36,10 @@ func _ready() -> void:
 	if not get_viewport().size_changed.is_connected(_on_viewport_size_changed):
 		get_viewport().size_changed.connect(_on_viewport_size_changed)
 
+	var mm = get_node_or_null("/root/MusicManager")
+	if mm and mm.has_method("play_menu_theme"):
+		mm.play_menu_theme()
+
 func _build_menu_ui() -> void:
 	ui_layer = CanvasLayer.new()
 	add_child(ui_layer)
@@ -514,7 +518,7 @@ func _open_leaderboard_modal() -> void:
 		vbox.add_child(row)
 
 func _open_settings_modal() -> void:
-	var vbox := _create_modal_base("GAME SETTINGS", 780, 560)
+	var vbox := _create_modal_base("GAME SETTINGS", 780, 640)
 	
 	# Master Volume Slider
 	var master_lbl := Label.new()
@@ -529,8 +533,30 @@ func _open_settings_modal() -> void:
 	master_slider.value_changed.connect(func(val: float):
 		GameManager.master_volume = val
 		master_lbl.text = "Master Volume: %d%%" % int(val * 100)
+		var mm = get_node_or_null("/root/MusicManager")
+		if mm and mm.has_method("update_volume"):
+			mm.update_volume()
 	)
 	vbox.add_child(master_slider)
+	
+	# Music Volume Slider
+	var music_lbl := Label.new()
+	music_lbl.text = "Music Volume: %d%%" % int(GameManager.music_volume * 100)
+	UIFontStyle.style_body(music_lbl, 20, true)
+	vbox.add_child(music_lbl)
+	var music_slider := HSlider.new()
+	music_slider.min_value = 0.0
+	music_slider.max_value = 1.0
+	music_slider.step = 0.05
+	music_slider.value = GameManager.music_volume
+	music_slider.value_changed.connect(func(val: float):
+		GameManager.music_volume = val
+		music_lbl.text = "Music Volume: %d%%" % int(val * 100)
+		var mm = get_node_or_null("/root/MusicManager")
+		if mm and mm.has_method("set_volume"):
+			mm.set_volume(val)
+	)
+	vbox.add_child(music_slider)
 	
 	# SFX Volume Slider
 	var sfx_lbl := Label.new()
@@ -547,6 +573,53 @@ func _open_settings_modal() -> void:
 		sfx_lbl.text = "SFX Volume: %d%%" % int(val * 100)
 	)
 	vbox.add_child(sfx_slider)
+	
+	# Music Track Controls (Now Playing / Next / Prev)
+	var track_box := PanelContainer.new()
+	var track_style := StyleBoxFlat.new()
+	track_style.bg_color = Color(0.12, 0.15, 0.22, 0.8)
+	track_style.set_corner_radius_all(8)
+	track_style.content_margin_left = 16
+	track_style.content_margin_right = 16
+	track_style.content_margin_top = 10
+	track_style.content_margin_bottom = 10
+	track_box.add_theme_stylebox_override("panel", track_style)
+	
+	var track_hbox := HBoxContainer.new()
+	track_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	
+	var mm = get_node_or_null("/root/MusicManager")
+	var track_lbl := Label.new()
+	track_lbl.text = "🎵 Track: " + (mm.get_current_track_title() if mm else "Retro Lounge")
+	track_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UIFontStyle.style_body(track_lbl, 18, true)
+	track_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	track_hbox.add_child(track_lbl)
+	
+	var btn_prev := Button.new()
+	btn_prev.text = "⏮ Prev"
+	UIFontStyle.style_button(btn_prev, 16)
+	btn_prev.pressed.connect(func():
+		var m = get_node_or_null("/root/MusicManager")
+		if m and m.has_method("prev_track"):
+			m.prev_track()
+			track_lbl.text = "🎵 Track: " + m.get_current_track_title()
+	)
+	track_hbox.add_child(btn_prev)
+	
+	var btn_next := Button.new()
+	btn_next.text = "Next ⏭"
+	UIFontStyle.style_button(btn_next, 16)
+	btn_next.pressed.connect(func():
+		var m = get_node_or_null("/root/MusicManager")
+		if m and m.has_method("next_track"):
+			m.next_track()
+			track_lbl.text = "🎵 Track: " + m.get_current_track_title()
+	)
+	track_hbox.add_child(btn_next)
+	
+	track_box.add_child(track_hbox)
+	vbox.add_child(track_box)
 	
 	# Fullscreen Toggle
 	var fs_check := CheckBox.new()

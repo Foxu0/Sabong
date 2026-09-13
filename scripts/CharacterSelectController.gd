@@ -60,6 +60,10 @@ func _ready() -> void:
 	_build_select_ui()
 	_spawn_initial_rooster(roosters[current_index])
 
+	var mm = get_node_or_null("/root/MusicManager")
+	if mm and mm.has_method("play_menu_theme"):
+		mm.play_menu_theme()
+
 	if not get_viewport().size_changed.is_connected(_on_viewport_size_changed):
 		get_viewport().size_changed.connect(_on_viewport_size_changed)
 

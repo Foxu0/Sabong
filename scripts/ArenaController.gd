@@ -87,6 +87,10 @@ func _ready() -> void:
 	_setup_table_deck()
 	_setup_bell_interaction()
 
+	var mm = get_node_or_null("/root/MusicManager")
+	if mm and mm.has_method("play_battle_theme"):
+		mm.play_battle_theme()
+
 func _exit_tree() -> void:
 	DiceRoller3D.clear_active_dice(false)
 	if camera_tween and camera_tween.is_valid():

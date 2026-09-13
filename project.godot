@@ -23,6 +23,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 GameManager="*res://scripts/GameManager.gd"
 TournamentManager="*res://scripts/TournamentManager.gd"
 NetworkManager="*res://scripts/NetworkManager.gd"
+MusicManager="*res://scripts/MusicManager.gd"
 
 [display]
 

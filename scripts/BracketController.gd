@@ -40,6 +40,10 @@ func _ready() -> void:
 	_build_ui()
 	_render_bracket()
 
+	var mm = get_node_or_null("/root/MusicManager")
+	if mm and mm.has_method("play_tournament_theme"):
+		mm.play_tournament_theme()
+
 	TournamentManager.tournament_state_changed.connect(_on_tournament_state_changed)
 	TournamentManager.tournament_finished.connect(_on_tournament_finished)
 

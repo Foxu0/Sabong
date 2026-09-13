@@ -64,6 +64,9 @@ func get_rooster_by_id(rooster_id: String) -> RoosterData:
 	return null
 
 func change_scene(target_path: String) -> void:
+	var mm = get_node_or_null("/root/MusicManager")
+	if mm and mm.has_method("handle_scene_transition"):
+		mm.handle_scene_transition(target_path)
 	get_tree().change_scene_to_file(target_path)
 
 ## Resets online match state — called when returning to main menu or after forfeit
