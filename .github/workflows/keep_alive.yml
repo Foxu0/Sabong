@@ -2,8 +2,11 @@ name: Render Keep-Alive Ping
 
 on:
   schedule:
-    # Ping every 12 minutes to keep Render service warm (Render spins down after 15m)
-    - cron: '*/12 * * * *'
+    # Ping every 10 minutes to stay well under Render's 15m idle spin-down window
+    - cron: '*/10 * * * *'
+  push:
+    branches:
+      - master
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:
