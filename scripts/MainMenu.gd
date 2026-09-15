@@ -862,6 +862,74 @@ func _start_otp_cooldown(btn: Button, default_text: String, cooldown_secs: int =
 				btn.text = default_text
 	timer.timeout.connect(tick)
 
+func _create_password_input_row(placeholder: String) -> Dictionary:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var edit := LineEdit.new()
+	edit.placeholder_text = placeholder
+	edit.secret = true
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edit.custom_minimum_size = Vector2(0, 44)
+	UIFontStyle.style_line_edit(edit, 16)
+	row.add_child(edit)
+
+	var eye_btn := Button.new()
+	eye_btn.custom_minimum_size = Vector2(46, 44)
+	eye_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var eye_style := StyleBoxFlat.new()
+	eye_style.bg_color = Color(1.0, 1.0, 1.0, 0.08)
+	eye_style.border_color = Color(1.0, 1.0, 1.0, 0.22)
+	eye_style.set_border_width_all(1)
+	eye_style.set_corner_radius_all(6)
+	eye_btn.add_theme_stylebox_override("normal", eye_style)
+	var eye_hover := eye_style.duplicate()
+	eye_hover.bg_color = Color(1.0, 1.0, 1.0, 0.16)
+	eye_hover.border_color = Color(1.0, 1.0, 1.0, 0.40)
+	eye_btn.add_theme_stylebox_override("hover", eye_hover)
+	eye_btn.add_theme_stylebox_override("pressed", eye_hover)
+	eye_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+	var icon_rect := TextureRect.new()
+	icon_rect.texture = UIIcons.get_icon("eye_off", 20)
+	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_rect.modulate = Color(0.75, 0.80, 0.90)
+	eye_btn.add_child(icon_rect)
+
+	var update_eye: Callable
+	update_eye = func():
+		if edit.secret:
+			icon_rect.texture = UIIcons.get_icon("eye_off", 20)
+			icon_rect.modulate = Color(0.75, 0.80, 0.90)
+			eye_btn.tooltip_text = "Show password"
+		else:
+			icon_rect.texture = UIIcons.get_icon("eye", 20)
+			icon_rect.modulate = Color(1.0, 0.85, 0.2)
+			eye_btn.tooltip_text = "Hide password"
+
+	update_eye.call()
+
+	eye_btn.mouse_entered.connect(func():
+		if edit.secret:
+			icon_rect.modulate = Color.WHITE
+		else:
+			icon_rect.modulate = Color(1.0, 0.95, 0.4)
+	)
+	eye_btn.mouse_exited.connect(func():
+		update_eye.call()
+	)
+	eye_btn.pressed.connect(func():
+		edit.secret = not edit.secret
+		update_eye.call()
+	)
+	row.add_child(eye_btn)
+
+	return {"row": row, "edit": edit, "button": eye_btn}
+
 func _open_account_modal(required_banner: String = "", default_tab: String = "register") -> void:
 	var is_logged: bool = AuthManager and AuthManager.is_logged_in
 	var modal_w: float = 980.0 if is_logged else 720.0
@@ -1307,12 +1375,9 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		p_lbl.add_theme_constant_override("outline_size", 0)
 		reg_grid.add_child(p_lbl)
 
-		var reg_pass_edit := LineEdit.new()
-		reg_pass_edit.placeholder_text = "Create a secure password"
-		reg_pass_edit.secret = true
-		reg_pass_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(reg_pass_edit, 16)
-		reg_grid.add_child(reg_pass_edit)
+		var reg_pass_data := _create_password_input_row("Create a secure password")
+		var reg_pass_edit: LineEdit = reg_pass_data["edit"]
+		reg_grid.add_child(reg_pass_data["row"])
 
 		var cp_lbl := Label.new()
 		cp_lbl.text = "CONFIRM PASSWORD *"
@@ -1321,12 +1386,9 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		cp_lbl.add_theme_constant_override("outline_size", 0)
 		reg_grid.add_child(cp_lbl)
 
-		var reg_confirm_edit := LineEdit.new()
-		reg_confirm_edit.placeholder_text = "Re-enter your password"
-		reg_confirm_edit.secret = true
-		reg_confirm_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(reg_confirm_edit, 16)
-		reg_grid.add_child(reg_confirm_edit)
+		var reg_confirm_data := _create_password_input_row("Re-enter your password")
+		var reg_confirm_edit: LineEdit = reg_confirm_data["edit"]
+		reg_grid.add_child(reg_confirm_data["row"])
 
 		var reg_status_lbl := Label.new()
 		reg_status_lbl.text = ""
@@ -1466,12 +1528,9 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		lp_lbl.add_theme_constant_override("outline_size", 0)
 		log_grid.add_child(lp_lbl)
 
-		var log_pass_edit := LineEdit.new()
-		log_pass_edit.placeholder_text = "Your password"
-		log_pass_edit.secret = true
-		log_pass_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(log_pass_edit, 16)
-		log_grid.add_child(log_pass_edit)
+		var log_pass_data := _create_password_input_row("Your password")
+		var log_pass_edit: LineEdit = log_pass_data["edit"]
+		log_grid.add_child(log_pass_data["row"])
 
 		var forgot_row := HBoxContainer.new()
 		forgot_row.alignment = BoxContainer.ALIGNMENT_END
@@ -1601,12 +1660,9 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		fnp_lbl.add_theme_constant_override("outline_size", 0)
 		forgot_grid.add_child(fnp_lbl)
 
-		var forgot_pass_edit := LineEdit.new()
-		forgot_pass_edit.placeholder_text = "Enter your new password"
-		forgot_pass_edit.secret = true
-		forgot_pass_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(forgot_pass_edit, 16)
-		forgot_grid.add_child(forgot_pass_edit)
+		var forgot_pass_data := _create_password_input_row("Enter your new password")
+		var forgot_pass_edit: LineEdit = forgot_pass_data["edit"]
+		forgot_grid.add_child(forgot_pass_data["row"])
 
 		var fcp_lbl := Label.new()
 		fcp_lbl.text = "CONFIRM NEW PASSWORD *"
@@ -1615,12 +1671,9 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		fcp_lbl.add_theme_constant_override("outline_size", 0)
 		forgot_grid.add_child(fcp_lbl)
 
-		var forgot_confirm_edit := LineEdit.new()
-		forgot_confirm_edit.placeholder_text = "Re-enter your new password"
-		forgot_confirm_edit.secret = true
-		forgot_confirm_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(forgot_confirm_edit, 16)
-		forgot_grid.add_child(forgot_confirm_edit)
+		var forgot_confirm_data := _create_password_input_row("Re-enter your new password")
+		var forgot_confirm_edit: LineEdit = forgot_confirm_data["edit"]
+		forgot_grid.add_child(forgot_confirm_data["row"])
 
 		var forgot_status_lbl := Label.new()
 		forgot_status_lbl.text = ""
