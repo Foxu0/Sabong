@@ -335,6 +335,7 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
         log.info("[AUTH OTP] Generated %s OTP for %s: %s (expires in 10m)", purpose.upper(), email, otp_code)
 
         email_sent = False
+        resend_err_detail = ""
 
         # Priority 1: Resend HTTP REST API (Port 443 - 100% reliable on Render & cloud hosts)
         if RESEND_API_KEY:
@@ -365,7 +366,7 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                     headers={
                         "Authorization": f"Bearer {RESEND_API_KEY}",
                         "Content-Type": "application/json",
-                        "User-Agent": "SabongRoosters/1.0"
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SabongRoosters/1.0"
                     }
                 )
                 with urllib.request.urlopen(resend_req, timeout=8) as res_obj:
@@ -374,6 +375,16 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                         email_sent = True
             except Exception as resend_ex:
                 log.warning("[AUTH OTP] Resend API dispatch failed: %s", resend_ex)
+                if hasattr(resend_ex, "read"):
+                    try:
+                        err_payload = json.loads(resend_ex.read().decode())
+                        msg_str = str(err_payload.get("message", ""))
+                        if "You can only send testing emails" in msg_str:
+                            resend_err_detail = "In Resend test mode, emails can only be sent to your registered email (celluckminecwap@gmail.com). Please check for typos."
+                        else:
+                            resend_err_detail = msg_str
+                    except Exception:
+                        pass
 
         # Priority 2: Direct SMTP (e.g. local desktop or unrestricted networks)
         if not email_sent and SMTP_HOST and SMTP_USER and SMTP_PASS:
@@ -415,7 +426,8 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                 log.error("[AUTH OTP] SMTP dispatch failed: %s", ex)
 
         if not email_sent:
-            return (400, {"success": False, "error": "Unable to send verification email. Please check your email address or try again later."}, 0)
+            err_msg = resend_err_detail or "Could not dispatch verification email. Please check that your email address is correct."
+            return (400, {"success": False, "error": err_msg}, 0)
 
         return (200, {
             "success": True,
@@ -451,14 +463,27 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
         user = str(payload.get("username", "")).strip()
         email = str(payload.get("email", "")).strip().lower()
         pw = str(payload.get("password", ""))
+        otp_code = str(payload.get("otp", "")).strip()
 
         if len(user) < 3:
             return (400, {"success": False, "error": "Username must be at least 3 characters long."}, 0)
+        if not email or "@" not in email or "." not in email:
+            return (400, {"success": False, "error": "A valid email address is required to register."}, 0)
+        if not otp_code:
+            return (400, {"success": False, "error": "Please enter the verification code sent to your email."}, 0)
         if len(pw) < 6:
             return (400, {"success": False, "error": "Password must be at least 6 characters long."}, 0)
 
-        if email and ("@" not in email or "." not in email):
-            return (400, {"success": False, "error": "Please enter a valid email address or leave it blank."}, 0)
+        now = time.time()
+        with _otp_lock:
+            rec = _otp_store.get(email)
+            if not rec or now > rec.get("expires_at", 0):
+                return (400, {"success": False, "error": "Verification code has expired. Please click 'Send Code' to get a new code."}, 0)
+            if rec.get("purpose") != "register":
+                return (400, {"success": False, "error": "Invalid verification code for registration."}, 0)
+            if rec.get("code") != otp_code:
+                return (400, {"success": False, "error": "Incorrect verification code. Please check your email inbox and enter the 6-digit code."}, 0)
+            _otp_store.pop(email, None)
 
         res = db.register_player(user, email, pw)
         if res.get("success"):

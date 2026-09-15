@@ -1223,6 +1223,15 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		tab_btn_reg.pressed.connect(func(): update_tabs.call("register"))
 		tab_btn_log.pressed.connect(func(): update_tabs.call("login"))
 
+		# Shared button styles for OTP send buttons
+		var s_btn_style := StyleBoxFlat.new()
+		s_btn_style.bg_color = Color(1.0, 1.0, 1.0, 0.08)
+		s_btn_style.border_color = Color(1.0, 1.0, 1.0, 0.22)
+		s_btn_style.set_border_width_all(1)
+		s_btn_style.set_corner_radius_all(6)
+		var s_btn_hover := s_btn_style.duplicate()
+		s_btn_hover.bg_color = Color(1.0, 1.0, 1.0, 0.15)
+
 		# --- REGISTER TAB ---
 		var reg_sub := Label.new()
 		reg_sub.text = "Choose your fighter username, verify your email, and receive 500 starter Taya coins in the SILVER tier."
@@ -1248,6 +1257,48 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		reg_user_edit.custom_minimum_size = Vector2(0, 44)
 		UIFontStyle.style_line_edit(reg_user_edit, 16)
 		reg_grid.add_child(reg_user_edit)
+
+		var em_lbl := Label.new()
+		em_lbl.text = "EMAIL ADDRESS (OTP VERIFICATION REQUIRED) *"
+		UIFontStyle.style_body(em_lbl, 13, true)
+		em_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
+		em_lbl.add_theme_constant_override("outline_size", 0)
+		reg_grid.add_child(em_lbl)
+
+		var email_row := HBoxContainer.new()
+		email_row.add_theme_constant_override("separation", 8)
+		reg_grid.add_child(email_row)
+
+		var reg_email_edit := LineEdit.new()
+		reg_email_edit.placeholder_text = "yourname@example.com"
+		reg_email_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		reg_email_edit.custom_minimum_size = Vector2(0, 44)
+		UIFontStyle.style_line_edit(reg_email_edit, 16)
+		email_row.add_child(reg_email_edit)
+
+		var btn_send_reg_otp := Button.new()
+		btn_send_reg_otp.custom_minimum_size = Vector2(130, 44)
+		btn_send_reg_otp.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		btn_send_reg_otp.add_theme_stylebox_override("normal", s_btn_style)
+		btn_send_reg_otp.add_theme_stylebox_override("hover", s_btn_hover)
+		btn_send_reg_otp.add_theme_stylebox_override("pressed", s_btn_hover)
+		btn_send_reg_otp.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		UIIcons.setup_centered_button(btn_send_reg_otp, "SEND CODE", "mail", 16, 13, Color.WHITE, Color.WHITE)
+		email_row.add_child(btn_send_reg_otp)
+
+		var otp_lbl := Label.new()
+		otp_lbl.text = "VERIFICATION CODE (OTP) *"
+		UIFontStyle.style_body(otp_lbl, 13, true)
+		otp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
+		otp_lbl.add_theme_constant_override("outline_size", 0)
+		reg_grid.add_child(otp_lbl)
+
+		var reg_otp_edit := LineEdit.new()
+		reg_otp_edit.placeholder_text = "Enter 6-digit code sent to your email"
+		reg_otp_edit.max_length = 6
+		reg_otp_edit.custom_minimum_size = Vector2(0, 44)
+		UIFontStyle.style_line_edit(reg_otp_edit, 16)
+		reg_grid.add_child(reg_otp_edit)
 
 		var p_lbl := Label.new()
 		p_lbl.text = "PASSWORD (MIN. 6 CHARACTERS) *"
@@ -1277,19 +1328,6 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		UIFontStyle.style_line_edit(reg_confirm_edit, 16)
 		reg_grid.add_child(reg_confirm_edit)
 
-		var em_lbl := Label.new()
-		em_lbl.text = "EMAIL ADDRESS (OPTIONAL - FOR PASSWORD RECOVERY)"
-		UIFontStyle.style_body(em_lbl, 13, true)
-		em_lbl.add_theme_color_override("font_color", Color(0.70, 0.75, 0.85))
-		em_lbl.add_theme_constant_override("outline_size", 0)
-		reg_grid.add_child(em_lbl)
-
-		var reg_email_edit := LineEdit.new()
-		reg_email_edit.placeholder_text = "yourname@example.com (optional)"
-		reg_email_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(reg_email_edit, 16)
-		reg_grid.add_child(reg_email_edit)
-
 		var reg_status_lbl := Label.new()
 		reg_status_lbl.text = ""
 		reg_status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1315,17 +1353,55 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		UIIcons.setup_centered_button(btn_submit_reg, "CREATE ACCOUNT & ENTER ARENA", "user_plus", 20, 16, Color.WHITE, Color.WHITE)
 		reg_panel.add_child(btn_submit_reg)
 
+		# OTP send button handler
+		btn_send_reg_otp.pressed.connect(func():
+			var em := reg_email_edit.text.strip_edges()
+			if em.is_empty() or not ("@" in em and "." in em):
+				reg_status_lbl.text = "Please enter a valid email address first."
+				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
+				return
+			reg_status_lbl.text = "Sending verification code..."
+			reg_status_lbl.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+			btn_send_reg_otp.disabled = true
+
+			var on_reg_otp_sent: Callable
+			var on_reg_otp_fail: Callable
+			on_reg_otp_sent = func(msg: String, _dev_otp: String):
+				if AuthManager.otp_sent.is_connected(on_reg_otp_sent): AuthManager.otp_sent.disconnect(on_reg_otp_sent)
+				if AuthManager.otp_failed.is_connected(on_reg_otp_fail): AuthManager.otp_failed.disconnect(on_reg_otp_fail)
+				reg_status_lbl.text = msg
+				reg_status_lbl.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
+				_start_otp_cooldown(btn_send_reg_otp, "SEND CODE", 30)
+				reg_otp_edit.grab_focus()
+
+			on_reg_otp_fail = func(err: String):
+				if AuthManager.otp_sent.is_connected(on_reg_otp_sent): AuthManager.otp_sent.disconnect(on_reg_otp_sent)
+				if AuthManager.otp_failed.is_connected(on_reg_otp_fail): AuthManager.otp_failed.disconnect(on_reg_otp_fail)
+				reg_status_lbl.text = str(err)
+				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
+				btn_send_reg_otp.disabled = false
+
+			AuthManager.otp_sent.connect(on_reg_otp_sent)
+			AuthManager.otp_failed.connect(on_reg_otp_fail)
+			AuthManager.send_otp(em, "register")
+		)
+
 		btn_submit_reg.pressed.connect(func():
 			var u := reg_user_edit.text.strip_edges()
 			var em := reg_email_edit.text.strip_edges()
+			var otp := reg_otp_edit.text.strip_edges()
 			var p := reg_pass_edit.text.strip_edges()
 			var cp := reg_confirm_edit.text.strip_edges()
 			if u.length() < 3:
 				reg_status_lbl.text = "Username must be at least 3 characters long."
 				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
 				return
-			if not em.is_empty() and (not "@" in em or not "." in em):
-				reg_status_lbl.text = "Please enter a valid email address or leave it blank."
+			if em.is_empty() or not ("@" in em and "." in em):
+				reg_status_lbl.text = "A valid email address is required to register."
+				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
+				return
+			if otp.length() < 6:
+				reg_status_lbl.text = "Please enter the 6-digit verification code sent to your email."
 				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
 				return
 			if p.length() < 6:
@@ -1336,8 +1412,9 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 				reg_status_lbl.text = "Passwords do not match. Please re-enter."
 				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
 				return
-			reg_status_lbl.text = "Creating account in TiDB Cloud..."
+			reg_status_lbl.text = "Verifying code and creating account in TiDB Cloud..."
 			reg_status_lbl.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+			btn_submit_reg.disabled = true
 			if AuthManager:
 				var on_succ: Callable
 				var on_fail: Callable
@@ -1350,9 +1427,10 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 					if AuthManager.login_failed.is_connected(on_fail): AuthManager.login_failed.disconnect(on_fail)
 					reg_status_lbl.text = str(err)
 					reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
+					btn_submit_reg.disabled = false
 				AuthManager.login_succeeded.connect(on_succ)
 				AuthManager.login_failed.connect(on_fail)
-				AuthManager.register_account(u, em, p)
+				AuthManager.register_account(u, em, p, otp)
 		)
 
 		# --- LOGIN TAB ---
