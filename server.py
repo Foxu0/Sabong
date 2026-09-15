@@ -649,6 +649,25 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         parsed_path = self.path.split("?")[0]
+
+        # 1. Health check & API endpoints for uptime monitors (BetterStack, UptimeRobot, etc.)
+        if parsed_path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Connection", "close")
+            self._send_cors_headers()
+            self.end_headers()
+            return
+
+        if parsed_path in ["/rooms", "/leaderboard"]:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Connection", "close")
+            self._send_cors_headers()
+            self.end_headers()
+            return
+
+        # 2. Static files
         clean_path = parsed_path.lstrip("/")
         if not clean_path:
             clean_path = "index.html"
