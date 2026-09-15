@@ -90,6 +90,13 @@ INTERNAL_WS_PORT = int(os.environ.get("INTERNAL_WS_PORT", PORT + 10))
 ROOM_CODE_LENGTH = 4
 ROOM_TIMEOUT_SECS = 300
 
+# Gmail SMTP Email Configuration
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
+SMTP_USER = os.environ.get("SMTP_USER", "celluckminecwap@gmail.com")
+SMTP_PASS = os.environ.get("SMTP_PASS", "nulqlrjwpbrojaza").replace(" ", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", f"Sabong Roosters <{SMTP_USER}>")
+
 # WebSocket concurrency tracker per IP
 _active_ws_per_ip: Dict[str, int] = {}
 _ws_ip_lock = threading.Lock()
@@ -320,34 +327,42 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                 "verified": False
             }
         log.info("[AUTH OTP] Generated %s OTP for %s: %s (expires in 10m)", purpose.upper(), email, otp_code)
-        smtp_host = os.environ.get("SMTP_HOST")
-        if smtp_host:
+
+        email_sent = False
+        if SMTP_HOST and SMTP_USER and SMTP_PASS:
             try:
                 import smtplib
                 from email.mime.text import MIMEText
-                smtp_port = int(os.environ.get("SMTP_PORT", 587))
-                smtp_user = os.environ.get("SMTP_USER", "")
-                smtp_pass = os.environ.get("SMTP_PASS", "")
-                from_email = os.environ.get("SMTP_FROM", smtp_user or "noreply@sabongroosters.com")
                 subject = "Sabong Roosters - Email Verification Code" if purpose == "register" else "Sabong Roosters - Password Reset Code"
-                body_text = f"Your Sabong Roosters verification code is: {otp_code}\n\nThis code will expire in 10 minutes. If you did not request this code, please disregard this email."
-                msg = MIMEText(body_text)
+                body_text = (
+                    f"Hello Challenger,\n\n"
+                    f"Your Sabong Roosters verification code is:\n\n"
+                    f"    {otp_code}\n\n"
+                    f"This code will expire in 10 minutes.\n"
+                    f"If you did not request this code, please disregard this email.\n\n"
+                    f"— Sabong Roosters Arena Team"
+                )
+                msg = MIMEText(body_text, "plain", "utf-8")
                 msg["Subject"] = subject
-                msg["From"] = from_email
+                msg["From"] = SMTP_FROM
                 msg["To"] = email
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=5) as s:
+                with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
                     s.starttls()
-                    if smtp_user and smtp_pass:
-                        s.login(smtp_user, smtp_pass)
+                    s.login(SMTP_USER, SMTP_PASS)
                     s.send_message(msg)
-                log.info("[AUTH OTP] Successfully dispatched email via SMTP to %s", email)
+                log.info("[AUTH OTP] Successfully dispatched real email via Gmail SMTP to %s", email)
+                email_sent = True
             except Exception as ex:
-                log.warning("[AUTH OTP] SMTP dispatch failed (dev fallback active): %s", ex)
-        return (200, {
+                log.error("[AUTH OTP] SMTP dispatch failed: %s", ex)
+
+        response_data: Dict[str, Any] = {
             "success": True,
-            "message": f"Verification code sent to {email}.",
-            "dev_otp": otp_code
-        }, 0)
+            "message": f"Verification code sent to {email}. Please check your inbox and spam folder."
+        }
+        if not email_sent:
+            response_data["dev_otp"] = otp_code
+
+        return (200, response_data, 0)
 
     if parsed_path == "/auth/verify-otp":
         email = str(payload.get("email", "")).strip().lower()
