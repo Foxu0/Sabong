@@ -347,16 +347,16 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                 msg["From"] = SMTP_FROM
                 msg["To"] = email
 
-                # Try Port 465 (SSL - standard for cloud environments like Render) then Port 587
+                # Try Port 465 (SSL) then Port 587 with a short 3s timeout so cloud firewall blocks don't freeze the server
                 ports_to_try = [(465, True), (587, False)] if SMTP_PORT == 587 else [(SMTP_PORT, SMTP_PORT == 465), (465, True)]
                 for p, use_ssl in ports_to_try:
                     try:
                         if use_ssl:
-                            with smtplib.SMTP_SSL(SMTP_HOST, p, timeout=10) as s:
+                            with smtplib.SMTP_SSL(SMTP_HOST, p, timeout=3) as s:
                                 s.login(SMTP_USER, SMTP_PASS)
                                 s.send_message(msg)
                         else:
-                            with smtplib.SMTP(SMTP_HOST, p, timeout=10) as s:
+                            with smtplib.SMTP(SMTP_HOST, p, timeout=3) as s:
                                 s.starttls()
                                 s.login(SMTP_USER, SMTP_PASS)
                                 s.send_message(msg)
@@ -364,13 +364,13 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                         email_sent = True
                         break
                     except Exception as ex_port:
-                        log.warning("[AUTH OTP] SMTP failed on port %d: %s", p, ex_port)
+                        log.warning("[AUTH OTP] SMTP failed on port %d (cloud firewall or timeout): %s", p, ex_port)
             except Exception as ex:
                 log.error("[AUTH OTP] SMTP dispatch failed: %s", ex)
 
         response_data: Dict[str, Any] = {
             "success": True,
-            "message": f"Verification code sent to {email}. Please check your inbox and spam folder."
+            "message": f"Verification code sent to {email}. Check your inbox or use the verification code below."
         }
         if not email_sent:
             response_data["dev_otp"] = otp_code
