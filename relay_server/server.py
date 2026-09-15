@@ -346,12 +346,25 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                 msg["Subject"] = subject
                 msg["From"] = SMTP_FROM
                 msg["To"] = email
-                with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
-                    s.starttls()
-                    s.login(SMTP_USER, SMTP_PASS)
-                    s.send_message(msg)
-                log.info("[AUTH OTP] Successfully dispatched real email via Gmail SMTP to %s", email)
-                email_sent = True
+
+                # Try Port 465 (SSL - standard for cloud environments like Render) then Port 587
+                ports_to_try = [(465, True), (587, False)] if SMTP_PORT == 587 else [(SMTP_PORT, SMTP_PORT == 465), (465, True)]
+                for p, use_ssl in ports_to_try:
+                    try:
+                        if use_ssl:
+                            with smtplib.SMTP_SSL(SMTP_HOST, p, timeout=10) as s:
+                                s.login(SMTP_USER, SMTP_PASS)
+                                s.send_message(msg)
+                        else:
+                            with smtplib.SMTP(SMTP_HOST, p, timeout=10) as s:
+                                s.starttls()
+                                s.login(SMTP_USER, SMTP_PASS)
+                                s.send_message(msg)
+                        log.info("[AUTH OTP] Successfully dispatched email via Gmail SMTP (%s:%d) to %s", SMTP_HOST, p, email)
+                        email_sent = True
+                        break
+                    except Exception as ex_port:
+                        log.warning("[AUTH OTP] SMTP failed on port %d: %s", p, ex_port)
             except Exception as ex:
                 log.error("[AUTH OTP] SMTP dispatch failed: %s", ex)
 
@@ -600,6 +613,7 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
             db_ok = db.test_connection() if db else False
             self._send_json(200, {
                 "status": "ok",
+                "version": "v1.0.4-smtp-465",
                 "database": "connected" if db_ok else "disconnected",
                 "rooms": len(rooms)
             })
