@@ -701,14 +701,17 @@ func _update_profile_chip() -> void:
 	if is_logged:
 		var chip_panel := PanelContainer.new()
 		var ps := StyleBoxFlat.new()
-		ps.bg_color = Color(1.0, 1.0, 1.0, 0.05)
-		ps.border_color = Color(1.0, 1.0, 1.0, 0.16)
+		ps.bg_color = Color(0.08, 0.10, 0.16, 0.92)
+		ps.border_color = Color(1.0, 1.0, 1.0, 0.28)
 		ps.set_border_width_all(1)
-		ps.set_corner_radius_all(20)
-		ps.content_margin_left = 14
-		ps.content_margin_right = 16
-		ps.content_margin_top = 6
-		ps.content_margin_bottom = 6
+		ps.set_corner_radius_all(22)
+		ps.content_margin_left = 16
+		ps.content_margin_right = 18
+		ps.content_margin_top = 7
+		ps.content_margin_bottom = 7
+		ps.shadow_color = Color(0.0, 0.0, 0.0, 0.65)
+		ps.shadow_size = 10
+		ps.shadow_offset = Vector2(0, 3)
 		chip_panel.add_theme_stylebox_override("panel", ps)
 
 		var chip_hbox := HBoxContainer.new()
@@ -766,8 +769,10 @@ func _update_profile_chip() -> void:
 		chip_btn.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 		chip_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 		var hover_ps := ps.duplicate()
-		hover_ps.bg_color = Color(1.0, 1.0, 1.0, 0.10)
+		hover_ps.bg_color = Color(0.14, 0.18, 0.28, 0.96)
 		hover_ps.border_color = Color.WHITE
+		hover_ps.shadow_color = Color(1.0, 1.0, 1.0, 0.20)
+		hover_ps.shadow_size = 12
 		chip_btn.add_theme_stylebox_override("hover", hover_ps)
 		chip_btn.add_theme_stylebox_override("pressed", hover_ps)
 		chip_btn.pressed.connect(func(): _open_account_modal())
@@ -778,22 +783,56 @@ func _update_profile_chip() -> void:
 	else:
 		var btn_auth := Button.new()
 		btn_auth.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn_auth.custom_minimum_size = Vector2(190, 42)
+		btn_auth.custom_minimum_size = Vector2(220, 46)
+
+		# Prominent solid card background with glowing gold accent border and deep drop shadow
 		var a_style := StyleBoxFlat.new()
-		a_style.bg_color = Color(1.0, 1.0, 1.0, 0.05)
-		a_style.border_color = Color(1.0, 1.0, 1.0, 0.18)
-		a_style.set_border_width_all(1)
-		a_style.set_corner_radius_all(20)
-		a_style.content_margin_left = 18
-		a_style.content_margin_right = 18
+		a_style.bg_color = Color(0.08, 0.11, 0.18, 0.94)
+		a_style.border_color = Color(1.0, 0.78, 0.22, 0.95)
+		a_style.set_border_width_all(2)
+		a_style.set_corner_radius_all(23)
+		a_style.content_margin_left = 20
+		a_style.content_margin_right = 20
+		a_style.shadow_color = Color(0.0, 0.0, 0.0, 0.70)
+		a_style.shadow_size = 10
+		a_style.shadow_offset = Vector2(0, 3)
 		btn_auth.add_theme_stylebox_override("normal", a_style)
+
 		var a_hover := a_style.duplicate()
-		a_hover.bg_color = Color(1.0, 1.0, 1.0, 0.12)
-		a_hover.border_color = Color.WHITE
+		a_hover.bg_color = Color(0.15, 0.20, 0.32, 0.98)
+		a_hover.border_color = Color(1.0, 0.92, 0.45, 1.0)
+		a_hover.shadow_color = Color(1.0, 0.78, 0.22, 0.45)
+		a_hover.shadow_size = 14
 		btn_auth.add_theme_stylebox_override("hover", a_hover)
-		btn_auth.add_theme_stylebox_override("pressed", a_hover)
+
+		var a_pressed := a_style.duplicate()
+		a_pressed.bg_color = Color(0.05, 0.07, 0.12, 0.98)
+		a_pressed.border_color = Color(0.85, 0.65, 0.15, 0.90)
+		a_pressed.shadow_size = 4
+		btn_auth.add_theme_stylebox_override("pressed", a_pressed)
+
 		btn_auth.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		UIIcons.setup_centered_button(btn_auth, "SIGN IN / REGISTER", "user", 18, 14, Color.WHITE, Color.WHITE)
+
+		# Setup centered button with larger golden user icon and bold readable label with outline
+		var auth_ui := UIIcons.setup_centered_button(
+			btn_auth,
+			"SIGN IN / REGISTER",
+			"user",
+			20,
+			15,
+			Color.WHITE,
+			Color(1.0, 0.88, 0.35),
+			10
+		)
+		var auth_lbl: Label = auth_ui.get("label") as Label
+		if auth_lbl:
+			auth_lbl.add_theme_constant_override("outline_size", 2)
+			auth_lbl.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+
+		var auth_icon: TextureRect = auth_ui.get("icon") as TextureRect
+		if auth_icon:
+			auth_icon.modulate = Color(1.0, 0.82, 0.25)
+
 		btn_auth.pressed.connect(func(): _open_account_modal("", "login"))
 		hbox.add_child(btn_auth)
 
