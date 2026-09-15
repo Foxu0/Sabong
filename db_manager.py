@@ -248,11 +248,21 @@ class DatabaseManager:
         try:
             conn = self.get_connection()
             with conn.cursor() as cur:
-                # Check existing
-                cur.execute("SELECT player_id FROM players WHERE username=%s OR email=%s;", (username, email))
-                if cur.fetchone():
-                    conn.close()
-                    return {"success": False, "error": "Username or Email already registered"}
+                # Check existing username or email
+                if email:
+                    cur.execute("SELECT player_id, username, email FROM players WHERE username=%s OR email=%s;", (username, email))
+                    existing = cur.fetchone()
+                    if existing:
+                        conn.close()
+                        if existing.get("username", "").lower() == username.lower():
+                            return {"success": False, "error": "This username is already taken. Please choose another."}
+                        else:
+                            return {"success": False, "error": "This email is already registered. Please sign in or reset password."}
+                else:
+                    cur.execute("SELECT player_id FROM players WHERE username=%s;", (username,))
+                    if cur.fetchone():
+                        conn.close()
+                        return {"success": False, "error": "This username is already taken. Please choose another."}
 
                 starter_taya = 500
                 initial_tier = compute_rank_tier(starter_taya)
@@ -261,7 +271,7 @@ class DatabaseManager:
                     INSERT INTO players (username, email, password_hash, taya_coins, elo_rating, rank_tier, last_login)
                     VALUES (%s, %s, %s, %s, 1000, %s, NOW());
                 """
-                cur.execute(sql_insert, (username, email, pw_hash, starter_taya, initial_tier))
+                cur.execute(sql_insert, (username, email or None, pw_hash, starter_taya, initial_tier))
                 pid = cur.lastrowid
 
                 # Create initial leaderboard record

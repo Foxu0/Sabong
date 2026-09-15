@@ -414,14 +414,13 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
             except Exception as ex:
                 log.error("[AUTH OTP] SMTP dispatch failed: %s", ex)
 
-        response_data: Dict[str, Any] = {
-            "success": True,
-            "message": f"Verification code sent to {email}. Check your inbox or spam folder."
-        }
         if not email_sent:
-            response_data["dev_otp"] = otp_code
+            return (400, {"success": False, "error": "Unable to send verification email. Please check your email address or try again later."}, 0)
 
-        return (200, response_data, 0)
+        return (200, {
+            "success": True,
+            "message": f"Verification code sent to {email}. Please check your inbox or spam folder."
+        }, 0)
 
     if parsed_path == "/auth/verify-otp":
         email = str(payload.get("email", "")).strip().lower()
@@ -452,21 +451,15 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
         user = str(payload.get("username", "")).strip()
         email = str(payload.get("email", "")).strip().lower()
         pw = str(payload.get("password", ""))
-        otp_code = str(payload.get("otp", "")).strip()
-        if not email or "@" not in email or "." not in email:
-            return (400, {"success": False, "error": "A valid email address is required to register."}, 0)
-        if not otp_code:
-            return (400, {"success": False, "error": "Email verification code (OTP) is required."}, 0)
-        now = time.time()
-        with _otp_lock:
-            rec = _otp_store.get(email)
-            if not rec or now > rec.get("expires_at", 0):
-                return (400, {"success": False, "error": "Verification code has expired. Please request a new code."}, 0)
-            if rec.get("purpose") != "register":
-                return (400, {"success": False, "error": "Invalid verification code for registration."}, 0)
-            if rec.get("code") != otp_code:
-                return (400, {"success": False, "error": "Incorrect verification code. Please re-enter."}, 0)
-            _otp_store.pop(email, None)
+
+        if len(user) < 3:
+            return (400, {"success": False, "error": "Username must be at least 3 characters long."}, 0)
+        if len(pw) < 6:
+            return (400, {"success": False, "error": "Password must be at least 6 characters long."}, 0)
+
+        if email and ("@" not in email or "." not in email):
+            return (400, {"success": False, "error": "Please enter a valid email address or leave it blank."}, 0)
+
         res = db.register_player(user, email, pw)
         if res.get("success"):
             if security_manager:
