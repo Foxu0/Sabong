@@ -40,7 +40,7 @@ if errorlevel 1 (
 )
 
 :: 3. Export to Web
-echo [3/3] Exporting to Web (HTML5) via preset 'Web'...
+echo [3/4] Exporting to Web (HTML5) via preset 'Web'...
 "%GODOT_BIN%" --headless --export-release "Web" "exports/web/index.html"
 
 if errorlevel 1 (
@@ -49,9 +49,13 @@ if errorlevel 1 (
     exit /b %errorlevel%
 )
 
+:: 4. Pre-compress Assets (Gzip) for Fast HTTP Delivery
+echo [4/4] Generating pre-compressed Gzip assets (.wasm.gz, .pck.gz)...
+python scratch\compress_assets.py
+
 echo.
 echo ===================================================
-echo [SUCCESS] Web export completed!
+echo [SUCCESS] Web export completed with Gzip compression!
 echo Output folder: %~dp0exports\web\
 echo Test URL:     http://localhost:8060
 echo ===================================================

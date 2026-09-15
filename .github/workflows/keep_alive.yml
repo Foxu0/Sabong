@@ -1,0 +1,23 @@
+name: Render Keep-Alive Ping
+
+on:
+  schedule:
+    # Ping every 12 minutes to keep Render service warm (Render spins down after 15m)
+    - cron: '*/12 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  ping-render:
+    name: Health Check Ping
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Sabong Roosters Render Server
+        run: |
+          echo "Sending keep-alive ping to Render..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s\n" https://sabong-inxt.onrender.com/health)
+          echo "$RESPONSE"
+          if echo "$RESPONSE" | grep -q "HTTP_STATUS:200"; then
+            echo "Render service is awake and healthy!"
+          else
+            echo "Notice: Service may be waking up or returned non-200. Check logs."
+          fi

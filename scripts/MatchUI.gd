@@ -39,6 +39,21 @@ var priority_pop_label: Label = null
 var log_label: RichTextLabel
 var rooster_select_ui: RoosterSelectUI
 var _game_over_modal: Control = null
+var spectator_betting_panel: Control = null
+var spectator_bet_ticket_lbl: Label = null
+var spectator_taya_bal_lbl: Label = null
+var selected_bet_chip: int = 50
+var _chip_buttons: Array[Button] = []
+var _meron_bet_btn: Button = null
+var _wala_bet_btn: Button = null
+
+# Live Spectator Arena HUD & Dynamic Odds
+var _live_odds_bar: PanelContainer = null
+var _live_spectator_lbl: Label = null
+var _live_meron_odds_lbl: Label = null
+var _live_wala_odds_lbl: Label = null
+var _live_pool_progress: ProgressBar = null
+var _live_pool_text_lbl: Label = null
 
 func _ready() -> void:
 	for path in UNIVERSAL_CARD_PATHS:
@@ -47,6 +62,28 @@ func _ready() -> void:
 			universal_cards.append(c)
 
 	_build_cockpit_ui()
+
+	if GameManager and (GameManager.is_spectator or GameManager.is_online_match):
+		_build_live_odds_bar()
+
+	if GameManager and GameManager.is_spectator:
+		_build_spectator_betting_ui()
+
+	if BettingManager:
+		if not BettingManager.odds_updated.is_connected(_on_odds_updated):
+			BettingManager.odds_updated.connect(_on_odds_updated)
+		if not BettingManager.pool_updated.is_connected(_on_pool_updated):
+			BettingManager.pool_updated.connect(_on_pool_updated)
+		if not BettingManager.spectator_count_changed.is_connected(_on_spectator_count_changed):
+			BettingManager.spectator_count_changed.connect(_on_spectator_count_changed)
+	var nm = get_node_or_null("/root/NetworkManager")
+	if nm:
+		if nm.has_signal("bet_pool_updated") and not nm.bet_pool_updated.is_connected(_on_network_bet_pool_updated):
+			nm.bet_pool_updated.connect(_on_network_bet_pool_updated)
+		if nm.has_signal("spectator_count_updated") and not nm.spectator_count_updated.is_connected(_on_spectator_count_changed):
+			nm.spectator_count_updated.connect(_on_spectator_count_changed)
+		if nm.has_signal("match_finished_received") and not nm.match_finished_received.is_connected(_on_network_match_finished):
+			nm.match_finished_received.connect(_on_network_match_finished)
 	
 	await get_tree().process_frame
 
@@ -435,6 +472,13 @@ func _on_phase_changed(new_phase: DuelPhase.Phase) -> void:
 func _on_round_started(round_number: int) -> void:
 	turn_number = round_number
 	_log("[b][color=gold]--- ROUND %d ---[/color][/b]" % round_number)
+	if GameManager and GameManager.is_spectator and BettingManager:
+		BettingManager.lock_betting()
+		if _meron_bet_btn and is_instance_valid(_meron_bet_btn): _meron_bet_btn.disabled = true
+		if _wala_bet_btn and is_instance_valid(_wala_bet_btn): _wala_bet_btn.disabled = true
+		if spectator_bet_ticket_lbl and is_instance_valid(spectator_bet_ticket_lbl):
+			if not BettingManager.has_active_bet:
+				spectator_bet_ticket_lbl.text = "Combat underway — Betting closed for Round %d." % round_number
 
 func _on_round_ended(round_number: int) -> void:
 	_log("[color=gray]Round %d concluded.[/color]" % round_number)
@@ -555,6 +599,19 @@ func _on_combat_resolved(events: Array[Dictionary]) -> void:
 
 func _on_duel_finished(winner_id: String) -> void:
 	match_over = true
+	var nm = get_node_or_null("/root/NetworkManager")
+	if nm and nm.has_method("notify_duel_finished"):
+		nm.notify_duel_finished(winner_id)
+
+	if BettingManager and BettingManager.has_active_bet:
+		var won_bet: bool = (BettingManager.player_bet_side == winner_id)
+		var payout_odds: float = BettingManager.meron_odds if winner_id == "MERON" else BettingManager.wala_odds
+		BettingManager.resolve_winner(winner_id, [], payout_odds)
+		if won_bet:
+			var payout: int = int(round(BettingManager.player_bet_amount * payout_odds))
+			_show_bet_victory_celebration(winner_id, payout, payout_odds)
+		else:
+			_show_phase_notification("BET RESOLVED", "%s won the match. Better luck next duel!" % winner_id, Color.WHITE, false, 0.70)
 	if winner_id == "DRAW":
 		_show_phase_notification("DRAW!", "Mutual Knockout — It's a Draw!", Color.WHITE, false, 0.70)
 		_log("[b][color=yellow]DOUBLE KO — IT'S A DRAW![/color][/b]")
@@ -696,6 +753,68 @@ func _show_game_over_modal(winner_id: String) -> void:
 	var sp := Control.new()
 	sp.custom_minimum_size = Vector2(0, 10)
 	vbox.add_child(sp)
+
+	# Spectator Game Over View
+	if GameManager and GameManager.is_spectator:
+		var spec_card := PanelContainer.new()
+		var sc_style := StyleBoxFlat.new()
+		sc_style.bg_color = Color(0.12, 0.15, 0.22, 0.9)
+		sc_style.set_corner_radius_all(10)
+		sc_style.content_margin_left = 20
+		sc_style.content_margin_right = 20
+		sc_style.content_margin_top = 12
+		sc_style.content_margin_bottom = 12
+		spec_card.add_theme_stylebox_override("panel", sc_style)
+		vbox.add_child(spec_card)
+
+		var spec_vb := VBoxContainer.new()
+		spec_vb.add_theme_constant_override("separation", 6)
+		spec_card.add_child(spec_vb)
+
+		var bet_res_lbl := Label.new()
+		bet_res_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if BettingManager and BettingManager.player_bet_side != "":
+			if BettingManager.player_bet_side == winner_id:
+				var payout_odds: float = BettingManager.meron_odds if winner_id == "MERON" else BettingManager.wala_odds
+				var win_pay: int = int(round(BettingManager.player_bet_amount * payout_odds))
+				bet_res_lbl.text = "SPECTATOR BET WON: +%d TAYA (%.2fx)!" % [win_pay, payout_odds]
+				UIFontStyle.style_subheading(bet_res_lbl, 20)
+				bet_res_lbl.add_theme_color_override("font_color", Color.GOLD)
+			else:
+				bet_res_lbl.text = "Wager of %d Taya on %s settled." % [BettingManager.player_bet_amount, BettingManager.player_bet_side]
+				UIFontStyle.style_body(bet_res_lbl, 16)
+				bet_res_lbl.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+		else:
+			bet_res_lbl.text = "Spectator Match Concluded."
+			UIFontStyle.style_body(bet_res_lbl, 16)
+		spec_vb.add_child(bet_res_lbl)
+
+		var bal_hb := HBoxContainer.new()
+		bal_hb.alignment = BoxContainer.ALIGNMENT_CENTER
+		bal_hb.add_theme_constant_override("separation", 8)
+		spec_vb.add_child(bal_hb)
+
+		var coin_icon := UIIcons.create_icon_rect("coin", 18, Color(1.0, 0.85, 0.3))
+		bal_hb.add_child(coin_icon)
+
+		var bal_lbl := Label.new()
+		var cur_taya: int = AuthManager.taya_points if AuthManager else 500
+		var cur_rank: String = AuthManager.rank_tier if AuthManager else "SILVER"
+		bal_lbl.text = "Wallet Balance: %d Taya • Rank: %s" % [cur_taya, cur_rank]
+		UIFontStyle.style_subheading(bal_lbl, 16)
+		bal_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		bal_hb.add_child(bal_lbl)
+
+		var btn_spec_lobby := Button.new()
+		btn_spec_lobby.text = "RETURN TO LOBBY"
+		btn_spec_lobby.custom_minimum_size = Vector2(0, 52)
+		UIFontStyle.style_button(btn_spec_lobby, 20)
+		btn_spec_lobby.pressed.connect(func():
+			GameManager.reset_online_state()
+			GameManager.change_scene("res://scenes/main_menu.tscn")
+		)
+		vbox.add_child(btn_spec_lobby)
+		return
 
 	# Action Buttons
 	var tm_node: Node = get_node_or_null("/root/TournamentManager")
@@ -1360,22 +1479,120 @@ func _on_pause_menu_pressed() -> void:
 
 	var btn_resume := Button.new()
 	btn_resume.text = "RESUME"
-	btn_resume.custom_minimum_size = Vector2(0, 52)
-	UIFontStyle.style_button(btn_resume, 22)
+	btn_resume.custom_minimum_size = Vector2(0, 48)
+	UIFontStyle.style_button(btn_resume, 20)
 	btn_resume.pressed.connect(func():
 		overlay.queue_free()
 		_pause_modal = null
 	)
 	vbox.add_child(btn_resume)
 
+	# Quick In-Game Graphics Settings
+	var gm_node = get_node_or_null("/root/GraphicsManager")
+	if gm_node:
+		var gfx_box := PanelContainer.new()
+		var g_style := StyleBoxFlat.new()
+		g_style.bg_color = Color(0.04, 0.06, 0.10, 0.85)
+		g_style.border_color = Color(0.3, 0.35, 0.45)
+		g_style.set_border_width_all(1)
+		g_style.set_corner_radius_all(8)
+		g_style.content_margin_left = 14
+		g_style.content_margin_right = 14
+		g_style.content_margin_top = 10
+		g_style.content_margin_bottom = 10
+		gfx_box.add_theme_stylebox_override("panel", g_style)
+		vbox.add_child(gfx_box)
+
+		var g_vbox := VBoxContainer.new()
+		g_vbox.add_theme_constant_override("separation", 8)
+		gfx_box.add_child(g_vbox)
+
+		var g_title := Label.new()
+		g_title.text = "GRAPHICS PRESET"
+		UIFontStyle.style_subheading(g_title, 14)
+		g_title.add_theme_color_override("font_color", Color.GOLD)
+		g_vbox.add_child(g_title)
+
+		var g_presets_row := HBoxContainer.new()
+		g_presets_row.add_theme_constant_override("separation", 6)
+		g_vbox.add_child(g_presets_row)
+
+		var p_btns: Array[Button] = []
+		var p_defs := [
+			{"name": "POTATO", "id": 0},
+			{"name": "LOW", "id": 1},
+			{"name": "MED", "id": 2},
+			{"name": "HIGH", "id": 3},
+			{"name": "ULTRA", "id": 4}
+		]
+
+		var shadow_chk: CheckBox = null
+
+		var _update_p_btns = func():
+			var cur_p = gm_node.current_preset
+			for b in p_btns:
+				var pid: int = b.get_meta("preset_id", -1)
+				var sb := StyleBoxFlat.new()
+				if pid == cur_p:
+					sb.bg_color = Color(0.70, 0.50, 0.10, 0.90)
+					sb.border_color = Color.GOLD
+					sb.set_border_width_all(2)
+				else:
+					sb.bg_color = Color(0.12, 0.16, 0.24, 0.85)
+					sb.border_color = Color(0.3, 0.35, 0.45)
+					sb.set_border_width_all(1)
+				sb.set_corner_radius_all(6)
+				b.add_theme_stylebox_override("normal", sb)
+
+		for pd in p_defs:
+			var pb := Button.new()
+			pb.text = pd["name"]
+			pb.custom_minimum_size = Vector2(70, 34)
+			pb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			pb.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			pb.set_meta("preset_id", pd["id"])
+			UIFontStyle.style_button(pb, 12)
+			pb.pressed.connect(func():
+				gm_node.set_preset(pd["id"], true)
+				_update_p_btns.call()
+				if shadow_chk and is_instance_valid(shadow_chk):
+					shadow_chk.button_pressed = gm_node.shadows_enabled
+			)
+			g_presets_row.add_child(pb)
+			p_btns.append(pb)
+		_update_p_btns.call()
+
+		var toggles_row := HBoxContainer.new()
+		toggles_row.add_theme_constant_override("separation", 16)
+		g_vbox.add_child(toggles_row)
+
+		shadow_chk = CheckBox.new()
+		shadow_chk.text = "Dynamic 3D Shadows"
+		UIFontStyle.style_button(shadow_chk, 13)
+		shadow_chk.button_pressed = gm_node.shadows_enabled
+		shadow_chk.toggled.connect(func(is_on: bool):
+			gm_node.set_shadows_enabled(is_on)
+			_update_p_btns.call()
+		)
+		toggles_row.add_child(shadow_chk)
+
+		var fps_chk := CheckBox.new()
+		fps_chk.text = "Show FPS Counter"
+		UIFontStyle.style_button(fps_chk, 13)
+		fps_chk.button_pressed = gm_node.show_fps_counter
+		fps_chk.toggled.connect(func(is_on: bool):
+			gm_node.toggle_fps_counter(is_on)
+		)
+		toggles_row.add_child(fps_chk)
+
 	var btn_char_sel := Button.new()
 	btn_char_sel.text = "CHANGE ROOSTER"
-	btn_char_sel.custom_minimum_size = Vector2(0, 52)
-	UIFontStyle.style_button(btn_char_sel, 20)
+	btn_char_sel.custom_minimum_size = Vector2(0, 48)
+	UIFontStyle.style_button(btn_char_sel, 18)
 	btn_char_sel.pressed.connect(func():
-		var gm_node := get_node_or_null("/root/GameManager")
-		if gm_node and gm_node.has_method("change_scene"):
-			gm_node.change_scene("res://scenes/character_select.tscn")
+		var gm_node_inst := get_node_or_null("/root/GameManager")
+		if gm_node_inst and gm_node_inst.has_method("change_scene"):
+			gm_node_inst.change_scene("res://scenes/character_select.tscn")
 		else:
 			get_tree().change_scene_to_file("res://scenes/character_select.tscn")
 	)
@@ -1383,12 +1600,12 @@ func _on_pause_menu_pressed() -> void:
 
 	var btn_main_menu := Button.new()
 	btn_main_menu.text = "MAIN MENU"
-	btn_main_menu.custom_minimum_size = Vector2(0, 52)
-	UIFontStyle.style_button(btn_main_menu, 20)
+	btn_main_menu.custom_minimum_size = Vector2(0, 48)
+	UIFontStyle.style_button(btn_main_menu, 18)
 	btn_main_menu.pressed.connect(func():
-		var gm_node := get_node_or_null("/root/GameManager")
-		if gm_node and gm_node.has_method("change_scene"):
-			gm_node.change_scene("res://scenes/main_menu.tscn")
+		var gm_node_inst := get_node_or_null("/root/GameManager")
+		if gm_node_inst and gm_node_inst.has_method("change_scene"):
+			gm_node_inst.change_scene("res://scenes/main_menu.tscn")
 		else:
 			get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 	)
@@ -1624,3 +1841,419 @@ func _on_prediction_selected(category: String, card: CardData, source_card_3d: C
 		source_card_3d.set_secret_prediction(category)
 	_log("[color=gold]Ryuk's Watch queued! Prediction set to: [b][color=#ffdd44]%s[/color][/b][/color]" % category)
 	_refresh_all_ui(false)
+
+# ---------------------------------------------------------------------------
+# Spectator Mode & Taya Wagering HUD
+# ---------------------------------------------------------------------------
+
+func _build_spectator_betting_ui() -> void:
+	if spectator_betting_panel and is_instance_valid(spectator_betting_panel):
+		spectator_betting_panel.queue_free()
+
+	spectator_betting_panel = PanelContainer.new()
+	spectator_betting_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	spectator_betting_panel.offset_top = -210
+	spectator_betting_panel.offset_bottom = -20
+	spectator_betting_panel.offset_left = 60
+	spectator_betting_panel.offset_right = -60
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.07, 0.12, 0.90)
+	style.border_color = Color.GOLD
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(14)
+	style.content_margin_left = 24
+	style.content_margin_right = 24
+	style.content_margin_top = 14
+	style.content_margin_bottom = 14
+	style.shadow_color = Color(0, 0, 0, 0.6)
+	style.shadow_size = 12
+	spectator_betting_panel.add_theme_stylebox_override("panel", style)
+	add_child(spectator_betting_panel)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 10)
+	spectator_betting_panel.add_child(vb)
+
+	var top_row := HBoxContainer.new()
+	vb.add_child(top_row)
+
+	var mode_hb := HBoxContainer.new()
+	mode_hb.add_theme_constant_override("separation", 8)
+	mode_hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_row.add_child(mode_hb)
+
+	var eye_ico := UIIcons.create_icon_rect("eye", 18, Color.GOLD)
+	mode_hb.add_child(eye_ico)
+
+	var mode_lbl := Label.new()
+	mode_lbl.text = "LIVE SPECTATOR ARENA • DYNAMIC PARI-MUTUEL ODDS"
+	UIFontStyle.style_subheading(mode_lbl, 16)
+	mode_lbl.add_theme_color_override("font_color", Color.GOLD)
+	mode_hb.add_child(mode_lbl)
+
+	var bal_hb := HBoxContainer.new()
+	bal_hb.add_theme_constant_override("separation", 6)
+	top_row.add_child(bal_hb)
+
+	var coin_ico := UIIcons.create_icon_rect("coin", 18, Color(1.0, 0.85, 0.25))
+	bal_hb.add_child(coin_ico)
+
+	spectator_taya_bal_lbl = Label.new()
+	var bal: int = AuthManager.taya_points if AuthManager else 500
+	spectator_taya_bal_lbl.text = "WALLET: %d TAYA" % bal
+	UIFontStyle.style_subheading(spectator_taya_bal_lbl, 18)
+	spectator_taya_bal_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
+	bal_hb.add_child(spectator_taya_bal_lbl)
+
+	var mid_row := HBoxContainer.new()
+	mid_row.add_theme_constant_override("separation", 16)
+	mid_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_child(mid_row)
+
+	_meron_bet_btn = Button.new()
+	_meron_bet_btn.custom_minimum_size = Vector2(240, 48)
+	_meron_bet_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var m_style := StyleBoxFlat.new()
+	m_style.bg_color = Color(0.70, 0.15, 0.15, 0.90)
+	m_style.border_color = Color(1.0, 0.4, 0.3)
+	m_style.set_border_width_all(2)
+	m_style.set_corner_radius_all(8)
+	_meron_bet_btn.add_theme_stylebox_override("normal", m_style)
+	var m_hover := m_style.duplicate()
+	m_hover.bg_color = Color(0.85, 0.20, 0.20, 1.0)
+	_meron_bet_btn.add_theme_stylebox_override("hover", m_hover)
+	var p1_title: String = player.rooster_data.display_name if (player and player.rooster_data) else "MERON"
+	var m_odds: float = BettingManager.meron_odds if BettingManager else 1.95
+	_meron_bet_btn.text = "BET MERON [%.2fx]: %s" % [m_odds, p1_title]
+	UIFontStyle.style_button(_meron_bet_btn, 17)
+	_meron_bet_btn.pressed.connect(func(): _on_spectator_place_bet("MERON"))
+	mid_row.add_child(_meron_bet_btn)
+
+	var chips_box := HBoxContainer.new()
+	chips_box.add_theme_constant_override("separation", 8)
+	chips_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	chips_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid_row.add_child(chips_box)
+
+	_chip_buttons.clear()
+	var chip_values := [10, 50, 100, 250, 500]
+	for val in chip_values:
+		var c_btn := Button.new()
+		c_btn.text = "%d" % val
+		c_btn.custom_minimum_size = Vector2(56, 42)
+		c_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		var c_style := StyleBoxFlat.new()
+		c_style.bg_color = Color(0.15, 0.18, 0.26, 0.9)
+		c_style.border_color = Color.GOLD if val == selected_bet_chip else Color(0.3, 0.35, 0.45)
+		c_style.set_border_width_all(2 if val == selected_bet_chip else 1)
+		c_style.set_corner_radius_all(6)
+		c_btn.add_theme_stylebox_override("normal", c_style)
+		var c_hover := c_style.duplicate()
+		c_hover.bg_color = Color(0.22, 0.26, 0.38, 1.0)
+		c_btn.add_theme_stylebox_override("hover", c_hover)
+		UIFontStyle.style_button(c_btn, 15)
+
+		c_btn.pressed.connect(func():
+			selected_bet_chip = val
+			_update_chip_styles()
+			_update_bet_ticket_preview()
+		)
+		chips_box.add_child(c_btn)
+		_chip_buttons.append(c_btn)
+
+	_wala_bet_btn = Button.new()
+	_wala_bet_btn.custom_minimum_size = Vector2(240, 48)
+	_wala_bet_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var w_style := StyleBoxFlat.new()
+	w_style.bg_color = Color(0.12, 0.35, 0.70, 0.90)
+	w_style.border_color = Color(0.3, 0.6, 1.0)
+	w_style.set_border_width_all(2)
+	w_style.set_corner_radius_all(8)
+	_wala_bet_btn.add_theme_stylebox_override("normal", w_style)
+	var w_hover := w_style.duplicate()
+	w_hover.bg_color = Color(0.18, 0.45, 0.85, 1.0)
+	_wala_bet_btn.add_theme_stylebox_override("hover", w_hover)
+	var p2_title: String = opponent.rooster_data.display_name if (opponent and opponent.rooster_data) else "WALA"
+	var w_odds: float = BettingManager.wala_odds if BettingManager else 1.95
+	_wala_bet_btn.text = "BET WALA [%.2fx]: %s" % [w_odds, p2_title]
+	UIFontStyle.style_button(_wala_bet_btn, 17)
+	_wala_bet_btn.pressed.connect(func(): _on_spectator_place_bet("WALA"))
+	mid_row.add_child(_wala_bet_btn)
+
+	spectator_bet_ticket_lbl = Label.new()
+	spectator_bet_ticket_lbl.text = "Select a chip value and click BET MERON or BET WALA before combat begins!"
+	spectator_bet_ticket_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_body(spectator_bet_ticket_lbl, 14, true)
+	spectator_bet_ticket_lbl.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+	vb.add_child(spectator_bet_ticket_lbl)
+	_update_bet_ticket_preview()
+
+func _update_chip_styles() -> void:
+	var chip_values := [10, 50, 100, 250, 500]
+	for i in range(_chip_buttons.size()):
+		var btn: Button = _chip_buttons[i]
+		if not is_instance_valid(btn): continue
+		var val: int = chip_values[i]
+		var c_style := StyleBoxFlat.new()
+		c_style.bg_color = Color(0.15, 0.18, 0.26, 0.9)
+		c_style.border_color = Color.GOLD if val == selected_bet_chip else Color(0.3, 0.35, 0.45)
+		c_style.set_border_width_all(2 if val == selected_bet_chip else 1)
+		c_style.set_corner_radius_all(6)
+		btn.add_theme_stylebox_override("normal", c_style)
+
+func _update_bet_ticket_preview() -> void:
+	if not spectator_bet_ticket_lbl or not is_instance_valid(spectator_bet_ticket_lbl): return
+	if BettingManager and BettingManager.has_active_bet: return
+	var m_odds: float = BettingManager.meron_odds if BettingManager else 1.95
+	var w_odds: float = BettingManager.wala_odds if BettingManager else 1.95
+	var est_m: int = int(round(selected_bet_chip * m_odds))
+	var est_w: int = int(round(selected_bet_chip * w_odds))
+	spectator_bet_ticket_lbl.text = "Chip Selected: %d Taya • Meron Win: %d Taya (%.2fx) | Wala Win: %d Taya (%.2fx)" % [selected_bet_chip, est_m, m_odds, est_w, w_odds]
+	spectator_bet_ticket_lbl.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+
+func _update_spectator_bet_buttons() -> void:
+	var m_odds: float = BettingManager.meron_odds if BettingManager else 1.95
+	var w_odds: float = BettingManager.wala_odds if BettingManager else 1.95
+	var p1_title: String = player.rooster_data.display_name if (player and player.rooster_data) else "MERON"
+	var p2_title: String = opponent.rooster_data.display_name if (opponent and opponent.rooster_data) else "WALA"
+	if _meron_bet_btn and is_instance_valid(_meron_bet_btn) and not _meron_bet_btn.disabled:
+		_meron_bet_btn.text = "BET MERON [%.2fx]: %s" % [m_odds, p1_title]
+	if _wala_bet_btn and is_instance_valid(_wala_bet_btn) and not _wala_bet_btn.disabled:
+		_wala_bet_btn.text = "BET WALA [%.2fx]: %s" % [w_odds, p2_title]
+
+func _on_spectator_place_bet(side: String) -> void:
+	if not BettingManager: return
+	if BettingManager.has_active_bet:
+		spectator_bet_ticket_lbl.text = "You already have an active bet placed for this match!"
+		return
+	if not BettingManager.can_place_bet(selected_bet_chip):
+		spectator_bet_ticket_lbl.text = "Insufficient Taya coins in wallet to place %d Taya bet!" % selected_bet_chip
+		spectator_bet_ticket_lbl.add_theme_color_override("font_color", Color.SALMON)
+		return
+
+	var ok := BettingManager.place_bet(side, selected_bet_chip)
+	if ok:
+		var odds: float = BettingManager.meron_odds if side.to_upper() == "MERON" else BettingManager.wala_odds
+		var payout: int = int(round(selected_bet_chip * odds))
+		spectator_bet_ticket_lbl.text = "TICKET LOCKED: %d TAYA ON %s • ESTIMATED PAYOUT: %d TAYA (%.2fx)" % [selected_bet_chip, side.to_upper(), payout, odds]
+		spectator_bet_ticket_lbl.add_theme_color_override("font_color", Color.GOLD)
+		if spectator_taya_bal_lbl and is_instance_valid(spectator_taya_bal_lbl) and AuthManager:
+			spectator_taya_bal_lbl.text = "WALLET: %d TAYA" % AuthManager.taya_points
+		if _meron_bet_btn and is_instance_valid(_meron_bet_btn): _meron_bet_btn.disabled = true
+		if _wala_bet_btn and is_instance_valid(_wala_bet_btn): _wala_bet_btn.disabled = true
+
+# ---------------------------------------------------------------------------
+# Top Live Spectator & Dynamic Odds Bar
+# ---------------------------------------------------------------------------
+
+func _build_live_odds_bar() -> void:
+	if _live_odds_bar and is_instance_valid(_live_odds_bar):
+		_live_odds_bar.queue_free()
+
+	_live_odds_bar = PanelContainer.new()
+	_live_odds_bar.name = "LiveOddsBar"
+	_live_odds_bar.anchor_left = 0.5
+	_live_odds_bar.anchor_right = 0.5
+	_live_odds_bar.anchor_top = 0.0
+	_live_odds_bar.anchor_bottom = 0.0
+	_live_odds_bar.offset_left = -340
+	_live_odds_bar.offset_right = 340
+	_live_odds_bar.offset_top = 18
+	_live_odds_bar.offset_bottom = 74
+
+	var bar_style := StyleBoxFlat.new()
+	bar_style.bg_color = Color(0.04, 0.06, 0.12, 0.90)
+	bar_style.border_color = Color.GOLD
+	bar_style.set_border_width_all(2)
+	bar_style.set_corner_radius_all(10)
+	bar_style.content_margin_left = 16
+	bar_style.content_margin_right = 16
+	bar_style.content_margin_top = 8
+	bar_style.content_margin_bottom = 8
+	bar_style.shadow_color = Color(0, 0, 0, 0.6)
+	bar_style.shadow_size = 8
+	_live_odds_bar.add_theme_stylebox_override("panel", bar_style)
+	add_child(_live_odds_bar)
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 14)
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	_live_odds_bar.add_child(hbox)
+
+	# Spectator count ticker
+	var spec_hb := HBoxContainer.new()
+	spec_hb.add_theme_constant_override("separation", 6)
+	spec_hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_child(spec_hb)
+
+	var spec_ico := UIIcons.create_icon_rect("eye", 15, Color(0.35, 0.85, 1.0))
+	spec_hb.add_child(spec_ico)
+
+	_live_spectator_lbl = Label.new()
+	var spec_cnt: int = BettingManager.spectator_count if BettingManager else 0
+	_live_spectator_lbl.text = "%d SPECTATING" % spec_cnt
+	UIFontStyle.style_body(_live_spectator_lbl, 13, true)
+	_live_spectator_lbl.add_theme_color_override("font_color", Color(0.35, 0.85, 1.0))
+	spec_hb.add_child(_live_spectator_lbl)
+
+	var div1 := VSeparator.new()
+	hbox.add_child(div1)
+
+	# MERON Odds Pill
+	_live_meron_odds_lbl = Label.new()
+	var m_odds: float = BettingManager.meron_odds if BettingManager else 1.95
+	_live_meron_odds_lbl.text = "MERON [%.2fx]" % m_odds
+	UIFontStyle.style_anton(_live_meron_odds_lbl, 17)
+	_live_meron_odds_lbl.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+	hbox.add_child(_live_meron_odds_lbl)
+
+	# Pool Progress & Split Ratio
+	var pool_vbox := VBoxContainer.new()
+	pool_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pool_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	pool_vbox.add_theme_constant_override("separation", 2)
+	hbox.add_child(pool_vbox)
+
+	_live_pool_text_lbl = Label.new()
+	var m_pool: int = BettingManager.meron_pool if BettingManager else 0
+	var w_pool: int = BettingManager.wala_pool if BettingManager else 0
+	_live_pool_text_lbl.text = "POOL: %d vs %d TAYA" % [m_pool, w_pool]
+	_live_pool_text_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_body(_live_pool_text_lbl, 11, true)
+	_live_pool_text_lbl.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+	pool_vbox.add_child(_live_pool_text_lbl)
+
+	_live_pool_progress = ProgressBar.new()
+	_live_pool_progress.custom_minimum_size = Vector2(160, 8)
+	_live_pool_progress.show_percentage = false
+	var prog_bg := StyleBoxFlat.new()
+	prog_bg.bg_color = Color(0.15, 0.40, 0.85, 0.85) # Wala blue
+	prog_bg.set_corner_radius_all(4)
+	var prog_fg := StyleBoxFlat.new()
+	prog_fg.bg_color = Color(0.85, 0.20, 0.20, 0.95) # Meron red
+	prog_fg.set_corner_radius_all(4)
+	_live_pool_progress.add_theme_stylebox_override("background", prog_bg)
+	_live_pool_progress.add_theme_stylebox_override("fill", prog_fg)
+	_live_pool_progress.min_value = 0.0
+	_live_pool_progress.max_value = 100.0
+	var ratio: float = 50.0
+	if (m_pool + w_pool) > 0:
+		ratio = (float(m_pool) / float(m_pool + w_pool)) * 100.0
+	_live_pool_progress.value = ratio
+	pool_vbox.add_child(_live_pool_progress)
+
+	# WALA Odds Pill
+	_live_wala_odds_lbl = Label.new()
+	var w_odds: float = BettingManager.wala_odds if BettingManager else 1.95
+	_live_wala_odds_lbl.text = "WALA [%.2fx]" % w_odds
+	UIFontStyle.style_anton(_live_wala_odds_lbl, 17)
+	_live_wala_odds_lbl.add_theme_color_override("font_color", Color(0.35, 0.65, 1.0))
+	hbox.add_child(_live_wala_odds_lbl)
+
+func _on_odds_updated(m_odds: float, w_odds: float) -> void:
+	if _live_meron_odds_lbl and is_instance_valid(_live_meron_odds_lbl):
+		_live_meron_odds_lbl.text = "MERON [%.2fx]" % m_odds
+	if _live_wala_odds_lbl and is_instance_valid(_live_wala_odds_lbl):
+		_live_wala_odds_lbl.text = "WALA [%.2fx]" % w_odds
+	_update_spectator_bet_buttons()
+	_update_bet_ticket_preview()
+
+func _on_pool_updated(m_pool: int, w_pool: int) -> void:
+	if _live_pool_text_lbl and is_instance_valid(_live_pool_text_lbl):
+		_live_pool_text_lbl.text = "POOL: %d vs %d TAYA" % [m_pool, w_pool]
+	if _live_pool_progress and is_instance_valid(_live_pool_progress):
+		var total: int = m_pool + w_pool
+		_live_pool_progress.value = 50.0 if total == 0 else (float(m_pool) / float(total) * 100.0)
+
+func _on_spectator_count_changed(count: int) -> void:
+	if _live_spectator_lbl and is_instance_valid(_live_spectator_lbl):
+		_live_spectator_lbl.text = "%d SPECTATING" % count
+
+func _on_network_bet_pool_updated(m_pool: int, w_pool: int, m_odds: float, w_odds: float) -> void:
+	_on_odds_updated(m_odds, w_odds)
+	_on_pool_updated(m_pool, w_pool)
+
+func _on_network_match_finished(winner: String, _payouts: Array, _winning_odds: float, _m_pool: int, _w_pool: int) -> void:
+	if not match_over:
+		_on_duel_finished(winner)
+
+func _show_bet_victory_celebration(winner_id: String, payout: int, odds: float) -> void:
+	var banner := PanelContainer.new()
+	banner.name = "VictoryPayoutBanner"
+	banner.anchor_left = 0.5
+	banner.anchor_right = 0.5
+	banner.anchor_top = 0.5
+	banner.anchor_bottom = 0.5
+	banner.offset_left = -340
+	banner.offset_right = 340
+	banner.offset_top = -140
+	banner.offset_bottom = 140
+
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = Color(0.08, 0.05, 0.01, 0.95)
+	bs.border_color = Color(1.0, 0.85, 0.2)
+	bs.set_border_width_all(3)
+	bs.set_corner_radius_all(16)
+	bs.content_margin_left = 28
+	bs.content_margin_right = 28
+	bs.content_margin_top = 20
+	bs.content_margin_bottom = 20
+	bs.shadow_color = Color(1.0, 0.8, 0.1, 0.45)
+	bs.shadow_size = 24
+	banner.add_theme_stylebox_override("panel", bs)
+	add_child(banner)
+
+	var vb := VBoxContainer.new()
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_theme_constant_override("separation", 10)
+	banner.add_child(vb)
+
+	var title_hb := HBoxContainer.new()
+	title_hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	title_hb.add_theme_constant_override("separation", 14)
+	vb.add_child(title_hb)
+
+	var trop1 := UIIcons.create_icon_rect("trophy", 32, Color.GOLD)
+	title_hb.add_child(trop1)
+
+	var title := Label.new()
+	title.text = "SPECTATOR BET VICTORY!"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_anton(title, 32)
+	title.add_theme_color_override("font_color", Color.GOLD)
+	title_hb.add_child(title)
+
+	var trop2 := UIIcons.create_icon_rect("trophy", 32, Color.GOLD)
+	title_hb.add_child(trop2)
+
+	var payout_hb := HBoxContainer.new()
+	payout_hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	payout_hb.add_theme_constant_override("separation", 10)
+	vb.add_child(payout_hb)
+
+	var coin_ico := UIIcons.create_icon_rect("coin", 24, Color(0.3, 1.0, 0.5))
+	payout_hb.add_child(coin_ico)
+
+	var payout_lbl := Label.new()
+	payout_lbl.text = "+%d TAYA COINS CREDITED!" % payout
+	payout_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_title(payout_lbl, 26)
+	payout_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	payout_hb.add_child(payout_lbl)
+
+	var sub := Label.new()
+	var bal: int = AuthManager.taya_points if AuthManager else 500
+	sub.text = "Winning Odds: %.2fx on %s • Wallet: %d Taya" % [odds, winner_id, bal]
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_subheading(sub, 16)
+	sub.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+	vb.add_child(sub)
+
+	# Pulse animation
+	banner.scale = Vector2(0.7, 0.7)
+	banner.pivot_offset = Vector2(340, 140)
+	var tw := create_tween()
+	if tw:
+		tw.tween_property(banner, "scale", Vector2(1.05, 1.05), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(banner, "scale", Vector2.ONE, 0.15)

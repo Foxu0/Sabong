@@ -20,6 +20,9 @@ class GodotWebHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=WEB_DIR, **kwargs)
 
+    def address_string(self) -> str:
+        return str(self.client_address[0]) if self.client_address else "127.0.0.1"
+
     def end_headers(self):
         # Mandatory headers for Godot 4 WebAssembly and SharedArrayBuffer
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
@@ -36,6 +39,30 @@ class GodotWebHandler(http.server.SimpleHTTPRequestHandler):
             return "application/javascript"
         return super().guess_type(path)
 
+    def do_GET(self):
+        # High-Speed Gzip Static Asset Serving
+        accept_encoding = self.headers.get("Accept-Encoding", "")
+        if "gzip" in accept_encoding:
+            req_path = self.translate_path(self.path)
+            gz_path = req_path + ".gz"
+            if os.path.isfile(gz_path):
+                content_type = self.guess_type(req_path)
+                try:
+                    file_size = os.path.getsize(gz_path)
+                    self.send_response(200)
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Content-Encoding", "gzip")
+                    self.send_header("Content-Length", str(file_size))
+                    self.send_header("Cache-Control", "public, max-age=3600")
+                    self.end_headers()
+                    with open(gz_path, "rb") as f:
+                        while chunk := f.read(512 * 1024):
+                            self.wfile.write(chunk)
+                    return
+                except Exception:
+                    pass
+        super().do_GET()
+
 def main():
     if not os.path.exists(WEB_DIR):
         os.makedirs(WEB_DIR, exist_ok=True)
@@ -46,21 +73,23 @@ def main():
         print(f"  3. Save to: {os.path.join(WEB_DIR, 'index.html')}")
 
     print(f"==================================================")
-    print(f"  SABONG ROOSTERS - HTML5 LOCAL WEB SERVER")
+    print(f"  SABONG ROOSTERS - HTML5 HIGH-SPEED WEB SERVER")
     print(f"==================================================")
     print(f"  Serving directory : {WEB_DIR}")
     print(f"  Local Game URL    : http://localhost:{PORT}")
+    print(f"  Compression active: Gzip (Pre-compressed static assets)")
     print(f"  Headers active    : COOP / COEP Enabled")
+    print(f"  Concurrency       : Multi-Threaded Parallel Downloads")
     print(f"==================================================")
     print(f"Press Ctrl+C to stop the server.\n")
 
-    # Allow immediate socket reuse
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), GodotWebHandler) as httpd:
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\nShutting down web server.")
+    # Use ThreadingHTTPServer for multi-stream asset downloads
+    httpd = http.server.ThreadingHTTPServer(("", PORT), GodotWebHandler)
+    httpd.allow_reuse_address = True
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down web server.")
 
 if __name__ == "__main__":
     main()

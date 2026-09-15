@@ -20,6 +20,13 @@ signal room_code_received(code: String)   ## Host gets their 4-char room code
 signal online_rooms_updated(rooms: Array) ## Client gets fresh room list
 signal online_connection_failed(reason: String)
 
+## Spectator & Betting signals
+signal bet_pool_updated(meron_pool: int, wala_pool: int, meron_odds: float, wala_odds: float)
+signal spectator_count_updated(count: int)
+signal match_finished_received(winner: String, payouts: Array, winning_odds: float, meron_pool: int, wala_pool: int)
+signal bet_confirmed_received(side: String, amount: int, new_balance: int)
+signal bet_rejected_received(error: String)
+
 ## Tournament Signals
 signal tournament_roster_updated(roster: Dictionary)
 signal tournament_bracket_received(bracket_data: Dictionary)
@@ -262,28 +269,50 @@ func get_discovered_hosts() -> Dictionary:
 # ---------------------------------------------------------------------------
 
 func _get_relay_base_url() -> String:
-	return RELAY_URL_LOCAL if use_local_relay else RELAY_URL
+	if OS.has_feature("web"):
+		if OS.has_feature("JavaScript"):
+			var host = JavaScriptBridge.eval("window.location.hostname")
+			if host in ["localhost", "127.0.0.1", "0.0.0.0"]:
+				return RELAY_URL_LOCAL
+		return RELAY_URL
+	return RELAY_URL_LOCAL if (use_local_relay or OS.has_feature("editor")) else RELAY_URL
 
-## Host online: start ENet server first, then register with relay for discovery.
+func _is_relay_active() -> bool:
+	return _relay_ws != null and _relay_ws.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+## Host online: connect to relay server to create room and route game events.
 func host_online(mode: MatchMode = MatchMode.DUEL_1V1, max_players: int = 8) -> void:
 	_close_relay_ws()
 	_relay_role = "host"
+	is_host = true
+	local_peer_id = 1
 	current_match_mode = mode
 	max_tournament_players = max_players
-	# Start the ENet game server (same as LAN host)
-	var err := host_match(DEFAULT_PORT, mode, max_players)
-	if err != OK:
-		online_connection_failed.emit("Could not start server on port %d." % DEFAULT_PORT)
-		return
-	# Now connect control WebSocket to relay to announce the room
+	online_match_data["status"] = "PENDING"
+	p1_rooster_id = ""
+	p2_rooster_id = ""
+	p1_submitted_cards.clear()
+	p2_submitted_cards.clear()
+	p1_has_locked_turn = false
+	p2_has_locked_turn = false
+	if mode == MatchMode.TOURNAMENT:
+		tournament_roster.clear()
+		var host_name := OS.get_model_name() if OS.get_model_name() != "" else "Host"
+		tournament_roster[1] = {
+			"peer_id": 1,
+			"name": host_name,
+			"rooster_id": "",
+			"ready": false
+		}
+
+	# Connect control WebSocket to relay to announce the room
 	_relay_ws = WebSocketPeer.new()
-	var url := _get_relay_base_url() + "/ws/new/host"
+	var url := _get_relay_base_url() + "/ws/NEW/host"
 	var conn_err := _relay_ws.connect_to_url(url)
 	if conn_err != OK:
 		online_connection_failed.emit("Could not connect to relay server.")
 		_relay_ws = null
 		return
-	# Relay will record our public IP and send back a room code
 
 func host_online_match(mode: MatchMode = MatchMode.DUEL_1V1, max_players: int = 8) -> void:
 	host_online(mode, max_players)
@@ -293,6 +322,14 @@ func join_online(room_code: String) -> void:
 	_close_relay_ws()
 	stop_online_room_fetch()
 	_relay_role = "client"
+	is_host = false
+	local_peer_id = 2
+	p1_rooster_id = ""
+	p2_rooster_id = ""
+	p1_submitted_cards.clear()
+	p2_submitted_cards.clear()
+	p1_has_locked_turn = false
+	p2_has_locked_turn = false
 	_relay_room_code = room_code.strip_edges().to_upper()
 	_relay_ws = WebSocketPeer.new()
 	var url := _get_relay_base_url() + "/ws/" + _relay_room_code + "/join"
@@ -304,6 +341,51 @@ func join_online(room_code: String) -> void:
 
 func join_online_match(room_code: String) -> void:
 	join_online(room_code)
+
+## Spectator: connect to an online room in spectator mode
+func spectate_online(room_code: String) -> void:
+	_close_relay_ws()
+	stop_online_room_fetch()
+	_relay_role = "spectate"
+	is_host = false
+	local_peer_id = 999
+	_relay_room_code = room_code.strip_edges().to_upper()
+	_relay_ws = WebSocketPeer.new()
+	var url := _get_relay_base_url() + "/ws/" + _relay_room_code + "/spectate"
+	var err := _relay_ws.connect_to_url(url)
+	if err != OK:
+		online_connection_failed.emit("Could not connect to spectator arena.")
+		_relay_ws = null
+		return
+
+## Spectator: place bet via relay server
+func send_relay_bet(side: String, amount: int) -> void:
+	if _relay_ws and _relay_ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		var pid = 1
+		var uname = "Player"
+		var am = get_node_or_null("/root/AuthManager")
+		if am:
+			if am.get("player_id"):
+				pid = int(am.get("player_id"))
+			if am.get("username"):
+				uname = str(am.get("username"))
+		var payload := {
+			"type": "place_bet",
+			"player_id": pid,
+			"username": uname,
+			"side": side.to_upper(),
+			"amount": amount
+		}
+		_relay_ws.send_text(JSON.stringify(payload))
+
+## Host: notify relay server that a match / duel finished
+func notify_duel_finished(winner_side: String) -> void:
+	if is_host and _relay_ws and _relay_ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		var payload := {
+			"type": "duel_finished",
+			"winner": winner_side.to_upper()
+		}
+		_relay_ws.send_text(JSON.stringify(payload))
 
 ## Start periodically fetching the online room list from the relay REST endpoint.
 func start_online_room_fetch() -> void:
@@ -365,8 +447,9 @@ func _poll_relay_control_messages() -> void:
 			var json := JSON.new()
 			if json.parse(text) != OK:
 				continue
-			var data: Dictionary = json.get_data()
-			_handle_relay_control(data)
+			var data = json.get_data()
+			if data is Dictionary:
+				_handle_relay_control(data)
 		return
 
 	# Connection closed -- only report error if we haven't started a game yet
@@ -375,35 +458,150 @@ func _poll_relay_control_messages() -> void:
 			online_connection_failed.emit("Relay connection closed.")
 		_close_relay_ws()
 
-
 func _handle_relay_control(data: Dictionary) -> void:
 	var msg_type: String = data.get("type", "")
 	match msg_type:
 		"room_created":
 			_relay_room_code = data.get("code", "")
 			room_code_received.emit(_relay_room_code)
-			# ENet server already running -- just wait for client
 		"client_joined":
-			# Relay confirms a client joined; ENet peer_connected will fire when they arrive
-			pass
+			var client_idx = int(data.get("client_index", 2))
+			opponent_peer_id = client_idx
+			player_connected.emit(client_idx)
+			# If host already picked rooster, sync to newly arrived client
+			if p1_rooster_id != "" and _relay_ws:
+				_relay_ws.send_text(JSON.stringify({
+					"type": "sync_rooster",
+					"player_num": 1,
+					"rooster_id": p1_rooster_id
+				}))
 		"host_ready":
-			# Client received host's public IP from relay -- connect via ENet
-			var ip: String = data.get("host_ip", "")
-			var port: int = data.get("host_port", DEFAULT_PORT)
 			var mode_str: String = data.get("mode", "duel")
 			current_match_mode = MatchMode.TOURNAMENT if mode_str == "tournament" else MatchMode.DUEL_1V1
-			if ip.is_empty():
-				online_connection_failed.emit("Relay did not provide host address.")
-				return
-			var err := join_match(ip, port)
-			if err != OK:
-				online_connection_failed.emit("Could not reach host at %s:%d.\nHost may need to forward port %d." % [ip, port, port])
+			opponent_peer_id = 1
+			player_connected.emit(1)
+		"submit_client_rooster":
+			if is_host:
+				p2_rooster_id = str(data.get("rooster_id", ""))
+				if _relay_ws:
+					_relay_ws.send_text(JSON.stringify({
+						"type": "sync_rooster",
+						"player_num": 2,
+						"rooster_id": p2_rooster_id
+					}))
+				_check_both_roosters_ready()
+		"sync_rooster":
+			var p_num = int(data.get("player_num", 1))
+			var r_id = str(data.get("rooster_id", ""))
+			if p_num == 1:
+				p1_rooster_id = r_id
+			elif p_num == 2:
+				p2_rooster_id = r_id
+		"start_match":
+			p1_rooster_id = str(data.get("p1_id", ""))
+			p2_rooster_id = str(data.get("p2_id", ""))
+			online_match_data["status"] = "IN_PROGRESS"
+			match_ready.emit(p1_rooster_id, p2_rooster_id)
+		"dice_rolls":
+			var m_roll = int(data.get("meron_roll", 1))
+			var w_roll = int(data.get("wala_roll", 1))
+			dice_rolls_received.emit(m_roll, w_roll)
+		"client_submit_turn":
+			if is_host:
+				var cards: Array[String] = []
+				for c in data.get("card_ids", []):
+					cards.append(str(c))
+				p2_submitted_cards = cards
+				p2_has_locked_turn = true
+				_check_both_turns_ready()
+		"turn_events":
+			var raw_events = data.get("events", [])
+			var typed_events: Array[Dictionary] = []
+			for ev in raw_events:
+				if ev is Dictionary:
+					typed_events.append(ev)
+			turn_received_from_host.emit(typed_events)
+		"submit_tourney_reg":
+			if is_host:
+				var sender_id = tournament_roster.size() + 1
+				tournament_roster[sender_id] = {
+					"peer_id": sender_id,
+					"name": str(data.get("name", "Contender")),
+					"rooster_id": str(data.get("rooster_id", "")),
+					"ready": true
+				}
+				_sync_tournament_roster_to_all()
+		"sync_tournament_roster":
+			var raw_roster = data.get("roster", {})
+			if raw_roster is Dictionary:
+				tournament_roster = raw_roster
+				tournament_roster_updated.emit(tournament_roster)
+		"sync_tournament_bracket":
+			var b_data = data.get("bracket_data", {})
+			if b_data is Dictionary:
+				TournamentManager.deserialize_bracket(b_data)
+				TournamentManager.is_online_tournament = true
+				TournamentManager.is_tournament_active = true
+				tournament_bracket_received.emit(b_data)
+		"start_tournament_match":
+			active_tournament_match_id = str(data.get("match_id", ""))
+			active_p1_peer = int(data.get("p1_peer", 1))
+			active_p2_peer = int(data.get("p2_peer", 2))
+			p1_rooster_id = str(data.get("p1_rooster", ""))
+			p2_rooster_id = str(data.get("p2_rooster", ""))
+			tournament_match_started.emit(active_tournament_match_id, active_p1_peer, active_p2_peer)
+		"sync_tournament_match_result":
+			var b_data = data.get("updated_bracket", {})
+			if b_data is Dictionary:
+				TournamentManager.deserialize_bracket(b_data)
+				TournamentManager.tournament_state_changed.emit()
+		"bet_pool_updated":
+			var m_pool = int(data.get("meron_pool", 0))
+			var w_pool = int(data.get("wala_pool", 0))
+			var m_odds = float(data.get("meron_odds", 1.95))
+			var w_odds = float(data.get("wala_odds", 1.95))
+			if BettingManager:
+				BettingManager.update_pool_from_server(m_pool, w_pool, m_odds, w_odds)
+			bet_pool_updated.emit(m_pool, w_pool, m_odds, w_odds)
+		"spectator_count":
+			var count = int(data.get("count", 0))
+			if BettingManager:
+				BettingManager.set_spectator_count(count)
+			spectator_count_updated.emit(count)
+		"spectate_joined":
+			var m_pool = int(data.get("meron_pool", 0))
+			var w_pool = int(data.get("wala_pool", 0))
+			var m_odds = float(data.get("meron_odds", 1.95))
+			var w_odds = float(data.get("wala_odds", 1.95))
+			var spec_count = int(data.get("spectators_count", 0))
+			if BettingManager:
+				BettingManager.update_pool_from_server(m_pool, w_pool, m_odds, w_odds)
+				BettingManager.set_spectator_count(spec_count)
+			bet_pool_updated.emit(m_pool, w_pool, m_odds, w_odds)
+			spectator_count_updated.emit(spec_count)
+		"bet_confirmed":
+			var side = str(data.get("side", ""))
+			var amt = int(data.get("amount", 0))
+			var new_bal = int(data.get("new_balance", 0))
+			bet_confirmed_received.emit(side, amt, new_bal)
+		"bet_rejected":
+			var err = str(data.get("error", "Bet rejected"))
+			bet_rejected_received.emit(err)
+		"match_finished":
+			var winner = str(data.get("winner", ""))
+			var payouts = data.get("payouts", [])
+			var win_odds = float(data.get("winning_odds", 1.95))
+			var m_pool = int(data.get("meron_pool", 0))
+			var w_pool = int(data.get("wala_pool", 0))
+			if BettingManager:
+				BettingManager.resolve_winner(winner, payouts, win_odds)
+			match_finished_received.emit(winner, payouts, win_odds, m_pool, w_pool)
 		"host_left", "client_left":
+			opponent_disconnected_forfeit.emit()
 			_on_server_disconnected()
 		"error":
 			online_connection_failed.emit(data.get("msg", "Unknown relay error"))
 			_close_relay_ws()
-
 
 func _close_relay_ws() -> void:
 	if _relay_ws != null:
@@ -423,12 +621,27 @@ func register_duelists(p1: Duelist, p2: Duelist) -> void:
 
 ## Syncs chosen rooster to other player (Blueprint §9: "Initialize match session")
 func submit_rooster_choice(rooster_id: String) -> void:
-	if is_host:
-		p1_rooster_id = rooster_id
-		rpc("rpc_sync_rooster", 1, rooster_id)
-		_check_both_roosters_ready()
+	if _is_relay_active():
+		if is_host:
+			p1_rooster_id = rooster_id
+			_relay_ws.send_text(JSON.stringify({
+				"type": "sync_rooster",
+				"player_num": 1,
+				"rooster_id": rooster_id
+			}))
+			_check_both_roosters_ready()
+		else:
+			_relay_ws.send_text(JSON.stringify({
+				"type": "submit_client_rooster",
+				"rooster_id": rooster_id
+			}))
 	else:
-		rpc_id(1, "rpc_submit_client_rooster", rooster_id)
+		if is_host:
+			p1_rooster_id = rooster_id
+			rpc("rpc_sync_rooster", 1, rooster_id)
+			_check_both_roosters_ready()
+		else:
+			rpc_id(1, "rpc_submit_client_rooster", rooster_id)
 
 @rpc("any_peer", "reliable")
 func rpc_submit_client_rooster(rooster_id: String) -> void:
@@ -446,7 +659,22 @@ func _check_both_roosters_ready() -> void:
 	if not is_host: return
 	if p1_rooster_id != "" and p2_rooster_id != "" and online_match_data["status"] != "IN_PROGRESS":
 		online_match_data["status"] = "IN_PROGRESS"
-		rpc("rpc_start_match", p1_rooster_id, p2_rooster_id)
+		if _is_relay_active():
+			# Notify relay server of room roosters for spectator betting
+			_relay_ws.send_text(JSON.stringify({
+				"type": "match_ready",
+				"p1_rooster_id": p1_rooster_id,
+				"p2_rooster_id": p2_rooster_id
+			}))
+			# Notify client to start match
+			_relay_ws.send_text(JSON.stringify({
+				"type": "start_match",
+				"p1_id": p1_rooster_id,
+				"p2_id": p2_rooster_id
+			}))
+			match_ready.emit(p1_rooster_id, p2_rooster_id)
+		else:
+			rpc("rpc_start_match", p1_rooster_id, p2_rooster_id)
 
 @rpc("authority", "call_local", "reliable")
 func rpc_start_match(p1_id: String, p2_id: String) -> void:
@@ -462,7 +690,14 @@ func rpc_start_match(p1_id: String, p2_id: String) -> void:
 ## Host calls this to broadcast dice rolls to both peers
 func broadcast_dice_rolls(meron_roll: int, wala_roll: int) -> void:
 	if not is_host: return
-	rpc("rpc_receive_dice_rolls", meron_roll, wala_roll)
+	if _is_relay_active():
+		_relay_ws.send_text(JSON.stringify({
+			"type": "dice_rolls",
+			"meron_roll": meron_roll,
+			"wala_roll": wala_roll
+		}))
+	else:
+		rpc("rpc_receive_dice_rolls", meron_roll, wala_roll)
 
 @rpc("authority", "reliable")
 func rpc_receive_dice_rolls(meron_roll: int, wala_roll: int) -> void:
@@ -481,8 +716,8 @@ func submit_turn(card_ids: Array) -> void:
 
 	if is_host:
 		if current_match_mode == MatchMode.TOURNAMENT:
-			var my_id := multiplayer.get_unique_id()
-			if my_id == active_p1_peer:
+			var my_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer else 1
+			if my_id == active_p1_peer or active_p1_peer == 0:
 				p1_submitted_cards = typed_cards
 				p1_has_locked_turn = true
 			elif my_id == active_p2_peer:
@@ -493,7 +728,13 @@ func submit_turn(card_ids: Array) -> void:
 			p1_has_locked_turn = true
 		_check_both_turns_ready()
 	else:
-		rpc_id(1, "rpc_client_submit_turn", typed_cards)
+		if _is_relay_active():
+			_relay_ws.send_text(JSON.stringify({
+				"type": "client_submit_turn",
+				"card_ids": typed_cards
+			}))
+		else:
+			rpc_id(1, "rpc_client_submit_turn", typed_cards)
 
 @rpc("any_peer", "reliable")
 func rpc_client_submit_turn(card_ids: Array) -> void:
@@ -582,7 +823,13 @@ func _apply_card_ids_to_duelist(duelist: Duelist, card_ids: Array[String]) -> vo
 ## Broadcasts the full events array to all clients (Blueprint §9: "broadcast live VFX, damage & HP sync")
 func broadcast_turn_events(events: Array[Dictionary]) -> void:
 	if not is_host: return
-	rpc("rpc_broadcast_turn_resolution", events)
+	if _is_relay_active():
+		_relay_ws.send_text(JSON.stringify({
+			"type": "turn_events",
+			"events": events
+		}))
+	else:
+		rpc("rpc_broadcast_turn_resolution", events)
 
 @rpc("authority", "reliable")
 func rpc_broadcast_turn_resolution(events: Array[Dictionary]) -> void:
@@ -593,8 +840,7 @@ func rpc_broadcast_turn_resolution(events: Array[Dictionary]) -> void:
 # ---------------------------------------------------------------------------
 
 func register_local_tournament_player(player_name: String, rooster_id: String) -> void:
-	var my_id := multiplayer.get_unique_id()
-	local_peer_id = my_id
+	local_peer_id = 1 if is_host else 2
 	if is_host:
 		tournament_roster[1] = {
 			"peer_id": 1,
@@ -604,7 +850,14 @@ func register_local_tournament_player(player_name: String, rooster_id: String) -
 		}
 		_sync_tournament_roster_to_all()
 	else:
-		rpc_id(1, "rpc_submit_tournament_registration", player_name, rooster_id)
+		if _is_relay_active():
+			_relay_ws.send_text(JSON.stringify({
+				"type": "submit_tourney_reg",
+				"name": player_name,
+				"rooster_id": rooster_id
+			}))
+		else:
+			rpc_id(1, "rpc_submit_tournament_registration", player_name, rooster_id)
 
 @rpc("any_peer", "reliable")
 func rpc_submit_tournament_registration(player_name: String, rooster_id: String) -> void:
@@ -622,7 +875,13 @@ func rpc_submit_tournament_registration(player_name: String, rooster_id: String)
 func _sync_tournament_roster_to_all() -> void:
 	if not is_host: return
 	tournament_roster_updated.emit(tournament_roster)
-	rpc("rpc_sync_tournament_roster", tournament_roster)
+	if _is_relay_active():
+		_relay_ws.send_text(JSON.stringify({
+			"type": "sync_tournament_roster",
+			"roster": tournament_roster
+		}))
+	else:
+		rpc("rpc_sync_tournament_roster", tournament_roster)
 
 @rpc("authority", "reliable")
 func rpc_sync_tournament_roster(roster: Dictionary) -> void:
@@ -631,7 +890,13 @@ func rpc_sync_tournament_roster(roster: Dictionary) -> void:
 
 func broadcast_start_tournament(bracket_data: Dictionary) -> void:
 	if not is_host: return
-	rpc("rpc_sync_tournament_bracket", bracket_data)
+	if _is_relay_active():
+		_relay_ws.send_text(JSON.stringify({
+			"type": "sync_tournament_bracket",
+			"bracket_data": bracket_data
+		}))
+	else:
+		rpc("rpc_sync_tournament_bracket", bracket_data)
 
 @rpc("authority", "call_local", "reliable")
 func rpc_sync_tournament_bracket(bracket_data: Dictionary) -> void:
@@ -646,7 +911,20 @@ func broadcast_start_tournament_match(match_id: String, p1_peer: int, p2_peer: i
 	active_tournament_match_id = match_id
 	active_p1_peer = p1_peer
 	active_p2_peer = p2_peer
-	rpc("rpc_start_tournament_match", match_id, p1_peer, p2_peer, p1_rooster, p2_rooster)
+	p1_rooster_id = p1_rooster
+	p2_rooster_id = p2_rooster
+	if _is_relay_active():
+		_relay_ws.send_text(JSON.stringify({
+			"type": "start_tournament_match",
+			"match_id": match_id,
+			"p1_peer": p1_peer,
+			"p2_peer": p2_peer,
+			"p1_rooster": p1_rooster,
+			"p2_rooster": p2_rooster
+		}))
+		tournament_match_started.emit(match_id, p1_peer, p2_peer)
+	else:
+		rpc("rpc_start_tournament_match", match_id, p1_peer, p2_peer, p1_rooster, p2_rooster)
 
 @rpc("authority", "call_local", "reliable")
 func rpc_start_tournament_match(match_id: String, p1_peer: int, p2_peer: int, p1_rooster: String, p2_rooster: String) -> void:
@@ -659,10 +937,20 @@ func rpc_start_tournament_match(match_id: String, p1_peer: int, p2_peer: int, p1
 
 func broadcast_tournament_match_result(winner_rooster_id: String, updated_bracket: Dictionary) -> void:
 	if not is_host: return
-	rpc("rpc_sync_tournament_match_result", winner_rooster_id, updated_bracket)
+	if _is_relay_active():
+		_relay_ws.send_text(JSON.stringify({
+			"type": "sync_tournament_match_result",
+			"winner_rooster_id": winner_rooster_id,
+			"updated_bracket": updated_bracket
+		}))
+		TournamentManager.deserialize_bracket(updated_bracket)
+		TournamentManager.tournament_state_changed.emit()
+	else:
+		rpc("rpc_sync_tournament_match_result", winner_rooster_id, updated_bracket)
 
 @rpc("authority", "call_local", "reliable")
 func rpc_sync_tournament_match_result(_winner_rooster_id: String, updated_bracket: Dictionary) -> void:
+
 	TournamentManager.deserialize_bracket(updated_bracket)
 	TournamentManager.tournament_state_changed.emit()
 

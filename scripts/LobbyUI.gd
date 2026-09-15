@@ -311,8 +311,8 @@ func _build_host_card() -> Control:
 	vbox.add_child(mode_hbox)
 
 	var seg_active := StyleBoxFlat.new()
-	seg_active.bg_color = Color(1.0, 0.85, 0.2, 0.16)
-	seg_active.border_color = Color.GOLD
+	seg_active.bg_color = Color(1.0, 1.0, 1.0, 0.12)
+	seg_active.border_color = Color(1.0, 1.0, 1.0, 0.35)
 	seg_active.set_border_width_all(1)
 	seg_active.set_corner_radius_all(6)
 
@@ -321,13 +321,13 @@ func _build_host_card() -> Control:
 	_mode_duel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mode_duel_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_mode_duel_btn.add_theme_stylebox_override("normal", seg_active)
-	UIIcons.setup_centered_button(_mode_duel_btn, "1V1 DUEL", "swords", 18, 16, Color.GOLD, Color.WHITE, 8)
+	UIIcons.setup_centered_button(_mode_duel_btn, "1V1 DUEL", "swords", 18, 16, Color.WHITE, Color.WHITE, 8)
 	_mode_duel_btn.pressed.connect(func(): _set_host_mode("duel"))
 	mode_hbox.add_child(_mode_duel_btn)
 
 	var seg_inactive := StyleBoxFlat.new()
-	seg_inactive.bg_color = Color(0.06, 0.08, 0.12, 0.6)
-	seg_inactive.border_color = Color(0.25, 0.35, 0.50, 0.5)
+	seg_inactive.bg_color = Color(1.0, 1.0, 1.0, 0.03)
+	seg_inactive.border_color = Color(1.0, 1.0, 1.0, 0.08)
 	seg_inactive.set_border_width_all(1)
 	seg_inactive.set_corner_radius_all(6)
 
@@ -336,7 +336,7 @@ func _build_host_card() -> Control:
 	_mode_tourney_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mode_tourney_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_mode_tourney_btn.add_theme_stylebox_override("normal", seg_inactive)
-	UIIcons.setup_centered_button(_mode_tourney_btn, "TOURNAMENT", "trophy", 18, 16, Color(0.65, 0.70, 0.80), Color.WHITE, 8)
+	UIIcons.setup_centered_button(_mode_tourney_btn, "TOURNAMENT", "crown", 18, 16, Color(0.65, 0.70, 0.80), Color.WHITE, 8)
 	_mode_tourney_btn.pressed.connect(func(): _set_host_mode("tournament"))
 	mode_hbox.add_child(_mode_tourney_btn)
 
@@ -390,9 +390,9 @@ func _build_host_card() -> Control:
 	_host_online_btn.custom_minimum_size = Vector2(0, 54)
 	_host_online_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var hb_style := StyleBoxFlat.new()
-	hb_style.bg_color = Color(0.18, 0.14, 0.05, 0.80)
-	hb_style.border_color = Color.GOLD
-	hb_style.set_border_width_all(2)
+	hb_style.bg_color = Color(1.0, 1.0, 1.0, 0.08)
+	hb_style.border_color = Color(1.0, 1.0, 1.0, 0.22)
+	hb_style.set_border_width_all(1)
 	hb_style.set_corner_radius_all(8)
 	hb_style.content_margin_left = 20
 	hb_style.content_margin_right = 20
@@ -400,9 +400,9 @@ func _build_host_card() -> Control:
 	hb_style.content_margin_bottom = 8
 	_host_online_btn.add_theme_stylebox_override("normal", hb_style)
 	var hb_hover := hb_style.duplicate() as StyleBoxFlat
-	hb_hover.bg_color = Color(0.35, 0.28, 0.10, 0.95)
-	hb_hover.shadow_size = 14
-	hb_hover.shadow_color = Color(1.0, 0.85, 0.2, 0.4)
+	hb_hover.bg_color = Color(1.0, 1.0, 1.0, 0.16)
+	hb_hover.shadow_size = 8
+	hb_hover.shadow_color = Color(0, 0, 0, 0.3)
 	_host_online_btn.add_theme_stylebox_override("hover", hb_hover)
 	UIIcons.setup_centered_button(
 		_host_online_btn,
@@ -410,7 +410,7 @@ func _build_host_card() -> Control:
 		"globe",
 		24,
 		24,
-		Color.GOLD,
+		Color.WHITE,
 		Color.WHITE,
 		14
 	)
@@ -422,13 +422,13 @@ func _build_host_card() -> Control:
 	_host_lan_btn.custom_minimum_size = Vector2(0, 54)
 	_host_lan_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var lb_style := hb_style.duplicate() as StyleBoxFlat
-	lb_style.bg_color = Color(0.06, 0.14, 0.24, 0.80)
-	lb_style.border_color = Color(0.35, 0.80, 1.0)
+	lb_style.bg_color = Color(1.0, 1.0, 1.0, 0.06)
+	lb_style.border_color = Color(1.0, 1.0, 1.0, 0.18)
 	_host_lan_btn.add_theme_stylebox_override("normal", lb_style)
 	var lb_hover := lb_style.duplicate() as StyleBoxFlat
-	lb_hover.bg_color = Color(0.12, 0.25, 0.42, 0.95)
-	lb_hover.shadow_size = 14
-	lb_hover.shadow_color = Color(0.35, 0.80, 1.0, 0.4)
+	lb_hover.bg_color = Color(1.0, 1.0, 1.0, 0.12)
+	lb_hover.shadow_size = 8
+	lb_hover.shadow_color = Color(0, 0, 0, 0.3)
 	_host_lan_btn.add_theme_stylebox_override("hover", lb_hover)
 	_host_lan_btn.visible = false
 	UIIcons.setup_centered_button(
@@ -437,7 +437,7 @@ func _build_host_card() -> Control:
 		"lan",
 		24,
 		24,
-		Color(0.35, 0.80, 1.0),
+		Color.WHITE,
 		Color.WHITE,
 		14
 	)
@@ -704,28 +704,28 @@ func _set_host_mode(mode: String) -> void:
 		_max_players_stepper.visible = is_tourney
 
 	var active_sb := StyleBoxFlat.new()
-	active_sb.bg_color = Color(1.0, 0.85, 0.2, 0.16)
-	active_sb.border_color = Color.GOLD
+	active_sb.bg_color = Color(1.0, 1.0, 1.0, 0.12)
+	active_sb.border_color = Color(1.0, 1.0, 1.0, 0.35)
 	active_sb.set_border_width_all(1)
 	active_sb.set_corner_radius_all(6)
 
 	var inactive_sb := StyleBoxFlat.new()
-	inactive_sb.bg_color = Color(0.06, 0.08, 0.12, 0.6)
-	inactive_sb.border_color = Color(0.25, 0.35, 0.50, 0.5)
+	inactive_sb.bg_color = Color(1.0, 1.0, 1.0, 0.03)
+	inactive_sb.border_color = Color(1.0, 1.0, 1.0, 0.08)
 	inactive_sb.set_border_width_all(1)
 	inactive_sb.set_corner_radius_all(6)
 
 	if is_tourney:
 		_mode_tourney_btn.add_theme_stylebox_override("normal", active_sb)
 		_mode_duel_btn.add_theme_stylebox_override("normal", inactive_sb)
-		UIIcons.set_centered_button_color(_mode_tourney_btn, Color.GOLD, Color.WHITE)
+		UIIcons.set_centered_button_color(_mode_tourney_btn, Color.WHITE, Color.WHITE)
 		UIIcons.set_centered_button_color(_mode_duel_btn, Color(0.65, 0.70, 0.80), Color(0.7, 0.7, 0.7))
-		UIIcons.update_centered_button(_host_online_btn, "HOST ONLINE TOURNAMENT", "trophy", 24)
-		UIIcons.update_centered_button(_host_lan_btn, "HOST LAN TOURNAMENT (PORT 7777)", "trophy", 24)
+		UIIcons.update_centered_button(_host_online_btn, "HOST ONLINE TOURNAMENT", "crown", 24)
+		UIIcons.update_centered_button(_host_lan_btn, "HOST LAN TOURNAMENT (PORT 7777)", "crown", 24)
 	else:
 		_mode_duel_btn.add_theme_stylebox_override("normal", active_sb)
 		_mode_tourney_btn.add_theme_stylebox_override("normal", inactive_sb)
-		UIIcons.set_centered_button_color(_mode_duel_btn, Color.GOLD, Color.WHITE)
+		UIIcons.set_centered_button_color(_mode_duel_btn, Color.WHITE, Color.WHITE)
 		UIIcons.set_centered_button_color(_mode_tourney_btn, Color(0.65, 0.70, 0.80), Color(0.7, 0.7, 0.7))
 		UIIcons.update_centered_button(_host_online_btn, "HOST ONLINE MATCH", "globe", 24)
 		UIIcons.update_centered_button(_host_lan_btn, "HOST LAN MATCH (PORT 7777)", "lan", 24)
@@ -951,7 +951,8 @@ func _on_host_online_pressed() -> void:
 	if _host_mode == "tournament":
 		_tournament_roster_card.visible = true
 		var my_rooster := GameManager.selected_player_rooster.rooster_id if GameManager.selected_player_rooster else "hen_goku"
-		_nm.register_local_tournament_player("Host", my_rooster)
+		var host_name: String = AuthManager.username if (AuthManager and AuthManager.is_logged_in) else "Host"
+		_nm.register_local_tournament_player(host_name, my_rooster)
 
 func _on_room_code_received(code: String) -> void:
 	_stop_spinner()
@@ -973,7 +974,8 @@ func _on_host_lan_pressed() -> void:
 	if _host_mode == "tournament":
 		_tournament_roster_card.visible = true
 		var my_rooster := GameManager.selected_player_rooster.rooster_id if GameManager.selected_player_rooster else "hen_goku"
-		_nm.register_local_tournament_player("Host", my_rooster)
+		var host_name: String = AuthManager.username if (AuthManager and AuthManager.is_logged_in) else "Host"
+		_nm.register_local_tournament_player(host_name, my_rooster)
 	if err != OK:
 		_set_status("Failed to create server on port %d (port may be in use)." % NetworkManager.DEFAULT_PORT, Color.RED)
 		_set_buttons_disabled(false)
@@ -1076,15 +1078,60 @@ func _on_online_rooms_updated(rooms: Array) -> void:
 		var mode: String = r.get("mode", "duel")
 		var cur_p: int = r.get("current_players", 1)
 		var max_p: int = r.get("max_players", 2)
+		var status: String = r.get("status", "OPEN")
+		var can_spectate: bool = r.get("can_spectate", true)
+		var specs: int = r.get("spectators_count", 0)
 		_known_room_modes[code] = mode
+
+		var is_live: bool = (status == "IN_PROGRESS" or cur_p >= max_p)
+		var m_odds: float = float(r.get("meron_odds", 1.95))
+		var w_odds: float = float(r.get("wala_odds", 1.95))
 		var mode_desc := "ONLINE RELAY • 1V1 DUEL" if mode == "duel" else "ONLINE RELAY • TOURNAMENT (%d/%d)" % [cur_p, max_p]
-		var row := _create_room_card(code, host_name, mode_desc, func():
-			_selected_online_code = code
-			if _online_code_input:
-				_online_code_input.text = code
-			_on_join_online_pressed()
-		)
-		_online_list_vbox.add_child(row)
+		if specs > 0:
+			mode_desc += " • %d Spectating" % specs
+		mode_desc += " • [%.2fx vs %.2fx]" % [m_odds, w_odds]
+
+		if is_live and can_spectate:
+			var row := _create_room_card(code, host_name, mode_desc, func():
+				_on_spectate_room(r)
+			, "[ LIVE MATCH ]", Color(0.3, 0.85, 1.0), "SPECTATE", "eye")
+			_online_list_vbox.add_child(row)
+		else:
+			var row := _create_room_card(code, host_name, mode_desc, func():
+				_selected_online_code = code
+				if _online_code_input:
+					_online_code_input.text = code
+				_on_join_online_pressed()
+			, "[ OPEN ]", Color(0.3, 1.0, 0.5), "JOIN", "arrow_right")
+			_online_list_vbox.add_child(row)
+
+func _on_spectate_room(room_data: Dictionary) -> void:
+	var code: String = room_data.get("code", "")
+	GameManager.is_spectator = true
+	GameManager.is_online_match = true
+	if BettingManager:
+		BettingManager.reset_match_betting(code)
+		var m_pool = int(room_data.get("meron_pool", 0))
+		var w_pool = int(room_data.get("wala_pool", 0))
+		var m_odds = float(room_data.get("meron_odds", 1.95))
+		var w_odds = float(room_data.get("wala_odds", 1.95))
+		BettingManager.update_pool_from_server(m_pool, w_pool, m_odds, w_odds)
+
+	# Set up roosters if reported
+	var m_id: String = room_data.get("meron_rooster", "")
+	var w_id: String = room_data.get("wala_rooster", "")
+	if not m_id.is_empty():
+		var r1 = GameManager.get_rooster_by_id(m_id)
+		if r1: GameManager.selected_player_rooster = r1
+	if not w_id.is_empty():
+		var r2 = GameManager.get_rooster_by_id(w_id)
+		if r2: GameManager.selected_opponent_rooster = r2
+
+	_set_status("Entering arena as live spectator...", Color.CYAN)
+	if _nm and _nm.has_method("spectate_online"):
+		_nm.spectate_online(code)
+	await get_tree().create_timer(0.4).timeout
+	GameManager.change_scene("res://scenes/arena.tscn")
 
 func _on_host_discovered(host_info: Dictionary) -> void:
 	if _lan_empty_label and is_instance_valid(_lan_empty_label):
@@ -1106,7 +1153,7 @@ func _on_hosts_cleared() -> void:
 	_lan_empty_label = _create_empty_state_view("Scanning local network for active hosts...")
 	_lan_list_vbox.add_child(_lan_empty_label)
 
-func _create_room_card(key: String, title_text: String, subtitle_text: String, on_join: Callable) -> Control:
+func _create_room_card(key: String, title_text: String, subtitle_text: String, on_action: Callable, status_str: String = "[ OPEN ]", status_col: Color = Color(0.3, 1.0, 0.5), action_text: String = "JOIN", action_icon: String = "arrow_right") -> Control:
 	var row := PanelContainer.new()
 	row.custom_minimum_size = Vector2(0, 56)
 	var ps := StyleBoxFlat.new()
@@ -1142,33 +1189,33 @@ func _create_room_card(key: String, title_text: String, subtitle_text: String, o
 
 	# Center: Status Text
 	var p_lbl := Label.new()
-	p_lbl.text = "[ OPEN ]"
-	p_lbl.custom_minimum_size = Vector2(120, 0)
+	p_lbl.text = status_str
+	p_lbl.custom_minimum_size = Vector2(130, 0)
 	p_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIFontStyle.style_title(p_lbl, 18)
-	p_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	p_lbl.add_theme_color_override("font_color", status_col)
 	hbox.add_child(p_lbl)
 
-	# Right: Quick Join Button (flat, glowing gold on hover)
-	var join_btn := Button.new()
-	join_btn.custom_minimum_size = Vector2(110, 40)
-	join_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	join_btn.flat = true
+	# Right: Action Button
+	var act_btn := Button.new()
+	act_btn.custom_minimum_size = Vector2(120, 40)
+	act_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	act_btn.flat = true
 	var empty_jb := StyleBoxEmpty.new()
-	join_btn.add_theme_stylebox_override("normal", empty_jb)
-	join_btn.add_theme_stylebox_override("hover", empty_jb)
+	act_btn.add_theme_stylebox_override("normal", empty_jb)
+	act_btn.add_theme_stylebox_override("hover", empty_jb)
 	UIIcons.setup_centered_button(
-		join_btn,
-		"JOIN",
-		"arrow_right",
+		act_btn,
+		action_text,
+		action_icon,
 		16,
 		18,
 		Color.WHITE,
 		Color(1.0, 0.85, 0.2),
 		8
 	)
-	join_btn.pressed.connect(on_join)
-	hbox.add_child(join_btn)
+	act_btn.pressed.connect(on_action)
+	hbox.add_child(act_btn)
 
 	return row
 
@@ -1185,7 +1232,8 @@ func _on_player_connected(_peer_id: int) -> void:
 		_tournament_roster_card.visible = true
 		if not _nm.is_host:
 			var my_rooster := GameManager.selected_player_rooster.rooster_id if GameManager.selected_player_rooster else "rooster_vegeta"
-			_nm.register_local_tournament_player("Contender %d" % _nm.local_peer_id, my_rooster)
+			var cont_name: String = AuthManager.username if (AuthManager and AuthManager.is_logged_in) else ("Contender %d" % _nm.local_peer_id)
+			_nm.register_local_tournament_player(cont_name, my_rooster)
 		_set_status("Contender connected to tournament lobby!", Color(0.3, 1.0, 0.5))
 		return
 
@@ -1277,7 +1325,7 @@ func _on_tournament_roster_updated(roster: Dictionary) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 
-		var icon := UIIcons.create_icon_rect("trophy" if pid == 1 else "users", 16, Color.GOLD if pid == 1 else Color(0.7, 0.8, 1.0))
+		var icon := UIIcons.create_icon_rect("crown" if pid == 1 else "user", 16, Color.GOLD if pid == 1 else Color(0.7, 0.8, 1.0))
 		row.add_child(icon)
 
 		var name_lbl := Label.new()
@@ -1303,10 +1351,10 @@ func _on_tournament_roster_updated(roster: Dictionary) -> void:
 				UIIcons.update_centered_button(_tournament_start_btn, "START TOURNAMENT (%d PLAYERS)" % count, "swords", 20)
 			else:
 				_tournament_start_btn.disabled = true
-				UIIcons.update_centered_button(_tournament_start_btn, "WAITING FOR MORE PLAYERS (MIN 2)", "trophy", 20)
+				UIIcons.update_centered_button(_tournament_start_btn, "WAITING FOR MORE PLAYERS (MIN 2)", "crown", 20)
 		else:
 			_tournament_start_btn.disabled = true
-			UIIcons.update_centered_button(_tournament_start_btn, "WAITING FOR HOST TO START...", "trophy", 20)
+			UIIcons.update_centered_button(_tournament_start_btn, "WAITING FOR HOST TO START...", "spinner", 20)
 
 func _on_start_tournament_pressed() -> void:
 	if not _nm or not _nm.is_host:

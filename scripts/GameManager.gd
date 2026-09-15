@@ -15,6 +15,7 @@ var music_volume: float = 1.0
 
 ## Online multiplayer state (Blueprint §8 matches table)
 var is_online_match: bool = false
+var is_spectator: bool = false
 ## Convenience reference to the NetworkManager autoload
 var network_manager: Node = null
 
@@ -72,5 +73,6 @@ func change_scene(target_path: String) -> void:
 ## Resets online match state — called when returning to main menu or after forfeit
 func reset_online_state() -> void:
 	is_online_match = false
+	is_spectator = false
 	if network_manager:
 		network_manager.disconnect_from_match()

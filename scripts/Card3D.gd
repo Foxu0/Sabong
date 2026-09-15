@@ -743,32 +743,32 @@ func _on_area_input_event(_cam: Node, event: InputEvent, _pos: Vector3, _norm: V
 			var hovering_plus: bool = click_2d.distance_to(plus_center) <= 0.048
 			plus_mesh.scale = Vector3(1.15, 1.15, 1.15) if hovering_plus else Vector3.ONE
 
-	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			if card_data and card_data.is_variable_cost and (is_primed or is_hovered) and _is_fighting_phase():
-				var local_pos: Vector3 = to_local(_pos) if is_inside_tree() else _pos
-				var minus_center := Vector2(-0.095, 0.04)
-				var plus_center := Vector2(0.095, 0.04)
-				var click_2d := Vector2(local_pos.x, local_pos.y)
-				if click_2d.distance_to(minus_center) <= 0.048:
-					if not is_primed:
-						card_clicked.emit(card_data)
-					_on_minus_button_clicked()
-					_safe_set_input_handled()
-					return
-				elif click_2d.distance_to(plus_center) <= 0.048:
-					if not is_primed:
-						card_clicked.emit(card_data)
-					_on_plus_button_clicked()
-					_safe_set_input_handled()
-					return
+	var is_primary_click_or_tap: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed)
+	if is_primary_click_or_tap:
+		if card_data and card_data.is_variable_cost and (is_primed or is_hovered) and _is_fighting_phase():
+			var local_pos: Vector3 = to_local(_pos) if is_inside_tree() else _pos
+			var minus_center := Vector2(-0.095, 0.04)
+			var plus_center := Vector2(0.095, 0.04)
+			var click_2d := Vector2(local_pos.x, local_pos.y)
+			if click_2d.distance_to(minus_center) <= 0.048:
+				if not is_primed:
+					card_clicked.emit(card_data)
+				_on_minus_button_clicked()
+				_safe_set_input_handled()
+				return
+			elif click_2d.distance_to(plus_center) <= 0.048:
+				if not is_primed:
+					card_clicked.emit(card_data)
+				_on_plus_button_clicked()
+				_safe_set_input_handled()
+				return
 
-			# Clicking on the card except on the - / + symbol confirms / consumes it!
-			card_clicked.emit(card_data)
-			_safe_set_input_handled()
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			card_right_clicked.emit(card_data)
-			_safe_set_input_handled()
+		# Clicking / tapping on the card confirms / consumes it!
+		card_clicked.emit(card_data)
+		_safe_set_input_handled()
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		card_right_clicked.emit(card_data)
+		_safe_set_input_handled()
 
 func _safe_set_input_handled() -> void:
 	if is_inside_tree():

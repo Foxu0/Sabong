@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_engine_edge_cases_scene"]
+
+[ext_resource type="Script" path="res://tests/test_engine_edge_cases.gd" id="1_teec"]
+
+[node name="TestEngineEdgeCases" type="Node"]
+script = ExtResource("1_teec")

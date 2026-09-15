@@ -33,6 +33,13 @@ func get_arena_view_transform(player_id: int = -1) -> Transform3D:
 		var b := Basis.looking_at(target - pos, Vector3.UP)
 		return Transform3D(b, pos)
 
+func get_spectator_view_transform() -> Transform3D:
+	# Ringside elevated broadcast stadium camera
+	var pos := Vector3(0.0, 4.2, 5.5)
+	var target := Vector3(0.0, 1.2, 0.0)
+	var b := Basis.looking_at(target - pos, Vector3.UP)
+	return Transform3D(b, pos)
+
 func get_table_view_transform(player_id: int = -1) -> Transform3D:
 	var pid: int = local_player_id if player_id == -1 else player_id
 	if pid == 2:
@@ -239,8 +246,12 @@ func setup_match(p1_rooster: RoosterData, p2_rooster: RoosterData, p_local_playe
 	_setup_phase_banners()
 	_setup_table_deck()
 	
-	# Set active camera based on player perspective: Start looking at the ARENA and stadium banner!
-	if local_player_id == 1 and camera_p1:
+	# Set active camera based on player or spectator perspective
+	if GameManager.is_spectator:
+		if camera_p1:
+			camera_p1.make_current()
+			camera_p1.transform = get_spectator_view_transform()
+	elif local_player_id == 1 and camera_p1:
 		camera_p1.make_current()
 		camera_p1.transform = get_arena_view_transform(1)
 	elif local_player_id == 2 and camera_p2:
@@ -620,7 +631,11 @@ func transition_camera_view(target_state: CameraViewState, duration: float = 0.3
 		camera_tween.kill()
 	camera_tween = create_tween()
 	
-	var target_transform: Transform3D = get_arena_view_transform(local_player_id) if target_state == CameraViewState.ARENA_VIEW else get_table_view_transform(local_player_id)
+	var target_transform: Transform3D
+	if GameManager.is_spectator:
+		target_transform = get_spectator_view_transform()
+	else:
+		target_transform = get_arena_view_transform(local_player_id) if target_state == CameraViewState.ARENA_VIEW else get_table_view_transform(local_player_id)
 	
 	camera_tween.tween_property(active_cam, "transform", target_transform, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
@@ -838,7 +853,8 @@ func _on_bell_mouse_exited() -> void:
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 func _on_bell_input_event(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	var is_click_or_tap: bool = (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) or (event is InputEventScreenTouch and event.pressed)
+	if is_click_or_tap:
 		var now: int = Time.get_ticks_msec()
 		if now - _bell_last_click_time < 450:
 			return # Debounce cooldown

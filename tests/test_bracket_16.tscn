@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_bracket_16_scene"]
+
+[ext_resource type="Script" path="res://tests/test_bracket_16.gd" id="1_tb16"]
+
+[node name="TestBracket16" type="Node"]
+script = ExtResource("1_tb16")

@@ -1037,6 +1037,16 @@ func record_match_result(winner: RoosterData, match_id: String = "") -> void:
 	if m.is_empty():
 		return
 
+	# In case winner is null (Double KO / Draw in elimination match), resolve deterministic tiebreaker
+	if winner == null:
+		var r1_hp: int = m["rooster_1"].base_hp if (m.get("rooster_1") and "base_hp" in m["rooster_1"]) else 20
+		var r2_hp: int = m["rooster_2"].base_hp if (m.get("rooster_2") and "base_hp" in m["rooster_2"]) else 20
+		if r1_hp != r2_hp:
+			winner = m["rooster_1"] if r1_hp > r2_hp else m["rooster_2"]
+		else:
+			winner = m["rooster_1"] if randf() < 0.5 else m["rooster_2"]
+		push_warning("[TournamentManager] Elimination match %s concluded in DRAW! Tiebreaker awarded to: %s" % [target_id, winner.display_name if winner else "Contender"])
+
 	var is_p1_winner: bool = false
 	if m.get("rooster_1") != null and winner != null:
 		if winner == m["rooster_1"] or winner.rooster_id == m["rooster_1"].rooster_id:

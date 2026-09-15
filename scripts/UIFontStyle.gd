@@ -143,7 +143,23 @@ static func style_line_edit(line_edit: LineEdit, size: int = 20, use_title_font:
 		line_edit.add_theme_font_override("font", font_to_use)
 	line_edit.add_theme_font_size_override("font_size", size)
 	line_edit.add_theme_color_override("font_color", Color.WHITE)
-	line_edit.add_theme_color_override("font_placeholder_color", Color(0.5, 0.6, 0.75, 0.5))
+	line_edit.add_theme_color_override("font_placeholder_color", Color(0.65, 0.70, 0.80, 0.50))
+
+	var le_sb := StyleBoxFlat.new()
+	le_sb.bg_color = Color(1.0, 1.0, 1.0, 0.05)
+	le_sb.border_color = Color(1.0, 1.0, 1.0, 0.14)
+	le_sb.set_border_width_all(1)
+	le_sb.set_corner_radius_all(8)
+	le_sb.content_margin_left = 14
+	le_sb.content_margin_right = 14
+	le_sb.content_margin_top = 8
+	le_sb.content_margin_bottom = 8
+	line_edit.add_theme_stylebox_override("normal", le_sb)
+
+	var le_focus := le_sb.duplicate()
+	le_focus.bg_color = Color(1.0, 1.0, 1.0, 0.09)
+	le_focus.border_color = Color(1.0, 1.0, 1.0, 0.35)
+	line_edit.add_theme_stylebox_override("focus", le_focus)
 
 ## Get the popup font directly, for use in 3D billboards (FloatingText3D).
 static func get_popup_font() -> FontFile:
