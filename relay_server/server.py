@@ -29,6 +29,7 @@ import random
 import string
 import time
 import threading
+import socket
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 # Leaderboard in-memory cache to prevent database hammering
@@ -57,30 +58,6 @@ _otp_lock = threading.Lock()
 import websockets
 from websockets.server import WebSocketServerProtocol
 
-# Enable HTTP methods (GET, POST, OPTIONS, HEAD) on the main port
-_request_bodies: Dict[int, bytes] = {}
-try:
-    import websockets.legacy.server
-    import websockets.legacy.http
-
-    async def _custom_read_request(stream):
-        request_line = await websockets.legacy.http.read_line(stream)
-        words = request_line.split(b" ", 2)
-        if len(words) != 3:
-            raise ValueError("invalid HTTP request line")
-        method, raw_path, version = words
-        path = raw_path.decode("ascii", "surrogateescape")
-        headers = await websockets.legacy.http.read_headers(stream)
-        headers["X-HTTP-Method"] = method.decode("ascii").upper()
-        cl = int(headers.get("Content-Length", 0))
-        if 0 < cl <= 10 * 1024 * 1024:
-            body = await stream.readexactly(cl)
-            _request_bodies[id(headers)] = body
-        return path, headers
-
-    websockets.legacy.server.read_request = _custom_read_request
-except Exception as e:
-    pass
 
 
 try:
@@ -107,6 +84,7 @@ log = logging.getLogger("sabong-relay")
 # Config
 PORT = int(os.environ.get("PORT", 10005))
 API_PORT = int(os.environ.get("API_PORT", PORT + 1))
+INTERNAL_WS_PORT = int(os.environ.get("INTERNAL_WS_PORT", PORT + 10))
 ROOM_CODE_LENGTH = 4
 ROOM_TIMEOUT_SECS = 300
 
@@ -481,11 +459,22 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
 
     return (404, {"error": "Not found"}, 0)
 
-class RestApiHandler(BaseHTTPRequestHandler):
+class UnifiedServerHandler(BaseHTTPRequestHandler):
+    """
+    Unified HTTP Server Handler:
+      1. Serves pre-compressed Godot 4 Web client assets (.pck.gz, .wasm.gz, .js.gz)
+         via standard OS sockets in chunked streams without the 10s timeout truncation.
+      2. Handles all REST API routes (/health, /rooms, /leaderboard, /auth/*, /bet/*).
+      3. Seamlessly bridges WebSocket upgrade requests (ws://) to the internal WebSocket relay.
+    """
     def _send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+
+    def _send_coop_coep_headers(self):
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
 
     def address_string(self) -> str:
         return str(self.client_address[0]) if self.client_address else "127.0.0.1"
@@ -496,25 +485,124 @@ class RestApiHandler(BaseHTTPRequestHandler):
             return security_manager.extract_ip_from_headers(self.headers, fallback)
         return fallback
 
+    def _send_json(self, status: int, data: Any, retry_after: int = 0):
+        body = json.dumps(data, default=str).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
+        if retry_after > 0:
+            self.send_header("Retry-After", str(retry_after))
+        self._send_cors_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_websocket_proxy(self):
+        client_ip = self._get_client_ip()
+        try:
+            ws_backend = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            ws_backend.connect(("127.0.0.1", INTERNAL_WS_PORT))
+        except Exception as e:
+            log.error("Failed to connect to internal WebSocket relay on port %d: %s", INTERNAL_WS_PORT, e)
+            self.send_error(502, "Bad Gateway: WebSocket server unavailable")
+            return
+
+        # Forward handshake request line and headers, ensuring client IP is preserved
+        req_lines = [f"{self.command} {self.path} {self.request_version}\r\n"]
+        has_xff = False
+        for k, v in self.headers.items():
+            if k.lower() == "x-forwarded-for":
+                req_lines.append(f"{k}: {v}, {client_ip}\r\n")
+                has_xff = True
+            else:
+                req_lines.append(f"{k}: {v}\r\n")
+        if not has_xff:
+            req_lines.append(f"X-Forwarded-For: {client_ip}\r\n")
+        req_lines.append("\r\n")
+
+        try:
+            ws_backend.sendall("".join(req_lines).encode("latin-1"))
+        except Exception as e:
+            log.error("Failed sending handshake to internal backend: %s", e)
+            try:
+                ws_backend.close()
+            except Exception:
+                pass
+            return
+
+        client_sock = self.connection
+
+        def pipe(src, dst):
+            try:
+                while True:
+                    buf = src.recv(65536)
+                    if not buf:
+                        break
+                    dst.sendall(buf)
+            except Exception:
+                pass
+            finally:
+                try:
+                    dst.shutdown(socket.SHUT_WR)
+                except Exception:
+                    pass
+
+        t1 = threading.Thread(target=pipe, args=(client_sock, ws_backend), daemon=True)
+        t2 = threading.Thread(target=pipe, args=(ws_backend, client_sock), daemon=True)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+        try:
+            ws_backend.close()
+        except Exception:
+            pass
+        self.close_connection = True
+
     def do_OPTIONS(self):
         self.send_response(200)
         self._send_cors_headers()
+        self.send_header("Content-Length", "0")
         self.end_headers()
 
     def do_GET(self):
+        is_ws = (
+            self.headers.get("Upgrade", "").lower() == "websocket"
+            or "upgrade" in self.headers.get("Connection", "").lower()
+        )
+        if is_ws:
+            self._handle_websocket_proxy()
+            return
+
         _cleanup_old_rooms()
         parsed_path = self.path.split("?")[0]
         client_ip = self._get_client_ip()
 
-        if parsed_path != "/health" and security_manager:
+        # 1. Health check
+        if parsed_path == "/health":
+            db_ok = db.test_connection() if db else False
+            self._send_json(200, {
+                "status": "ok",
+                "database": "connected" if db_ok else "disconnected",
+                "rooms": len(rooms)
+            })
+            return
+
+        # 2. Rate limiting on API routes
+        is_api = (
+            parsed_path in ["/rooms", "/leaderboard", "/bet/place"]
+            or parsed_path.startswith("/auth/")
+            or parsed_path.startswith("/admin/")
+        )
+        if is_api and security_manager:
             allowed, retry_after = security_manager.check_general_api(client_ip)
             if not allowed:
                 self._send_json(429, {"success": False, "error": f"API rate limit reached. Please wait {retry_after}s."}, retry_after=retry_after)
                 return
 
-        if parsed_path == "/health":
-            db_ok = db.test_connection() if db else False
-            self._send_json(200, {"status": "ok", "database": "connected" if db_ok else "disconnected", "rooms": len(rooms)})
+        if parsed_path == "/rooms":
+            room_list = [r.to_dict() for r in rooms.values() if not r.closed]
+            self._send_json(200, room_list)
             return
 
         if parsed_path == "/leaderboard":
@@ -522,10 +610,69 @@ class RestApiHandler(BaseHTTPRequestHandler):
             self._send_json(200, lb)
             return
 
-        if parsed_path == "/rooms":
-            room_list = [r.to_dict() for r in rooms.values() if not r.closed]
-            self._send_json(200, room_list)
-            return
+        # 3. Static Web Client Asset Serving from exports/web/
+        clean_path = parsed_path.lstrip("/")
+        if not clean_path:
+            clean_path = "index.html"
+
+        target_file = os.path.abspath(os.path.join(WEB_DIR, clean_path))
+        if target_file.startswith(os.path.abspath(WEB_DIR)):
+            accept_enc = self.headers.get("Accept-Encoding", "").lower()
+            use_gzip = "gzip" in accept_enc and os.path.isfile(target_file + ".gz")
+            file_to_serve = (target_file + ".gz") if use_gzip else target_file
+
+            if os.path.isfile(file_to_serve):
+                ext = os.path.splitext(clean_path)[1].lower()
+                mime = MIME_TYPES.get(ext, "application/octet-stream")
+                file_size = os.path.getsize(file_to_serve)
+
+                self.send_response(200)
+                self.send_header("Content-Type", mime)
+                self.send_header("Content-Length", str(file_size))
+                self._send_cors_headers()
+                self._send_coop_coep_headers()
+                if use_gzip:
+                    self.send_header("Content-Encoding", "gzip")
+                if clean_path == "index.html":
+                    self.send_header("Cache-Control", "no-cache")
+                else:
+                    self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+
+                # Chunked streaming via OS socket to guarantee 100% download without timeout
+                with open(file_to_serve, "rb") as f:
+                    while chunk := f.read(512 * 1024):
+                        self.wfile.write(chunk)
+                return
+
+        self._send_json(404, {"error": "Not found"})
+
+    def do_HEAD(self):
+        parsed_path = self.path.split("?")[0]
+        clean_path = parsed_path.lstrip("/")
+        if not clean_path:
+            clean_path = "index.html"
+
+        target_file = os.path.abspath(os.path.join(WEB_DIR, clean_path))
+        if target_file.startswith(os.path.abspath(WEB_DIR)):
+            accept_enc = self.headers.get("Accept-Encoding", "").lower()
+            use_gzip = "gzip" in accept_enc and os.path.isfile(target_file + ".gz")
+            file_to_serve = (target_file + ".gz") if use_gzip else target_file
+
+            if os.path.isfile(file_to_serve):
+                ext = os.path.splitext(clean_path)[1].lower()
+                mime = MIME_TYPES.get(ext, "application/octet-stream")
+                file_size = os.path.getsize(file_to_serve)
+
+                self.send_response(200)
+                self.send_header("Content-Type", mime)
+                self.send_header("Content-Length", str(file_size))
+                self._send_cors_headers()
+                self._send_coop_coep_headers()
+                if use_gzip:
+                    self.send_header("Content-Encoding", "gzip")
+                self.end_headers()
+                return
 
         self._send_json(404, {"error": "Not found"})
 
@@ -548,137 +695,14 @@ class RestApiHandler(BaseHTTPRequestHandler):
         status, resp_data, retry_after = handle_api_post(parsed_path, payload, client_ip)
         self._send_json(status, resp_data, retry_after=retry_after)
 
-    def _send_json(self, status: int, data: Any, retry_after: int = 0):
-        body = json.dumps(data, default=str).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Connection", "close")
-        if retry_after > 0:
-            self.send_header("Retry-After", str(retry_after))
-        self._send_cors_headers()
-        self.end_headers()
-        self.wfile.write(body)
-
     def log_message(self, format, *args):
         pass
 
 def start_http_server():
     server_address = ("0.0.0.0", API_PORT)
-    httpd = ThreadingHTTPServer(server_address, RestApiHandler)
-    log.info("REST API Server running on port %d", API_PORT)
+    httpd = ThreadingHTTPServer(server_address, UnifiedServerHandler)
+    log.info("Dedicated REST API Server running on port %d", API_PORT)
     httpd.serve_forever()
-
-# ---------------------------------------------------------------------------
-# WEBSOCKET DISPATCHER, STATIC FILE SERVER & UNIFIED HTTP ROUTER
-# ---------------------------------------------------------------------------
-
-async def http_handler(path: str, request_headers) -> Optional[tuple]:
-    """Unified HTTP & WebSocket dispatcher on main server port"""
-    _cleanup_old_rooms()
-    if request_headers.get("upgrade", "").lower() == "websocket":
-        return None  # Pass through to WebSocket protocol
-
-    method = request_headers.get("X-HTTP-Method", "GET").upper()
-    req_body = _request_bodies.pop(id(request_headers), b"")
-    parsed_path = path.split("?")[0]
-    client_ip = security_manager.extract_ip_from_headers(request_headers) if security_manager else "127.0.0.1"
-
-    cors_headers = [
-        ("Access-Control-Allow-Origin", "*"),
-        ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
-        ("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With"),
-    ]
-
-    if method == "OPTIONS":
-        return (200, cors_headers + [("Content-Length", "0")], b"")
-
-    is_api = (
-        parsed_path in ["/rooms", "/leaderboard", "/health", "/bet/place"]
-        or parsed_path.startswith("/auth/")
-        or parsed_path.startswith("/admin/")
-    )
-
-    if is_api and parsed_path != "/health" and security_manager:
-        allowed, retry_after = security_manager.check_general_api(client_ip)
-        if not allowed:
-            body = json.dumps({"error": f"Rate limit reached. Retry in {retry_after}s"}).encode()
-            return (429, cors_headers + [("Content-Type", "application/json"), ("Content-Length", str(len(body))), ("Retry-After", str(retry_after))], body)
-
-    # 1. REST GET endpoints
-    if method == "GET":
-        if parsed_path == "/health":
-            db_ok = db.test_connection() if db else False
-            body = json.dumps({"status": "ok", "database": "connected" if db_ok else "disconnected", "rooms": len(rooms)}).encode()
-            return (200, cors_headers + [("Content-Type", "application/json"), ("Content-Length", str(len(body)))], body)
-
-        if parsed_path == "/rooms":
-            room_list = [r.to_dict() for r in rooms.values() if not r.closed]
-            body = json.dumps(room_list).encode()
-            return (200, cors_headers + [("Content-Type", "application/json"), ("Content-Length", str(len(body)))], body)
-
-        if parsed_path == "/leaderboard":
-            lb = _get_cached_leaderboard(20)
-            body = json.dumps(lb, default=str).encode()
-            return (200, cors_headers + [("Content-Type", "application/json"), ("Content-Length", str(len(body)))], body)
-
-        # 2. Static Web Game Files from exports/web/
-        clean_path = parsed_path.lstrip("/")
-        if not clean_path:
-            clean_path = "index.html"
-
-        target_file = os.path.abspath(os.path.join(WEB_DIR, clean_path))
-        if target_file.startswith(os.path.abspath(WEB_DIR)):
-            accept_enc = request_headers.get("accept-encoding", "").lower()
-            use_gzip = "gzip" in accept_enc and os.path.isfile(target_file + ".gz")
-            file_to_serve = (target_file + ".gz") if use_gzip else target_file
-
-            if os.path.isfile(file_to_serve):
-                ext = os.path.splitext(clean_path)[1].lower()
-                mime = MIME_TYPES.get(ext, "application/octet-stream")
-                loop = asyncio.get_running_loop()
-                data = await loop.run_in_executor(None, _read_file_sync, file_to_serve)
-
-                resp_headers = cors_headers + [
-                    ("Content-Type", mime),
-                    ("Content-Length", str(len(data))),
-                    ("Cross-Origin-Opener-Policy", "same-origin"),
-                    ("Cross-Origin-Embedder-Policy", "require-corp"),
-                ]
-                if use_gzip:
-                    resp_headers.append(("Content-Encoding", "gzip"))
-                if clean_path == "index.html":
-                    resp_headers.append(("Cache-Control", "no-cache"))
-                else:
-                    resp_headers.append(("Cache-Control", "public, max-age=86400"))
-                return (200, resp_headers, data)
-
-    # 3. REST POST endpoints
-    if method == "POST":
-        content_length = len(req_body)
-        if security_manager and content_length > security_manager.MAX_PAYLOAD_BYTES:
-            body = json.dumps({"success": False, "error": f"Payload too large (max {security_manager.MAX_PAYLOAD_BYTES // 1024} KB)"}).encode()
-            return (413, cors_headers + [("Content-Type", "application/json"), ("Content-Length", str(len(body)))], body)
-
-        body_str = req_body.decode("utf-8") if req_body else "{}"
-        try:
-            payload = json.loads(body_str)
-        except Exception:
-            payload = {}
-
-        status, resp_data, retry_after = handle_api_post(parsed_path, payload, client_ip)
-        body = json.dumps(resp_data, default=str).encode("utf-8")
-        resp_headers = cors_headers + [
-            ("Content-Type", "application/json"),
-            ("Content-Length", str(len(body))),
-            ("Connection", "close"),
-        ]
-        if retry_after > 0:
-            resp_headers.append(("Retry-After", str(retry_after)))
-        return (status, resp_headers, body)
-
-    body = json.dumps({"error": "Not found"}).encode()
-    return (404, cors_headers + [("Content-Type", "application/json"), ("Content-Length", str(len(body)))], body)
 
 async def ws_handler(websocket: WebSocketServerProtocol, path: str) -> None:
     client_ip = _extract_client_ip(websocket)
@@ -916,7 +940,10 @@ async def _client_loop(room: Room, client_ws: WebSocketServerProtocol) -> None:
         if client_ws in room.clients:
             room.clients.remove(client_ws)
         if room.host_ws and not room.host_ws.closed:
-            await room.host_ws.send(json.dumps({"type": "client_left", "total_clients": len(room.clients)}))
+            try:
+                await room.host_ws.send(json.dumps({"type": "client_left", "total_clients": len(room.clients)}))
+            except Exception:
+                pass
         if room.mode == "duel":
             room.closed = True
 
@@ -989,12 +1016,20 @@ async def main():
     global async_loop
     async_loop = asyncio.get_running_loop()
 
-    # Launch REST API server in background daemon thread
-    http_thread = threading.Thread(target=start_http_server, daemon=True)
-    http_thread.start()
+    # Start dedicated REST API server if API_PORT differs from PORT (e.g. local desktop dev)
+    if API_PORT != PORT:
+        http_thread = threading.Thread(target=start_http_server, daemon=True)
+        http_thread.start()
 
-    log.info("Sabong Roosters WebSocket Relay starting on port %d", PORT)
-    async with websockets.serve(ws_handler, "0.0.0.0", PORT, process_request=http_handler, ping_interval=20, ping_timeout=60, max_size=10*1024*1024):
+    # Start Unified HTTP Server on the public PORT (Handles Web Client, REST API, & WS Proxy)
+    unified_server = ThreadingHTTPServer(("0.0.0.0", PORT), UnifiedServerHandler)
+    unified_thread = threading.Thread(target=unified_server.serve_forever, daemon=True)
+    unified_thread.start()
+    log.info("Sabong Roosters Unified Web, REST & Relay Server running on port %d", PORT)
+
+    # Launch internal WebSocket relay on loopback INTERNAL_WS_PORT
+    log.info("Sabong Roosters Internal WebSocket Relay running on 127.0.0.1:%d", INTERNAL_WS_PORT)
+    async with websockets.serve(ws_handler, "127.0.0.1", INTERNAL_WS_PORT, ping_interval=20, ping_timeout=60, max_size=10*1024*1024):
         log.info("Relay & Matchmaking ready.")
         await asyncio.Future()
 
