@@ -60,26 +60,28 @@ from websockets.server import WebSocketServerProtocol
 
 
 
+# Logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
+log = logging.getLogger("sabong-relay")
+
 try:
     from db_manager import db, compute_rank_tier
-except ImportError:
+except Exception as e:
     try:
         from scripts.db_manager import db, compute_rank_tier
-    except ImportError:
+    except Exception as e2:
+        log.error("Failed to import db_manager: %s | %s", e, e2)
         db = None
         def compute_rank_tier(taya): return "BRONZE"
 
 try:
     from security import security_manager
-except ImportError:
+except Exception as e:
     try:
         from scripts.security import security_manager
-    except ImportError:
+    except Exception as e2:
+        log.error("Failed to import security_manager: %s | %s", e, e2)
         security_manager = None
-
-# Logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
-log = logging.getLogger("sabong-relay")
 
 # Config
 PORT = int(os.environ.get("PORT", 10005))
@@ -1034,6 +1036,15 @@ async_loop = None
 async def main():
     global async_loop
     async_loop = asyncio.get_running_loop()
+
+    # Verify cloud database connectivity
+    if db:
+        if db.test_connection():
+            log.info("[DB] Cloud TiDB MySQL connection verified successfully.")
+        else:
+            log.warning("[DB] Failed initial connection test to Cloud TiDB MySQL.")
+    else:
+        log.warning("[DB] DatabaseManager not loaded. Auth endpoints will return 500.")
 
     # Start dedicated REST API server if API_PORT differs from PORT (e.g. local desktop dev)
     if API_PORT != PORT:
