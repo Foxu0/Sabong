@@ -679,38 +679,108 @@ func _animate_coin_group(coins: Array[Node3D], remaining_taya: int) -> void:
 				if is_instance_valid(coin) and not (i < remaining_taya):
 					coin.visible = false
 			)
+var _is_clock_locked: bool = false
+
+func is_clock_locked() -> bool:
+	return _is_clock_locked
+
+func _set_clock_text_and_style(clock_name: String, display_text: String, glow_color: Color) -> void:
+	var digital_font = load("res://resources/world/digital_7segment.tres")
+	var clock: Node3D = get_node_or_null(clock_name)
+	if not clock:
+		return
+	var screen: MeshInstance3D = clock.get_node_or_null("screen")
+	if not screen:
+		return
+	var label: Label3D = screen.get_node_or_null("HPLabel")
+	if not label:
+		label = Label3D.new()
+		label.name = "HPLabel"
+		label.position = Vector3(0.0, 0.02, 0.0)
+		label.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+		label.pixel_size = 0.012
+		label.shaded = false
+		label.double_sided = false
+		label.font_size = 96
+		label.outline_size = 8
+		label.modulate = glow_color
+		label.outline_modulate = Color(0.12, 0.02, 0.02, 0.9)
+		if digital_font:
+			label.font = digital_font
+		screen.add_child(label)
+	else:
+		if digital_font and label.font != digital_font:
+			label.font = digital_font
+		label.modulate = glow_color
+
+	label.text = display_text
+	if digital_font:
+		var str_w: float = digital_font.get_string_size(display_text, HORIZONTAL_ALIGNMENT_CENTER, -1, label.font_size).x
+		label.pixel_size = minf(0.012, 4.2 / maxf(1.0, str_w))
+
+func _pulse_clock_screen(clock_name: String) -> void:
+	var clock: Node3D = get_node_or_null(clock_name)
+	if not clock:
+		return
+	var screen: MeshInstance3D = clock.get_node_or_null("screen")
+	if not screen:
+		return
+	var label: Label3D = screen.get_node_or_null("HPLabel")
+	if not label:
+		return
+	var tw := create_tween()
+	tw.tween_property(label, "modulate:a", 0.15, 0.05)
+	tw.tween_property(label, "modulate:a", 1.0, 0.05)
+	tw.tween_property(label, "modulate:a", 0.20, 0.05)
+	tw.tween_property(label, "modulate:a", 1.0, 0.06)
+
+## Announces turn priority directly on the 3D tabletop HP digital clocks
+func announce_priority_on_clock(priority_player_id: String, duration: float = 0.95) -> void:
+	_is_clock_locked = true
+
+	var p1_text: String = ""
+	var p2_text: String = ""
+	var p1_color: Color = Color.WHITE
+	var p2_color: Color = Color.WHITE
+
+	if priority_player_id == "MERON":
+		p1_text = "YOU FIRST"
+		p2_text = "YOU LAST"
+		p1_color = Color(1.2, 3.5, 0.6, 1.0) # Radiant digital emerald gold/green
+		p2_color = Color(3.2, 0.4, 0.2, 1.0) # Warning digital amber/red
+	elif priority_player_id == "WALA":
+		p1_text = "YOU LAST"
+		p2_text = "YOU FIRST"
+		p1_color = Color(3.2, 0.4, 0.2, 1.0)
+		p2_color = Color(1.2, 3.5, 0.6, 1.0)
+	else:
+		p1_text = "CLASH!"
+		p2_text = "CLASH!"
+		p1_color = Color(0.3, 2.8, 3.8, 1.0) # Electric neon cyan
+		p2_color = Color(0.3, 2.8, 3.8, 1.0)
+
+	_set_clock_text_and_style("hpclock", p1_text, p1_color)
+	_set_clock_text_and_style("hpclock2", p2_text, p2_color)
+
+	_pulse_clock_screen("hpclock")
+	_pulse_clock_screen("hpclock2")
+
+	if is_inside_tree():
+		get_tree().create_timer(duration).timeout.connect(func():
+			_is_clock_locked = false
+		)
+
 ## Updates the 3D digital LED screen on the tables (supports HP or Timer countdown)
 func update_table_clock_display(display_text: String, glow_color: Color = Color(2.5, 0.25, 0.25, 1.0)) -> void:
-	var digital_font = load("res://resources/world/digital_7segment.tres")
+	if _is_clock_locked:
+		return
 	for clock_name in ["hpclock", "hpclock2"]:
-		var clock: Node3D = get_node_or_null(clock_name)
-		if clock:
-			var screen: MeshInstance3D = clock.get_node_or_null("screen")
-			if screen:
-				var label: Label3D = screen.get_node_or_null("HPLabel")
-				if not label:
-					label = Label3D.new()
-					label.name = "HPLabel"
-					label.position = Vector3(0.0, 0.02, 0.0)
-					label.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
-					label.pixel_size = 0.012
-					label.shaded = false
-					label.double_sided = false
-					label.font_size = 110
-					label.outline_size = 10
-					label.modulate = glow_color
-					label.outline_modulate = Color(0.25, 0.02, 0.02, 0.9)
-					if digital_font:
-						label.font = digital_font
-					screen.add_child(label)
-				else:
-					if digital_font and label.font != digital_font:
-						label.font = digital_font
-					label.modulate = glow_color
-				label.text = display_text
+		_set_clock_text_and_style(clock_name, display_text, glow_color)
 
 ## Updates the 3D digital LED HP clock screens on the tables (Meron HP : Wala HP)
 func update_hp_clocks(p1_hp: int, p2_hp: int) -> void:
+	if _is_clock_locked:
+		return
 	var hp_text: String = "%d : %d" % [max(0, p1_hp), max(0, p2_hp)]
 	update_table_clock_display(hp_text, Color(2.5, 0.25, 0.25, 1.0))
 

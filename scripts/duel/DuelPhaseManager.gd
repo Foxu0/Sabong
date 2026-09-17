@@ -263,9 +263,9 @@ func _resolve_dice_outcome() -> void:
 		var winner_id: String = "MERON" if meron_wins_priority else "WALA"
 		priority_determined.emit(winner_id)
 
-	# Wait for the punchy YOU FIRST / YOU LAST screen pop announcement to display
+	# Wait for the punchy YOU FIRST / YOU LAST announcement on the 3D HP clock to display
 	if is_inside_tree():
-		await get_tree().create_timer(0.70).timeout
+		await get_tree().create_timer(0.90).timeout
 	_advance_phase()
 
 ## ---------------------------------------------------------------------------

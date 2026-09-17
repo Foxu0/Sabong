@@ -344,41 +344,17 @@ func _show_phase_notification(title_text: String, sub_text: String, _title_color
 	if arena_controller and arena_controller.has_method("update_3d_phase_banner"):
 		arena_controller.update_3d_phase_banner(title_text.to_upper(), sub_text.to_upper(), Color(0.96, 0.96, 0.98), turn_number)
 
-func _show_priority_result_pop(pop_text: String, _pop_color: Color = Color.WHITE) -> void:
-	if not is_instance_valid(priority_pop_label):
-		return
-	priority_pop_label.text = pop_text.to_upper()
-	priority_pop_label.add_theme_color_override("font_color", Color(0.96, 0.96, 0.98)) # Clean white only — strictly never colored!
-	priority_pop_label.scale = Vector2(0.2, 0.2)
-	priority_pop_label.modulate.a = 0.0
-	priority_pop_label.visible = true
-
-	var tw: Tween = create_tween()
-	if tw:
-		# Rapid punchy pop-in to camera
-		tw.set_parallel(true)
-		tw.tween_property(priority_pop_label, "scale", Vector2(1.15, 1.15), 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		tw.tween_property(priority_pop_label, "modulate:a", 1.0, 0.15)
-		
-		# Settle to standard scale
-		tw.chain().tween_property(priority_pop_label, "scale", Vector2.ONE, 0.10).set_ease(Tween.EASE_OUT)
-		
-		# Snappy punchy hold
-		tw.tween_interval(0.35)
-		
-		# Fade away with subtle expansion
-		tw.chain().set_parallel(true)
-		tw.tween_property(priority_pop_label, "modulate:a", 0.0, 0.20)
-		tw.tween_property(priority_pop_label, "scale", Vector2(1.15, 1.15), 0.20)
-		
-		# Hide when finished
-		tw.chain().tween_callback(func():
-			if is_instance_valid(priority_pop_label):
-				priority_pop_label.visible = false
-		)
+func _show_priority_result_pop(_pop_text: String, _pop_color: Color = Color.WHITE) -> void:
+	# Priority is now announced directly on the 3D tabletop HP digital clocks!
+	# The 2D screen overlay is kept hidden so the screen center remains clean and unobstructed.
+	if is_instance_valid(priority_pop_label):
+		priority_pop_label.visible = false
 
 func _process(_delta: float) -> void:
 	if not phase_manager:
+		return
+
+	if arena_controller and arena_controller.has_method("is_clock_locked") and arena_controller.is_clock_locked():
 		return
 
 	var current_phase: DuelPhase.Phase = phase_manager.current_phase
@@ -500,6 +476,11 @@ func _on_dice_rolled(meron_val: int, wala_val: int, is_clash: bool) -> void:
 func _on_priority_determined(priority_player_id: String) -> void:
 	var name_str: String = "Meron (You)" if priority_player_id == "MERON" else "Wala (CPU)"
 	_log("[color=gold]Turn Priority: [b]%s[/b][/color]" % name_str)
+
+	# Announce priority directly on the 3D tabletop HP digital clocks
+	if arena_controller and arena_controller.has_method("announce_priority_on_clock"):
+		arena_controller.announce_priority_on_clock(priority_player_id, 0.95)
+
 	if priority_player_id == "MERON":
 		_show_priority_result_pop("YOU FIRST", Color.WHITE)
 	elif priority_player_id == "WALA":
@@ -1252,7 +1233,7 @@ func _refresh_all_ui(animate_draw: bool = false) -> void:
 		return
 
 	# Sync 3D digital LED clock screens on the tables (HP in fighting/round-end, Timer in other phases)
-	if arena_controller:
+	if arena_controller and (not arena_controller.has_method("is_clock_locked") or not arena_controller.is_clock_locked()):
 		var is_fighting_or_end: bool = phase_manager and (phase_manager.current_phase == DuelPhase.Phase.FIGHTING or phase_manager.current_phase == DuelPhase.Phase.ROUND_END)
 		if is_fighting_or_end or not phase_manager:
 			if arena_controller.has_method("update_hp_clocks"):
