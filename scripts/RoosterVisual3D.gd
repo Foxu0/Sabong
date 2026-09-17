@@ -22,6 +22,34 @@ var _stand_ghost_material: StandardMaterial3D = null
 var _gear5_drums_tween: Tween = null
 var untransformed_scale: Vector3 = Vector3.ONE
 
+# --- High-Performance Caching (Eliminates Shader Compilation Spikes & Model Load Freezes) ---
+var _model_cache: Dictionary = {}
+var _cached_stand_meshes: Array[MeshInstance3D] = []
+
+static var _global_flash_layer: CanvasLayer = null
+static var _global_flash_rect: ColorRect = null
+static var _global_flash_tween: Tween = null
+static var _vfx_mat_cache: Dictionary = {}
+
+static func _get_cached_material(key: String, albedo: Color, emission: Color = Color.BLACK, emission_energy: float = 0.0, unshaded: bool = true, cull_disabled: bool = false) -> StandardMaterial3D:
+	if _vfx_mat_cache.has(key) and is_instance_valid(_vfx_mat_cache[key]):
+		var m: StandardMaterial3D = _vfx_mat_cache[key]
+		m.albedo_color = albedo
+		return m
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = albedo
+	if emission != Color.BLACK and emission_energy > 0.0:
+		mat.emission_enabled = true
+		mat.emission = emission
+		mat.emission_energy_multiplier = emission_energy
+	if unshaded:
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if cull_disabled:
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_vfx_mat_cache[key] = mat
+	return mat
+
 func _trigger_camera_shake(duration: float = 0.35, intensity: float = 0.12) -> void:
 	var arena = get_parent()
 	while arena and not arena is ArenaController:
@@ -31,22 +59,26 @@ func _trigger_camera_shake(duration: float = 0.35, intensity: float = 0.12) -> v
 	elif get_tree() and get_tree().current_scene and get_tree().current_scene.has_method("shake_camera"):
 		get_tree().current_scene.shake_camera(duration, intensity)
 
-## Fullscreen 1-frame shonen impact flash
+## Fullscreen 1-frame shonen impact flash (reusing single persistent overlay to prevent canvas layer creation spikes)
 func _trigger_screen_flash(flash_color: Color = Color(1.0, 0.96, 0.75, 0.65), duration: float = 0.12) -> void:
 	if not get_tree() or not get_tree().root:
 		return
-	var canvas := CanvasLayer.new()
-	canvas.layer = 120
-	var rect := ColorRect.new()
-	rect.color = flash_color
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(rect)
-	get_tree().root.add_child(canvas)
+	if not _global_flash_layer or not is_instance_valid(_global_flash_layer):
+		_global_flash_layer = CanvasLayer.new()
+		_global_flash_layer.layer = 120
+		_global_flash_rect = ColorRect.new()
+		_global_flash_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_global_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_global_flash_rect.color = Color(1, 1, 1, 0)
+		_global_flash_layer.add_child(_global_flash_rect)
+		get_tree().root.add_child(_global_flash_layer)
 
-	var tw := canvas.create_tween()
-	tw.tween_property(rect, "color:a", 0.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.chain().tween_callback(canvas.queue_free)
+	if _global_flash_tween and _global_flash_tween.is_valid():
+		_global_flash_tween.kill()
+
+	_global_flash_rect.color = flash_color
+	_global_flash_tween = _global_flash_rect.create_tween()
+	_global_flash_tween.tween_property(_global_flash_rect, "color:a", 0.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 ## 3D Radiating Anime Speed-Lines on Supersonic Launch
 func _spawn_launch_speed_burst(origin: Vector3, dir: Vector3) -> void:
@@ -54,16 +86,11 @@ func _spawn_launch_speed_burst(origin: Vector3, dir: Vector3) -> void:
 	get_parent().add_child(burst_root)
 	burst_root.global_position = origin
 	
-	var streak_mat := StandardMaterial3D.new()
-	streak_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	streak_mat.albedo_color = Color(1.0, 0.92, 0.45, 0.9)
-	streak_mat.emission_enabled = true
-	streak_mat.emission = Color(1.0, 0.95, 0.6)
-	streak_mat.emission_energy_multiplier = 3.5
-	streak_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var streak_mat := _get_cached_material("launch_streak", Color(1.0, 0.92, 0.45, 0.9), Color(1.0, 0.95, 0.6), 3.5)
+	var count: int = 4 if OS.has_feature("web") else 8
 	
-	for i in range(8):
-		var angle: float = (float(i) / 8.0) * TAU
+	for i in range(count):
+		var angle: float = (float(i) / float(count)) * TAU
 		var line_mesh := CylinderMesh.new()
 		line_mesh.top_radius = 0.015
 		line_mesh.bottom_radius = 0.05
@@ -82,7 +109,7 @@ func _spawn_launch_speed_burst(origin: Vector3, dir: Vector3) -> void:
 	burst_root.scale = Vector3(0.2, 0.2, 0.2)
 	tw.tween_property(burst_root, "scale", Vector3(1.6, 1.6, 2.4), 0.10).set_trans(Tween.TRANS_EXPO)
 	tw.parallel().tween_property(burst_root, "position", origin + dir * 0.8, 0.10)
-	tw.parallel().tween_property(streak_mat, "albedo_color:a", 0.0, 0.12)
+	tw.chain().tween_property(burst_root, "scale", Vector3(0.001, 0.001, 0.001), 0.04)
 	tw.chain().tween_callback(burst_root.queue_free)
 
 ## Red Hawk Explosive Impact Blast
@@ -91,20 +118,14 @@ func _spawn_red_hawk_impact_explosion(impact_pos: Vector3, dir: Vector3) -> void
 	get_parent().add_child(blast_root)
 	blast_root.global_position = impact_pos
 	
+	var shock_mat := _get_cached_material("red_hawk_shock", Color(1.0, 0.35, 0.05, 0.95), Color(1.0, 0.85, 0.2), 5.0)
+	
 	# Expanding fire shockwave ring
 	var shock_mesh := TorusMesh.new()
 	shock_mesh.inner_radius = 0.3
 	shock_mesh.outer_radius = 0.65
 	var shock_inst := MeshInstance3D.new()
 	shock_inst.mesh = shock_mesh
-	
-	var shock_mat := StandardMaterial3D.new()
-	shock_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	shock_mat.albedo_color = Color(1.0, 0.35, 0.05, 0.95)
-	shock_mat.emission_enabled = true
-	shock_mat.emission = Color(1.0, 0.85, 0.2)
-	shock_mat.emission_energy_multiplier = 5.0
-	shock_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	shock_inst.material_override = shock_mat
 	blast_root.add_child(shock_inst)
 	shock_inst.look_at(impact_pos + dir, Vector3.UP)
@@ -121,7 +142,7 @@ func _spawn_red_hawk_impact_explosion(impact_pos: Vector3, dir: Vector3) -> void
 	var tw := blast_root.create_tween()
 	blast_root.scale = Vector3(0.2, 0.2, 0.2)
 	tw.tween_property(blast_root, "scale", Vector3(2.6, 2.6, 2.6), 0.12).set_trans(Tween.TRANS_EXPO)
-	tw.parallel().tween_property(shock_mat, "albedo_color:a", 0.0, 0.18).set_delay(0.06)
+	tw.chain().tween_property(blast_root, "scale", Vector3(0.001, 0.001, 0.001), 0.06)
 	tw.chain().tween_callback(blast_root.queue_free)
 
 func _notification(what: int) -> void:
@@ -166,16 +187,15 @@ func _setup_stand_companion() -> void:
 			current_stand_instance.rotation_degrees = base_rot
 			current_stand_instance.scale = Vector3(0.70, 0.70, 0.70)
 
+			_cached_stand_meshes.clear()
+			for child in current_stand_instance.find_children("*", "MeshInstance3D", true, false):
+				if child is MeshInstance3D:
+					_cached_stand_meshes.append(child)
+
 			# Ghostly translucent material for out-of-battle standby
-			_stand_ghost_material = StandardMaterial3D.new()
-			_stand_ghost_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			_stand_ghost_material.albedo_color = Color(0.85, 0.45, 1.0, 0.22)
-			_stand_ghost_material.emission_enabled = true
-			_stand_ghost_material.emission = Color(0.75, 0.25, 1.0)
-			_stand_ghost_material.emission_energy_multiplier = 1.4
+			_stand_ghost_material = _get_cached_material("stand_ghost_mat", Color(0.85, 0.45, 1.0, 0.22), Color(0.75, 0.25, 1.0), 1.4, false, true)
 			_stand_ghost_material.rim_enabled = true
 			_stand_ghost_material.rim = 0.95
-			_stand_ghost_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 			_set_stand_ghostly_mode(not is_in_arena, 0.01)
 			_start_stand_hover_loop()
@@ -188,8 +208,8 @@ func _set_stand_ghostly_mode(is_ghost: bool, duration: float = 0.25) -> void:
 
 	if is_ghost:
 		# Out of battle: apply ghostly translucent purple shader (more transparent)
-		for child in current_stand_instance.find_children("*", "MeshInstance3D", true, false):
-			if child is MeshInstance3D:
+		for child in _cached_stand_meshes:
+			if is_instance_valid(child):
 				child.material_override = _stand_ghost_material
 		
 		if duration <= 0.02:
@@ -206,8 +226,8 @@ func _set_stand_ghostly_mode(is_ghost: bool, duration: float = 0.25) -> void:
 	else:
 		# In battle: become fully visible and completely solid!
 		if duration <= 0.02:
-			for child in current_stand_instance.find_children("*", "MeshInstance3D", true, false):
-				if child is MeshInstance3D:
+			for child in _cached_stand_meshes:
+				if is_instance_valid(child):
 					child.material_override = null
 			current_stand_instance.scale = target_scale
 		else:
@@ -218,8 +238,8 @@ func _set_stand_ghostly_mode(is_ghost: bool, duration: float = 0.25) -> void:
 			tw.tween_callback(func():
 				if not is_in_arena and not is_dead:
 					return
-				for child in current_stand_instance.find_children("*", "MeshInstance3D", true, false):
-					if child is MeshInstance3D:
+				for child in _cached_stand_meshes:
+					if is_instance_valid(child):
 						child.material_override = null
 			)
 
@@ -244,6 +264,37 @@ func _ready() -> void:
 	base_rot = rotation_degrees
 	arena_pos = Vector3(stage_pos.x, 1.20, 1.35 if duelist_id == 1 else -1.35)
 
+func _get_or_create_model(path: String) -> Node3D:
+	if path == "":
+		return null
+	if _model_cache.has(path) and is_instance_valid(_model_cache[path]):
+		return _model_cache[path]
+	if ResourceLoader.exists(path):
+		var scene_res = load(path)
+		if scene_res is PackedScene:
+			var inst: Node3D = scene_res.instantiate() as Node3D
+			add_child(inst)
+			inst.position = Vector3.ZERO
+			inst.scale = Vector3.ONE
+			inst.visible = false
+			_model_cache[path] = inst
+			return inst
+	return null
+
+func _switch_to_model(path: String) -> void:
+	if path == "":
+		return
+	var next_model: Node3D = _get_or_create_model(path)
+	if next_model:
+		for k in _model_cache:
+			var m: Node3D = _model_cache[k]
+			if is_instance_valid(m):
+				m.visible = (m == next_model)
+		current_model_instance = next_model
+
+func _load_model(path: String) -> void:
+	_switch_to_model(path)
+
 func set_rooster(p_rooster: RoosterData) -> void:
 	rooster_data = p_rooster
 	is_dead = false
@@ -254,8 +305,13 @@ func set_rooster(p_rooster: RoosterData) -> void:
 	untransformed_scale = base_scale
 	base_rot = rotation_degrees
 	arena_pos = Vector3(stage_pos.x, 1.20, 1.35 if duelist_id == 1 else -1.35)
-	if rooster_data and rooster_data.model_path != "":
-		_load_model(rooster_data.model_path)
+	if rooster_data:
+		if rooster_data.model_path != "":
+			_switch_to_model(rooster_data.model_path)
+		# Pre-warm alt / transformed model and KO model so zero load lag during combat
+		if rooster_data.alt_model_path != "":
+			_get_or_create_model(rooster_data.alt_model_path)
+		_get_or_create_model("res://resources/world/friedchicken(dead).vox")
 	_setup_stand_companion()
 
 ## Steps down from the elevated roost stage into the combat arena ring
@@ -350,19 +406,6 @@ func play_return_to_stage() -> void:
 			_set_stand_ghostly_mode(true, 0.3)
 			_start_stand_hover_loop()
 		)
-
-func _load_model(path: String) -> void:
-	if current_model_instance:
-		current_model_instance.queue_free()
-		current_model_instance = null
-
-	if ResourceLoader.exists(path):
-		var scene_res = load(path)
-		if scene_res is PackedScene:
-			current_model_instance = scene_res.instantiate()
-			add_child(current_model_instance)
-			current_model_instance.position = Vector3.ZERO
-			current_model_instance.scale = Vector3.ONE
 
 ## Melee Attack: charges up close directly in front of the enemy and delivers a physical slap/peck!
 ## For Hen-Goku, routes to Instant Transmission Teleport Strike!
@@ -460,23 +503,8 @@ func _spawn_nechicko_hit_slash(target_pos: Vector3, dir: Vector3) -> void:
 	else:
 		hit_root.position = target_pos + Vector3(0, 0.5, 0)
 
-	var s_mat := StandardMaterial3D.new()
-	s_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	s_mat.albedo_color = Color(0.04, 0.02, 0.02, 0.98) # Obsidian black
-	s_mat.emission_enabled = true
-	s_mat.emission = Color(0.95, 0.05, 0.05) # Crimson blood red rim
-	s_mat.emission_energy_multiplier = 4.8
-	s_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	s_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-
-	var red_mat := StandardMaterial3D.new()
-	red_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	red_mat.albedo_color = Color(1.0, 0.08, 0.08, 0.95) # Blood red
-	red_mat.emission_enabled = true
-	red_mat.emission = Color(1.0, 0.03, 0.03)
-	red_mat.emission_energy_multiplier = 5.0
-	red_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	red_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var s_mat := _get_cached_material("nechicko_slash_black", Color(0.04, 0.02, 0.02, 0.98), Color(0.95, 0.05, 0.05), 4.8, true, true)
+	var red_mat := _get_cached_material("nechicko_slash_red", Color(1.0, 0.08, 0.08, 0.95), Color(1.0, 0.03, 0.03), 5.0, true, true)
 
 	# Crescent Arc 1 (Obsidian Black)
 	var arc1 := MeshInstance3D.new()
@@ -606,12 +634,8 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 	orb_mesh.height = 0.76
 	charge_orb.mesh = orb_mesh
 
-	var orb_mat := StandardMaterial3D.new()
-	orb_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	orb_mat.albedo_color = Color(core_color.r, core_color.g, core_color.b, 0.88)
-	orb_mat.emission_enabled = true
-	orb_mat.emission = beam_color
-	orb_mat.emission_energy_multiplier = 3.5
+	var orb_key: String = "kamecock_orb_gold" if is_gold else "kamecock_orb_cyan"
+	var orb_mat := _get_cached_material(orb_key, Color(core_color.r, core_color.g, core_color.b, 0.88), beam_color, 3.5)
 	charge_orb.material_override = orb_mat
 	charge_root.add_child(charge_orb)
 	charge_orb.scale = Vector3(0.05, 0.05, 0.05)
@@ -665,12 +689,8 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 		outer_beam.rotation_degrees.x = 90.0
 		outer_beam.position = Vector3(0, 0, -beam_dist * 0.5)
 
-		var outer_mat := StandardMaterial3D.new()
-		outer_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		outer_mat.albedo_color = Color(beam_color.r, beam_color.g, beam_color.b, 0.65)
-		outer_mat.emission_enabled = true
-		outer_mat.emission = beam_color
-		outer_mat.emission_energy_multiplier = 2.8
+		var outer_key: String = "kamecock_outer_gold" if is_gold else "kamecock_outer_cyan"
+		var outer_mat := _get_cached_material(outer_key, Color(beam_color.r, beam_color.g, beam_color.b, 0.65), beam_color, 2.8)
 		outer_beam.material_override = outer_mat
 		beam_root.add_child(outer_beam)
 
@@ -684,12 +704,8 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 		core_beam.rotation_degrees.x = 90.0
 		core_beam.position = Vector3(0, 0, -beam_dist * 0.5)
 
-		var core_mat := StandardMaterial3D.new()
-		core_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		core_mat.albedo_color = Color(core_color.r, core_color.g, core_color.b, 0.95)
-		core_mat.emission_enabled = true
-		core_mat.emission = core_color
-		core_mat.emission_energy_multiplier = 4.5
+		var core_key: String = "kamecock_core_gold" if is_gold else "kamecock_core_cyan"
+		var core_mat := _get_cached_material(core_key, Color(core_color.r, core_color.g, core_color.b, 0.95), core_color, 4.5)
 		core_beam.material_override = core_mat
 		beam_root.add_child(core_beam)
 
@@ -767,13 +783,7 @@ func play_yagami_chick_note(target_pos: Vector3, target_visual: RoosterVisual3D 
 	get_parent().add_child(miasma_root)
 	miasma_root.global_position = global_position + Vector3(0, 0.35, 0) + dir_to_target * 0.72
 
-	var miasma_mat := StandardMaterial3D.new()
-	miasma_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	miasma_mat.albedo_color = Color(0.65, 0.1, 0.95, 0.9)
-	miasma_mat.emission_enabled = true
-	miasma_mat.emission = Color(0.7, 0.15, 1.0)
-	miasma_mat.emission_energy_multiplier = 4.0
-	miasma_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var miasma_mat := _get_cached_material("yagami_miasma", Color(0.65, 0.1, 0.95, 0.9), Color(0.7, 0.15, 1.0), 4.0)
 
 	# 3. Create Scribble Writing Tween
 	var write_tw := create_tween()
@@ -933,14 +943,7 @@ func play_yagami_chixecution(target_pos: Vector3, on_hit_callback: Callable = Ca
 		scythe_root.global_position = target_pos + Vector3(0, 0.6, 0)
 		scythe_root.look_at(scythe_root.global_position + dir_to_target, Vector3.UP)
 
-		var scythe_mat := StandardMaterial3D.new()
-		scythe_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		scythe_mat.albedo_color = Color(0.75, 0.08, 0.95, 0.95)
-		scythe_mat.emission_enabled = true
-		scythe_mat.emission = Color(0.85, 0.15, 0.35)
-		scythe_mat.emission_energy_multiplier = 5.0
-		scythe_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		scythe_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var scythe_mat := _get_cached_material("yagami_scythe", Color(0.75, 0.08, 0.95, 0.95), Color(0.85, 0.15, 0.35), 5.0, true, true)
 
 		var scythe1 := MeshInstance3D.new()
 		var arc1 := TorusMesh.new()
@@ -1229,40 +1232,32 @@ func play_cocktaro_stand_attack(target_pos: Vector3, on_hit_callback: Callable =
 	# Materialize in enemy's face
 	stand_tw.tween_property(current_stand_instance, "scale", Vector3(1.35, 1.35, 1.35), 0.05).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
-	# 3. --- HYPER-FAST MULTIPLE PUNCH BARRAGE ("ORA ORA ORA ORA!") ---
-	# Punch 1: Right Jab
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.32 + side_vec * 0.22, 0.035)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(10.0, 25.0, 15.0), 0.035)
+	# 3. --- POWERFUL PUNCH BARRAGE ("ORA ORA ORA ORA!") ---
+	# Punch 1: Heavy Right Jab
+	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.34 + side_vec * 0.22, 0.055)
+	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(12.0, 25.0, 15.0), 0.055)
 	
-	# Punch 2: Left Hook
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.32 - side_vec * 0.22, 0.035)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(10.0, -25.0, -15.0), 0.035)
+	# Punch 2: Heavy Left Hook
+	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.34 - side_vec * 0.22, 0.055)
+	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(12.0, -25.0, -15.0), 0.055)
 
 	# Punch 3: Right Straight
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.36 + side_vec * 0.18 + Vector3(0, 0.1, 0), 0.035)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(-10.0, 20.0, 10.0), 0.035)
+	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.38 + side_vec * 0.20 + Vector3(0, 0.1, 0), 0.055)
+	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(-10.0, 22.0, 12.0), 0.055)
 
 	# Punch 4: Left Upper
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.36 - side_vec * 0.18 - Vector3(0, 0.08, 0), 0.035)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(-10.0, -20.0, -10.0), 0.035)
+	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.38 - side_vec * 0.20 - Vector3(0, 0.08, 0), 0.055)
+	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(-10.0, -22.0, -12.0), 0.055)
 
-	# Punch 5: Rapid Right Cross
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.38 + side_vec * 0.24, 0.035)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(15.0, 28.0, 18.0), 0.035)
+	# Punch 5: Double Fist Windup
+	stand_tw.tween_property(current_stand_instance, "position", strike_pos - dir_to_target * 0.2 + Vector3(0, 0.22, 0), 0.07).set_trans(Tween.TRANS_QUAD)
+	stand_tw.parallel().tween_property(current_stand_instance, "scale", Vector3(1.5, 1.5, 1.5), 0.07)
+	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(-20.0, 0.0, 0.0), 0.07)
 
-	# Punch 6: Rapid Left Cross
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.38 - side_vec * 0.24, 0.035)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(15.0, -28.0, -18.0), 0.035)
-
-	# Punch 7: Double Fist Windup
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos - dir_to_target * 0.2 + Vector3(0, 0.22, 0), 0.06).set_trans(Tween.TRANS_QUAD)
-	stand_tw.parallel().tween_property(current_stand_instance, "scale", Vector3(1.5, 1.5, 1.5), 0.06)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(-20.0, 0.0, 0.0), 0.06)
-
-	# Punch 8: GRAND SLAM OVERHAND FINISHER!
-	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.45 + Vector3(0, -0.1, 0), 0.06).set_trans(Tween.TRANS_BACK)
-	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(35.0, 0.0, 0.0), 0.06)
-	stand_tw.parallel().tween_property(current_stand_instance, "scale", Vector3(1.6, 1.35, 1.6), 0.06)
+	# Punch 6: GRAND SLAM OVERHAND FINISHER!
+	stand_tw.tween_property(current_stand_instance, "position", strike_pos + dir_to_target * 0.45 + Vector3(0, -0.1, 0), 0.08).set_trans(Tween.TRANS_BACK)
+	stand_tw.parallel().tween_property(current_stand_instance, "rotation_degrees", base_rot + Vector3(35.0, 0.0, 0.0), 0.08)
+	stand_tw.parallel().tween_property(current_stand_instance, "scale", Vector3(1.6, 1.35, 1.6), 0.08)
 
 	# Impact Frame Trigger
 	stand_tw.tween_callback(func():
@@ -1501,12 +1496,7 @@ func play_cluckey_gear5_transformation(alt_path: String, banner_text: String = "
 	steam_mesh_inst.mesh = steam_mesh
 	steam_mesh_inst.position = Vector3(0, 0.6, 0)
 
-	var steam_mat := StandardMaterial3D.new()
-	steam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	steam_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.85)
-	steam_mat.emission_enabled = true
-	steam_mat.emission = Color(0.9, 0.95, 1.0)
-	steam_mat.emission_energy_multiplier = 3.5
+	var steam_mat := _get_cached_material("gear5_transform_steam", Color(1.0, 1.0, 1.0, 0.85), Color(0.9, 0.95, 1.0), 3.5)
 	steam_mesh_inst.material_override = steam_mat
 	cloud_root.add_child(steam_mesh_inst)
 
@@ -1567,12 +1557,7 @@ func play_cluckey_gear5_exhaust_revert(banner_text: String = "5TH GEAR EXHAUSTED
 	p_sphere.height = 1.0
 	puff_mesh.mesh = p_sphere
 
-	var puff_mat := StandardMaterial3D.new()
-	puff_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	puff_mat.albedo_color = Color(0.9, 0.9, 0.95, 0.75)
-	puff_mat.emission_enabled = true
-	puff_mat.emission = Color(0.8, 0.85, 0.95)
-	puff_mat.emission_energy_multiplier = 2.0
+	var puff_mat := _get_cached_material("gear5_exhaust_puff", Color(0.9, 0.9, 0.95, 0.75), Color(0.8, 0.85, 0.95), 2.0)
 	puff_mesh.material_override = puff_mat
 	puff_root.add_child(puff_mesh)
 
@@ -1618,14 +1603,11 @@ func _spawn_decluck_zigzag_bolt(parent_node: Node3D, start_pos: Vector3, end_pos
 	var bolt_root := Node3D.new()
 	parent_node.add_child(bolt_root)
 	
+	if OS.has_feature("web"):
+		num_segments = mini(num_segments, 3)
+	
 	if not mat:
-		mat = StandardMaterial3D.new()
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(0.2, 1.0, 0.5, 0.95)
-		mat.emission_enabled = true
-		mat.emission = Color(0.3, 1.0, 0.6)
-		mat.emission_energy_multiplier = 4.5
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat = _get_cached_material("decluck_zigzag_emerald", Color(0.2, 1.0, 0.5, 0.95), Color(0.3, 1.0, 0.6), 4.5)
 
 	var dir: Vector3 = end_pos - start_pos
 	var dist: float = dir.length()
@@ -1684,13 +1666,7 @@ func play_decluck_all_for_one_punch(target_pos: Vector3, on_hit_callback: Callab
 	strike_pos.y = base_stage_pos.y
 
 	# Emerald Lightning Material
-	var spark_mat := StandardMaterial3D.new()
-	spark_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	spark_mat.albedo_color = Color(0.2, 1.0, 0.5, 0.95)
-	spark_mat.emission_enabled = true
-	spark_mat.emission = Color(0.25, 1.0, 0.55)
-	spark_mat.emission_energy_multiplier = 3.5 + float(intensity) * 1.5
-	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var spark_mat := _get_cached_material("decluck_spark_" + str(intensity), Color(0.2, 1.0, 0.5, 0.95), Color(0.25, 1.0, 0.55), 3.5 + float(intensity) * 1.5)
 
 	var lightning_root := Node3D.new()
 	get_parent().add_child(lightning_root)
@@ -1698,6 +1674,8 @@ func play_decluck_all_for_one_punch(target_pos: Vector3, on_hit_callback: Callab
 
 	# Generate swirling zigzag lightning bolts around Decluck during windup
 	var num_bolts: int = intensity * 3 # 3, 6, 9 bolts
+	if OS.has_feature("web"):
+		num_bolts = mini(num_bolts, 4)
 	for b in range(num_bolts):
 		var angle: float = (float(b) / float(num_bolts)) * TAU
 		var start_p: Vector3 = base_stage_pos + Vector3(cos(angle) * 0.45, randf_range(0.1, 0.6), sin(angle) * 0.45)
@@ -1717,7 +1695,10 @@ func play_decluck_all_for_one_punch(target_pos: Vector3, on_hit_callback: Callab
 	# 2. 100% Super Smash Leap Dash with Trailing Electric Current (0.14s)
 	tween.tween_callback(func():
 		# Trailing lightning streak from launch point
-		for b in range(intensity * 2):
+		var streak_count: int = intensity * 2
+		if OS.has_feature("web"):
+			streak_count = mini(streak_count, 3)
+		for b in range(streak_count):
 			var arc_start: Vector3 = base_stage_pos + Vector3(randf_range(-0.3, 0.3), randf_range(0.2, 0.6), randf_range(-0.3, 0.3))
 			var arc_end: Vector3 = strike_pos + Vector3(randf_range(-0.3, 0.3), randf_range(0.3, 0.7), randf_range(-0.3, 0.3))
 			_spawn_decluck_zigzag_bolt(lightning_root, arc_start, arc_end, 6, 0.25, spark_mat)
@@ -1749,6 +1730,8 @@ func play_decluck_all_for_one_punch(target_pos: Vector3, on_hit_callback: Callab
 
 		# Multi-directional radial lightning branches into ground & opponent
 		var num_impact_arcs: int = intensity * 4 # 4, 8, 12 radial lightning bolts
+		if OS.has_feature("web"):
+			num_impact_arcs = mini(num_impact_arcs, 5)
 		for a in range(num_impact_arcs):
 			var a_angle: float = (float(a) / float(num_impact_arcs)) * TAU
 			var arc_len: float = randf_range(1.0, 1.8 + float(intensity) * 0.4)
@@ -1800,28 +1783,16 @@ func play_decluck_all_for_one_heart(amount: int, taya_spent: int = 1) -> void:
 	sphere_mesh.height = sphere_mesh.radius * 2.0
 	sphere_inst.mesh = sphere_mesh
 
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.1, 0.95, 0.45, 0.35 + float(intensity) * 0.10)
-	mat.emission_enabled = true
-	mat.emission = glow_color
-	mat.emission_energy_multiplier = 2.5 + float(intensity) * 1.0
-	mat.rim_enabled = true
-	mat.rim = 1.0
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mat := _get_cached_material("decluck_shield_mat_" + str(intensity), Color(0.1, 0.95, 0.45, 0.35 + float(intensity) * 0.10), glow_color, 2.5 + float(intensity) * 1.0, false, true)
 	sphere_inst.material_override = mat
 	shield_root.add_child(sphere_inst)
 
 	# Swirling Zigzag Lightning Cage wrapping around shield
-	var spark_mat := StandardMaterial3D.new()
-	spark_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	spark_mat.albedo_color = Color(0.25, 1.0, 0.6, 0.95)
-	spark_mat.emission_enabled = true
-	spark_mat.emission = Color(0.3, 1.0, 0.65)
-	spark_mat.emission_energy_multiplier = 4.0 + float(intensity) * 1.5
-	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var spark_mat := _get_cached_material("decluck_spark_cage_" + str(intensity), Color(0.25, 1.0, 0.6, 0.95), Color(0.3, 1.0, 0.65), 4.0 + float(intensity) * 1.5)
 
 	var num_arcs: int = intensity * 4 # 4, 8, 12 zigzag lightning bolts
+	if OS.has_feature("web"):
+		num_arcs = mini(num_arcs, 4)
 	for a in range(num_arcs):
 		var phi: float = randf_range(0.2, PI - 0.2)
 		var theta: float = randf_range(0, TAU)
@@ -1838,12 +1809,7 @@ func play_decluck_all_for_one_heart(amount: int, taya_spent: int = 1) -> void:
 	ring_inst.mesh = ring_mesh
 	ring_inst.position = Vector3(0, -0.55, 0)
 
-	var ring_mat := StandardMaterial3D.new()
-	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring_mat.albedo_color = Color(0.2, 1.0, 0.5, 0.65)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = glow_color
-	ring_mat.emission_energy_multiplier = 3.0 + float(intensity) * 1.0
+	var ring_mat := _get_cached_material("decluck_shield_ring_" + str(intensity), Color(0.2, 1.0, 0.5, 0.65), glow_color, 3.0 + float(intensity) * 1.0)
 	ring_inst.material_override = ring_mat
 	shield_root.add_child(ring_inst)
 
@@ -1896,12 +1862,7 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 			shock_ring.mesh = ring_mesh
 			shock_ring.position = Vector3(0, 0.05, 0)
 
-			var shock_mat := StandardMaterial3D.new()
-			shock_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			shock_mat.albedo_color = Color(0.85, 0.65, 0.35, 0.8)
-			shock_mat.emission_enabled = true
-			shock_mat.emission = Color(0.9, 0.7, 0.3)
-			shock_mat.emission_energy_multiplier = 2.5
+			var shock_mat := _get_cached_material("eren_stomp_shock", Color(0.85, 0.65, 0.35, 0.8), Color(0.9, 0.7, 0.3), 2.5)
 			shock_ring.material_override = shock_mat
 
 			get_parent().add_child(shock_ring)
@@ -1957,13 +1918,7 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 			inner_ring.mesh = in_mesh
 			inner_ring.position = Vector3(0, 0.08, 0)
 
-			var in_mat := StandardMaterial3D.new()
-			in_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			in_mat.albedo_color = Color(1.0, 0.85, 0.2, 0.95)
-			in_mat.emission_enabled = true
-			in_mat.emission = Color(1.0, 0.75, 0.15)
-			in_mat.emission_energy_multiplier = 4.5
-			in_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			var in_mat := _get_cached_material("eren_inner_shock", Color(1.0, 0.85, 0.2, 0.95), Color(1.0, 0.75, 0.15), 4.5)
 			inner_ring.material_override = in_mat
 			shock_root.add_child(inner_ring)
 
@@ -1975,19 +1930,15 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 			outer_ring.mesh = out_mesh
 			outer_ring.position = Vector3(0, 0.05, 0)
 
-			var out_mat := StandardMaterial3D.new()
-			out_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			out_mat.albedo_color = Color(0.75, 0.6, 0.4, 0.75)
-			out_mat.emission_enabled = true
-			out_mat.emission = Color(0.8, 0.65, 0.35)
-			out_mat.emission_energy_multiplier = 2.0
+			var out_mat := _get_cached_material("eren_outer_shock", Color(0.75, 0.6, 0.4, 0.75), Color(0.8, 0.65, 0.35), 2.0)
 			outer_ring.material_override = out_mat
 			shock_root.add_child(outer_ring)
 
 			# Flying Voxel Dust Puffs
 			var dust_nodes: Array[Node3D] = []
-			for d in range(8):
-				var d_angle: float = float(d) * (TAU / 8.0)
+			var dust_count: int = 4 if OS.has_feature("web") else 8
+			for d in range(dust_count):
+				var d_angle: float = float(d) * (TAU / float(dust_count))
 				var puff := MeshInstance3D.new()
 				var p_mesh := SphereMesh.new()
 				p_mesh.radius = 0.35
@@ -2007,7 +1958,7 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 			# Expand dust puffs outward
 			for d in range(dust_nodes.size()):
 				var d_node: Node3D = dust_nodes[d]
-				var d_angle: float = float(d) * (TAU / 8.0)
+				var d_angle: float = float(d) * (TAU / float(dust_nodes.size()))
 				var d_dest := Vector3(cos(d_angle) * 2.8, randf_range(0.1, 0.6), sin(d_angle) * 2.8)
 				s_tw.parallel().tween_property(d_node, "position", d_dest, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 				s_tw.parallel().tween_property(d_node, "scale", Vector3(1.8, 1.8, 1.8), 0.26)
@@ -2048,13 +1999,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 	lightning_root.global_position = stage_target
 
 	# 3. Heavenly Golden AoT Lightning Material
-	var bolt_mat := StandardMaterial3D.new()
-	bolt_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	bolt_mat.albedo_color = Color(1.0, 0.95, 0.35, 0.98)
-	bolt_mat.emission_enabled = true
-	bolt_mat.emission = Color(1.0, 0.88, 0.18)
-	bolt_mat.emission_energy_multiplier = 5.5
-	bolt_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var bolt_mat := _get_cached_material("eren_titan_bolt", Color(1.0, 0.95, 0.35, 0.98), Color(1.0, 0.88, 0.18), 5.5)
 
 	# 4. Central Luminous Heavenly Column
 	var core_column := MeshInstance3D.new()
@@ -2068,9 +2013,9 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 	core_column.scale = Vector3(0.01, 1.0, 0.01)
 	lightning_root.add_child(core_column)
 
-	# 5. Generate 8 Chaotic 3D Zigzag Lightning Bolts from the Sky
-	var num_bolts := 8
-	var num_segs := 8
+	# 5. Generate Chaotic 3D Zigzag Lightning Bolts from the Sky
+	var num_bolts := 3 if OS.has_feature("web") else 8
+	var num_segs := 4 if OS.has_feature("web") else 8
 	var bolts_data: Array[Dictionary] = []
 
 	for b in range(num_bolts):
@@ -2128,13 +2073,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 	sp_mesh.height = 0.7
 	spark_sphere.mesh = sp_mesh
 
-	var spark_mat := StandardMaterial3D.new()
-	spark_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	spark_mat.albedo_color = Color(1.0, 0.4, 0.1, 0.95)
-	spark_mat.emission_enabled = true
-	spark_mat.emission = Color(1.0, 0.5, 0.15)
-	spark_mat.emission_energy_multiplier = 4.0
-	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var spark_mat := _get_cached_material("eren_titan_spark", Color(1.0, 0.4, 0.1, 0.95), Color(1.0, 0.5, 0.15), 4.0)
 	spark_sphere.material_override = spark_mat
 	spark_sphere.position = Vector3(0, 0.7, 0.3)
 	spark_sphere.scale = Vector3(0.001, 0.001, 0.001)
@@ -2167,17 +2106,12 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 	parent_scene.add_child(steam_root)
 	steam_root.global_position = stage_target
 
-	var steam_mat := StandardMaterial3D.new()
-	steam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	steam_mat.albedo_color = Color(0.93, 0.93, 0.96, 0.65)
-	steam_mat.emission_enabled = true
-	steam_mat.emission = Color(1.0, 0.92, 0.6)
-	steam_mat.emission_energy_multiplier = 1.2
-	steam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var steam_mat := _get_cached_material("eren_titan_steam", Color(0.93, 0.93, 0.96, 0.65), Color(1.0, 0.92, 0.6), 1.2)
 
-	# Generate 8 billowing steam puff spheres
+	# Generate billowing steam puff spheres
 	var steam_nodes: Array[MeshInstance3D] = []
-	for s in range(8):
+	var steam_count: int = 4 if OS.has_feature("web") else 8
+	for s in range(steam_count):
 		var s_inst := MeshInstance3D.new()
 		var s_mesh := SphereMesh.new()
 		s_mesh.radius = randf_range(0.4, 0.7)
@@ -2275,16 +2209,11 @@ func play_eren_titan_revert(banner_text: String = "TITAN POWER EXHAUSTED") -> vo
 	parent_scene.add_child(steam_root)
 	steam_root.global_position = global_position
 
-	var steam_mat := StandardMaterial3D.new()
-	steam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	steam_mat.albedo_color = Color(0.92, 0.92, 0.96, 0.75)
-	steam_mat.emission_enabled = true
-	steam_mat.emission = Color(0.85, 0.85, 0.9)
-	steam_mat.emission_energy_multiplier = 1.0
-	steam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var steam_mat := _get_cached_material("hengoku_revert_steam", Color(0.92, 0.92, 0.96, 0.75), Color(0.85, 0.85, 0.9), 1.0)
 
 	var steam_puffs: Array[MeshInstance3D] = []
-	for s in range(7):
+	var steam_puffs_count: int = 3 if OS.has_feature("web") else 7
+	for s in range(steam_puffs_count):
 		var s_inst := MeshInstance3D.new()
 		var s_mesh := SphereMesh.new()
 		s_mesh.radius = randf_range(0.35, 0.6)
@@ -2338,13 +2267,7 @@ func play_titan_upkeep_drain() -> void:
 	s_mesh.height = 0.8
 	steam_inst.mesh = s_mesh
 
-	var steam_mat := StandardMaterial3D.new()
-	steam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	steam_mat.albedo_color = Color(0.92, 0.92, 0.95, 0.7)
-	steam_mat.emission_enabled = true
-	steam_mat.emission = Color(0.9, 0.85, 0.8)
-	steam_mat.emission_energy_multiplier = 1.5
-	steam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var steam_mat := _get_cached_material("titan_upkeep_steam", Color(0.92, 0.92, 0.95, 0.7), Color(0.9, 0.85, 0.8), 1.5)
 	steam_inst.material_override = steam_mat
 	steam_inst.position = Vector3(0, 0.6, -0.2)
 	steam_inst.scale = Vector3(0.2, 0.2, 0.2)
@@ -2367,13 +2290,7 @@ func _spawn_titan_wound_steam(wound_pos: Vector3) -> void:
 	get_parent().add_child(steam_root)
 	steam_root.global_position = wound_pos
 
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.95, 0.95, 0.98, 0.75)
-	mat.emission_enabled = true
-	mat.emission = Color(0.9, 0.9, 0.9)
-	mat.emission_energy_multiplier = 1.2
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var mat := _get_cached_material("titan_wound_steam", Color(0.95, 0.95, 0.98, 0.75), Color(0.9, 0.9, 0.9), 1.2)
 
 	for i in range(3):
 		var puff := MeshInstance3D.new()
@@ -2399,15 +2316,10 @@ func _spawn_titan_corpse_steam_dissolution() -> void:
 	get_parent().add_child(steam_root)
 	steam_root.global_position = global_position
 
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.93, 0.93, 0.96, 0.8)
-	mat.emission_enabled = true
-	mat.emission = Color(0.9, 0.9, 0.9)
-	mat.emission_energy_multiplier = 1.5
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var mat := _get_cached_material("titan_corpse_steam", Color(0.93, 0.93, 0.96, 0.8), Color(0.9, 0.9, 0.9), 1.5)
 
-	for i in range(6):
+	var corpse_puffs: int = 3 if OS.has_feature("web") else 6
+	for i in range(corpse_puffs):
 		var puff := MeshInstance3D.new()
 		var s_mesh := SphereMesh.new()
 		s_mesh.radius = randf_range(0.5, 0.9)
@@ -2447,24 +2359,10 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 		claw_root.position = target_pos + Vector3(0, 0.55, 0)
 
 	# Obsidian Black with Glowing Blood-Red Edge
-	var slash_mat := StandardMaterial3D.new()
-	slash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	slash_mat.albedo_color = Color(0.04, 0.02, 0.02, 0.98) # Obsidian black
-	slash_mat.emission_enabled = true
-	slash_mat.emission = Color(0.95, 0.05, 0.05) # Blood-red rim
-	slash_mat.emission_energy_multiplier = 4.8
-	slash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	slash_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var slash_mat := _get_cached_material("nechicko_peck_black", Color(0.04, 0.02, 0.02, 0.98), Color(0.95, 0.05, 0.05), 4.8, true, true)
 
 	# Blazing Blood-Red Edge Material
-	var red_mat := StandardMaterial3D.new()
-	red_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	red_mat.albedo_color = Color(1.0, 0.06, 0.06, 0.95) # Blood red
-	red_mat.emission_enabled = true
-	red_mat.emission = Color(1.0, 0.02, 0.02)
-	red_mat.emission_energy_multiplier = 5.0
-	red_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	red_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var red_mat := _get_cached_material("nechicko_peck_red", Color(1.0, 0.06, 0.06, 0.95), Color(1.0, 0.02, 0.02), 5.0, true, true)
 
 	# Crescent Slash Arc 1 (Obsidian Black with Red Core)
 	var slash1 := MeshInstance3D.new()
@@ -2545,9 +2443,10 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 		ring.scale = Vector3(0.2, 0.2, 0.2)
 		blast_root.add_child(ring)
 
-		# 8 Flying 3D Black and Blood Red Embers
+		# Flying 3D Black and Blood Red Embers
 		var ember_nodes: Array[Node3D] = []
-		for e in range(8):
+		var ember_count: int = 4 if OS.has_feature("web") else 8
+		for e in range(ember_count):
 			var ember := MeshInstance3D.new()
 			var e_mesh := SphereMesh.new()
 			e_mesh.radius = 0.20
@@ -2557,9 +2456,10 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 			blast_root.add_child(ember)
 			ember_nodes.append(ember)
 
-		# 6 Radial Little Red Lightning Sparks
-		for b in range(6):
-			var s_ang: float = float(b) * (TAU / 6.0) + randf_range(-0.2, 0.2)
+		# Radial Little Red Lightning Sparks
+		var spark_count: int = 3 if OS.has_feature("web") else 6
+		for b in range(spark_count):
+			var s_ang: float = float(b) * (TAU / float(spark_count)) + randf_range(-0.2, 0.2)
 			var b_end := Vector3(cos(s_ang) * randf_range(1.1, 1.8), randf_range(0.1, 0.7), sin(s_ang) * randf_range(1.1, 1.8))
 			_spawn_decluck_zigzag_bolt(blast_root, Vector3.ZERO, b_end, 3, 0.10, red_mat)
 
@@ -2570,7 +2470,7 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 		b_tw.parallel().tween_property(slash2, "scale", Vector3(1.45, 1.45, 0.4), 0.08).set_trans(Tween.TRANS_EXPO)
 		for e_idx in range(ember_nodes.size()):
 			var e_node: Node3D = ember_nodes[e_idx]
-			var e_ang: float = float(e_idx) * (TAU / 8.0)
+			var e_ang: float = float(e_idx) * (TAU / float(ember_nodes.size()))
 			var e_dest := Vector3(cos(e_ang) * randf_range(1.6, 2.4), randf_range(0.3, 1.2), sin(e_ang) * randf_range(1.6, 2.4))
 			b_tw.parallel().tween_property(e_node, "position", e_dest, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			b_tw.parallel().tween_property(e_node, "scale", Vector3(1.4, 1.4, 1.4), 0.22)
@@ -2619,16 +2519,10 @@ func play_daniel_unseen_claw(target_pos: Vector3, on_hit_callback: Callable = Ca
 	hand_root.global_position = Vector3.ZERO
 
 	# Shadow material (dark violet core with bright ethereal purple emission)
-	var shadow_mat := StandardMaterial3D.new()
-	shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	shadow_mat.albedo_color = Color(0.10, 0.01, 0.18, 0.95)
-	shadow_mat.emission_enabled = true
-	shadow_mat.emission = Color(0.72, 0.12, 1.0)
-	shadow_mat.emission_energy_multiplier = 4.5
-	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var shadow_mat := _get_cached_material("daniel_shadow_hand", Color(0.10, 0.01, 0.18, 0.95), Color(0.72, 0.12, 1.0), 4.5)
 
-	var num_hands := 5
-	var num_joints := 8
+	var num_hands := 3 if OS.has_feature("web") else 5
+	var num_joints := 5 if OS.has_feature("web") else 8
 	var hands_data: Array[Dictionary] = []
 
 	var hand_offsets: Array[Vector3] = [
@@ -2814,13 +2708,7 @@ func _spawn_shadow_impact_burst(impact_pos: Vector3, dir: Vector3) -> void:
 	var shock_inst := MeshInstance3D.new()
 	shock_inst.mesh = shock_mesh
 
-	var shock_mat := StandardMaterial3D.new()
-	shock_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	shock_mat.albedo_color = Color(0.2, 0.02, 0.35, 0.95)
-	shock_mat.emission_enabled = true
-	shock_mat.emission = Color(0.85, 0.15, 1.0)
-	shock_mat.emission_energy_multiplier = 4.5
-	shock_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var shock_mat := _get_cached_material("daniel_shadow_burst", Color(0.2, 0.02, 0.35, 0.95), Color(0.85, 0.15, 1.0), 4.5)
 	shock_inst.material_override = shock_mat
 	blast_root.add_child(shock_inst)
 	shock_inst.look_at(impact_pos + dir, Vector3.UP)
@@ -2865,32 +2753,18 @@ func play_daniel_heartbeat_heal(amount: int) -> void:
 func play_daniel_revive(banner_text: String = "RETURN BY DEATH: CHICK TO ZERO!") -> void:
 	is_dead = false
 
-	# 1. High-contrast Black & White / Violet Negative Screen Filter
-	var canvas := CanvasLayer.new()
-	canvas.layer = 125
-	var filter_rect := ColorRect.new()
-	filter_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	filter_rect.color = Color(0.22, 0.02, 0.45, 0.78)
-	filter_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(filter_rect)
-	if get_tree() and get_tree().root:
-		get_tree().root.add_child(canvas)
+	# 1. High-contrast Black & White / Violet Negative Screen Filter via persistent overlay
+	_trigger_screen_flash(Color(0.22, 0.02, 0.45, 0.78), 0.52)
 
 	var shatter_root := Node3D.new()
 	get_parent().add_child(shatter_root)
 	shatter_root.global_position = base_stage_pos + Vector3(0, 0.45, 0)
 
 	# Luminous Crystalline Violet Glass Shard Material
-	var glass_mat := StandardMaterial3D.new()
-	glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass_mat.albedo_color = Color(0.95, 0.78, 1.0, 0.90)
-	glass_mat.emission_enabled = true
-	glass_mat.emission = Color(0.85, 0.25, 1.0)
-	glass_mat.emission_energy_multiplier = 5.0
-	glass_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var glass_mat := _get_cached_material("daniel_revive_glass", Color(0.95, 0.78, 1.0, 0.90), Color(0.85, 0.25, 1.0), 5.0)
 
-	# 2. Spawn 28 Floating Voxel Glass Shards
-	var num_shards := 28
+	# 2. Spawn Floating Voxel Glass Shards
+	var num_shards := 10 if OS.has_feature("web") else 28
 	var shards_data: Array[Dictionary] = []
 
 	for i in range(num_shards):
@@ -2959,11 +2833,6 @@ func play_daniel_revive(banner_text: String = "RETURN BY DEATH: CHICK TO ZERO!")
 
 	# --- Phase 4: Color Snaps Back + Blinding Flash + Shockwave Detonation (0.28s) ---
 	tween.tween_callback(func():
-		# Violet negative filter dissolves instantly
-		var f_tw := canvas.create_tween()
-		f_tw.tween_property(filter_rect, "color:a", 0.0, 0.12)
-		f_tw.chain().tween_callback(canvas.queue_free)
-
 		# Shards vanish into core
 		shatter_root.queue_free()
 
@@ -3031,16 +2900,7 @@ func play_kikiriki_barrier(amount: int) -> void:
 	sphere_mesh.height = 2.7
 	sphere_mesh_inst.mesh = sphere_mesh
 
-	var sphere_mat := StandardMaterial3D.new()
-	sphere_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	sphere_mat.albedo_color = Color(1.0, 0.85, 0.2, 0.32) # Semi-transparent gold!
-	sphere_mat.emission_enabled = true
-	sphere_mat.emission = Color(1.0, 0.88, 0.25)
-	sphere_mat.emission_energy_multiplier = 3.2
-	sphere_mat.rim_enabled = true
-	sphere_mat.rim = 0.9
-	sphere_mat.rim_tint = 0.8
-	sphere_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var sphere_mat := _get_cached_material("golden_barrier_sphere", Color(1.0, 0.85, 0.2, 0.32), Color(1.0, 0.88, 0.25), 3.2, false, true)
 	sphere_mesh_inst.material_override = sphere_mat
 	barrier_root.add_child(sphere_mesh_inst)
 
@@ -3054,12 +2914,7 @@ func play_kikiriki_barrier(amount: int) -> void:
 	ring1.mesh = r_mesh1
 	ring1.rotation_degrees = Vector3(45.0, 30.0, 0.0)
 
-	var ring_mat := StandardMaterial3D.new()
-	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring_mat.albedo_color = Color(1.0, 0.95, 0.45, 0.65)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = Color(1.0, 0.95, 0.45)
-	ring_mat.emission_energy_multiplier = 3.5
+	var ring_mat := _get_cached_material("golden_barrier_ring", Color(1.0, 0.95, 0.45, 0.65), Color(1.0, 0.95, 0.45), 3.5)
 	ring1.material_override = ring_mat
 	barrier_root.add_child(ring1)
 
@@ -3119,14 +2974,7 @@ func play_heal(amount: int, theme: String = "") -> void:
 func _create_3d_cross_node(color: Color, glow: Color, cross_size: float = 0.35) -> Node3D:
 	var cross_root := Node3D.new()
 
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(color.r, color.g, color.b, 0.92)
-	mat.emission_enabled = true
-	mat.emission = glow
-	mat.emission_energy_multiplier = 3.2
-	mat.roughness = 0.2
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mat := _get_cached_material("heal_cross_" + color.to_html(false), Color(color.r, color.g, color.b, 0.92), glow, 3.2, false, true)
 
 	var thickness: float = cross_size * 0.28
 
@@ -3169,6 +3017,8 @@ func _spawn_3d_heal_crosses(amount: int, theme: String = "") -> void:
 
 	# Scale count directly with amount: 1 HP -> 3 crosses, 2 HP -> 5 crosses, 4 HP -> 8 crosses, 6+ HP -> 12-16 crosses!
 	var num_crosses: int = clampi(amount * 2 + 1, 3, 16)
+	if OS.has_feature("web"):
+		num_crosses = mini(num_crosses, 4)
 
 	for i in range(num_crosses):
 		var angle: float = (float(i) / float(num_crosses)) * TAU + randf_range(-0.35, 0.35)
@@ -3268,15 +3118,10 @@ func _spawn_mario_powerup_sparks() -> void:
 	else:
 		spark_root.position = base_stage_pos + Vector3(0, 0.5, 0)
 
-	var s_mat := StandardMaterial3D.new()
-	s_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	s_mat.albedo_color = Color(1.0, 0.90, 0.25, 0.95)
-	s_mat.emission_enabled = true
-	s_mat.emission = Color(1.0, 0.85, 0.15)
-	s_mat.emission_energy_multiplier = 4.5
-	s_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var s_mat := _get_cached_material("mario_powerup_spark", Color(1.0, 0.90, 0.25, 0.95), Color(1.0, 0.85, 0.15), 4.5)
 
-	for i in range(8):
+	var spark_count: int = 4 if OS.has_feature("web") else 8
+	for i in range(spark_count):
 		var spark := MeshInstance3D.new()
 		var box := BoxMesh.new()
 		box.size = Vector3(0.09, 0.09, 0.09)
@@ -3284,7 +3129,7 @@ func _spawn_mario_powerup_sparks() -> void:
 		spark.material_override = s_mat
 		spark_root.add_child(spark)
 
-		var ang: float = float(i) * (TAU / 8.0)
+		var ang: float = float(i) * (TAU / float(spark_count))
 		var dest := Vector3(cos(ang) * 1.1, randf_range(0.2, 0.9), sin(ang) * 1.1)
 		var s_tw := spark.create_tween()
 		s_tw.tween_property(spark, "position", dest, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -3315,16 +3160,11 @@ func play_nechicko_demon_revert(banner_text: String = "DEMON PACIFIED (SLEEPING)
 	parent_scene.add_child(sakura_root)
 	sakura_root.global_position = global_position
 
-	var petal_mat := StandardMaterial3D.new()
-	petal_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	petal_mat.albedo_color = Color(1.0, 0.65, 0.85, 0.85)
-	petal_mat.emission_enabled = true
-	petal_mat.emission = Color(1.0, 0.55, 0.80)
-	petal_mat.emission_energy_multiplier = 2.0
-	petal_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var petal_mat := _get_cached_material("nechicko_sakura_petal", Color(1.0, 0.65, 0.85, 0.85), Color(1.0, 0.55, 0.80), 2.0)
 
 	var petal_nodes: Array[MeshInstance3D] = []
-	for p in range(8):
+	var petal_count: int = 4 if OS.has_feature("web") else 8
+	for p in range(petal_count):
 		var p_inst := MeshInstance3D.new()
 		var p_mesh := SphereMesh.new()
 		p_mesh.radius = randf_range(0.18, 0.32)
@@ -3403,8 +3243,7 @@ func play_nechicko_ketchup_aura(amount: int) -> void:
 		fb_mesh.height = 0.45
 		var fb_inst := MeshInstance3D.new()
 		fb_inst.mesh = fb_mesh
-		var fb_mat := StandardMaterial3D.new()
-		fb_mat.albedo_color = Color(0.85, 0.15, 0.15)
+		var fb_mat := _get_cached_material("ketchup_fallback_mat", Color(0.85, 0.15, 0.15))
 		fb_inst.material_override = fb_mat
 		ketchup_node.add_child(fb_inst)
 
@@ -3445,6 +3284,7 @@ func play_nechicko_ketchup_aura(amount: int) -> void:
 	# Phase 2: Rapid Chugging Gulp Loop (4 chug-glugs, 0.72s total)
 	# Squeezing the bottle, gulps, red ketchup droplets pouring from nozzle into her beak, comic text!
 	var gulp_words: Array[String] = ["GLUG!", "GLUG!", "CHUG!", "GULP!"]
+	var drop_mat := _get_cached_material("ketchup_drop_mat", Color(0.88, 0.10, 0.10))
 	for g in range(4):
 		# Gulp step 1: Squeeze bottle & swallow bulge
 		var squeeze_scale: Vector3 = bottle_base_scale * Vector3(1.22, 0.78, 1.22)
@@ -3486,9 +3326,6 @@ func play_nechicko_ketchup_aura(amount: int) -> void:
 					drop_mesh.radius = 0.035
 					drop_mesh.height = 0.07
 					drop.mesh = drop_mesh
-					var drop_mat := StandardMaterial3D.new()
-					drop_mat.albedo_color = Color(0.88, 0.10, 0.10)
-					drop_mat.roughness = 0.2
 					drop.material_override = drop_mat
 					drop.position = Vector3(randf_range(-0.03, 0.03), 0.20, 0.50 + randf_range(-0.02, 0.02))
 					vfx_root.add_child(drop)
@@ -3581,16 +3418,7 @@ func _spawn_shield_bubble(theme: String = "") -> void:
 	sphere_mesh.rings = 16
 	sphere_inst.mesh = sphere_mesh
 
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(aura_color.r, aura_color.g, aura_color.b, 0.35)
-	mat.emission_enabled = true
-	mat.emission = glow_color
-	mat.emission_energy_multiplier = 2.0
-	mat.rim_enabled = true
-	mat.rim = 1.0
-	mat.rim_tint = 0.6
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mat := _get_cached_material("generic_shield_" + aura_color.to_html(false), Color(aura_color.r, aura_color.g, aura_color.b, 0.35), glow_color, 2.0, false, true)
 	sphere_inst.material_override = mat
 	shield_root.add_child(sphere_inst)
 
@@ -3604,12 +3432,7 @@ func _spawn_shield_bubble(theme: String = "") -> void:
 	ring_inst.mesh = ring_mesh
 	ring_inst.position = Vector3(0, -0.55, 0)
 
-	var ring_mat := StandardMaterial3D.new()
-	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring_mat.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, 0.55)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = glow_color
-	ring_mat.emission_energy_multiplier = 2.4
+	var ring_mat := _get_cached_material("generic_shield_ring_" + glow_color.to_html(false), Color(glow_color.r, glow_color.g, glow_color.b, 0.55), glow_color, 2.4)
 	ring_inst.material_override = ring_mat
 	shield_root.add_child(ring_inst)
 
@@ -3647,17 +3470,11 @@ func play_decluck_power_transformation(alt_path: String, banner_text: String = "
 	lightning_root.global_position = stage_target
 
 	# 3. Full Cowling Emerald Lightning Material (matching CharacterSelectController)
-	var bolt_mat := StandardMaterial3D.new()
-	bolt_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	bolt_mat.albedo_color = Color(0.2, 1.0, 0.6, 0.95)
-	bolt_mat.emission_enabled = true
-	bolt_mat.emission = Color(0.15, 1.0, 0.55)
-	bolt_mat.emission_energy_multiplier = 4.8
-	bolt_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var bolt_mat := _get_cached_material("decluck_power_bolt", Color(0.2, 1.0, 0.6, 0.95), Color(0.15, 1.0, 0.55), 4.8)
 
-	# 4. Generate 7 chaotic 3D zigzag lightning bolts from the sky
-	var num_bolts := 7
-	var num_segs := 8
+	# 4. Generate chaotic 3D zigzag lightning bolts from the sky
+	var num_bolts := 3 if OS.has_feature("web") else 7
+	var num_segs := 4 if OS.has_feature("web") else 8
 	var bolts_data: Array[Dictionary] = []
 
 	for b in range(num_bolts):
@@ -3819,13 +3636,7 @@ func play_golden_transformation(alt_path: String, banner_text: String = "GOLDEN 
 	ki_cylinder.mesh = cyl_mesh
 	ki_cylinder.position = Vector3(0, 1.5, 0)
 
-	var ki_mat := StandardMaterial3D.new()
-	ki_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ki_mat.albedo_color = Color(1.0, 0.85, 0.15, 0.45)
-	ki_mat.emission_enabled = true
-	ki_mat.emission = Color(1.0, 0.85, 0.2)
-	ki_mat.emission_energy_multiplier = 3.2
-	ki_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var ki_mat := _get_cached_material("hengoku_transform_ki", Color(1.0, 0.85, 0.15, 0.45), Color(1.0, 0.85, 0.2), 3.2, false, true)
 	ki_cylinder.material_override = ki_mat
 	aura_root.add_child(ki_cylinder)
 
@@ -3837,12 +3648,7 @@ func play_golden_transformation(alt_path: String, banner_text: String = "GOLDEN 
 	ground_ring.mesh = ring_mesh
 	ground_ring.position = Vector3(0, 0.05, 0)
 
-	var ring_mat := StandardMaterial3D.new()
-	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring_mat.albedo_color = Color(1.0, 0.9, 0.3, 0.7)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = Color(1.0, 0.9, 0.3)
-	ring_mat.emission_energy_multiplier = 3.0
+	var ring_mat := _get_cached_material("hengoku_transform_ring", Color(1.0, 0.9, 0.3, 0.7), Color(1.0, 0.9, 0.3), 3.0)
 	ground_ring.material_override = ring_mat
 	aura_root.add_child(ground_ring)
 
@@ -3924,12 +3730,10 @@ func _spawn_fried_chicken_poof_vfx(origin: Vector3) -> void:
 	poof_root.global_position = origin + Vector3(0, 0.3, 0)
 
 	# Smoke cloud balls
-	var smoke_mat := StandardMaterial3D.new()
-	smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	smoke_mat.albedo_color = Color(0.9, 0.88, 0.82, 0.85)
-	smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var smoke_mat := _get_cached_material("friedchicken_poof_smoke", Color(0.9, 0.88, 0.82, 0.85))
 
-	for i in range(12):
+	var puff_count: int = 6 if OS.has_feature("web") else 12
+	for i in range(puff_count):
 		var puff := MeshInstance3D.new()
 		var sphere := SphereMesh.new()
 		sphere.radius = randf_range(0.18, 0.32)
@@ -3938,7 +3742,7 @@ func _spawn_fried_chicken_poof_vfx(origin: Vector3) -> void:
 		puff.material_override = smoke_mat
 		poof_root.add_child(puff)
 
-		var ang: float = float(i) * (TAU / 12.0)
+		var ang: float = float(i) * (TAU / float(puff_count))
 		var dest := Vector3(cos(ang) * randf_range(0.6, 1.4), randf_range(0.1, 0.7), sin(ang) * randf_range(0.6, 1.4))
 		var p_tw := puff.create_tween()
 		p_tw.tween_property(puff, "position", dest, 0.40).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -3946,14 +3750,10 @@ func _spawn_fried_chicken_poof_vfx(origin: Vector3) -> void:
 		p_tw.chain().tween_property(puff, "scale", Vector3.ZERO, 0.20)
 
 	# Golden crispy crumb sparks
-	var crumb_mat := StandardMaterial3D.new()
-	crumb_mat.albedo_color = Color(0.95, 0.72, 0.18)
-	crumb_mat.emission_enabled = true
-	crumb_mat.emission = Color(1.0, 0.7, 0.15)
-	crumb_mat.emission_energy_multiplier = 3.0
-	crumb_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var crumb_mat := _get_cached_material("friedchicken_poof_crumb", Color(0.95, 0.72, 0.18), Color(1.0, 0.7, 0.15), 3.0)
 
-	for j in range(8):
+	var crumb_count: int = 4 if OS.has_feature("web") else 8
+	for j in range(crumb_count):
 		var crumb := MeshInstance3D.new()
 		var box := BoxMesh.new()
 		box.size = Vector3(0.08, 0.08, 0.08)
@@ -3961,7 +3761,7 @@ func _spawn_fried_chicken_poof_vfx(origin: Vector3) -> void:
 		crumb.material_override = crumb_mat
 		poof_root.add_child(crumb)
 
-		var c_ang: float = float(j) * (TAU / 8.0) + 0.3
+		var c_ang: float = float(j) * (TAU / float(crumb_count)) + 0.3
 		var c_dest := Vector3(cos(c_ang) * 0.9, randf_range(0.4, 1.1), sin(c_ang) * 0.9)
 		var c_tw := crumb.create_tween()
 		c_tw.tween_property(crumb, "position", c_dest, 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -3979,10 +3779,7 @@ func _spawn_fried_chicken_steam_loop() -> void:
 	add_child(steam_root)
 	steam_root.position = Vector3(0, 0.3, 0)
 
-	var s_mat := StandardMaterial3D.new()
-	s_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	s_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.45)
-	s_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var s_mat := _get_cached_material("friedchicken_steam_loop", Color(1.0, 1.0, 1.0, 0.45))
 
 	for i in range(3):
 		var puff := MeshInstance3D.new()

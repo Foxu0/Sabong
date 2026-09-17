@@ -726,23 +726,31 @@ func get_active_camera() -> Camera3D:
 			return cam
 	return camera_p1
 
-## Shakes the active camera for impact hits and energy explosions
+var _active_shake_tween: Tween = null
+var _orig_shake_cam_pos: Vector3 = Vector3.ZERO
+
+## Shakes the active camera for impact hits and energy explosions smoothly without frame stutter
 func shake_camera(duration: float = 0.35, intensity: float = 0.12) -> void:
 	var cam: Camera3D = get_active_camera()
 	if not cam:
 		return
-	var orig_pos: Vector3 = cam.position
-	var tw := create_tween()
-	var steps: int = max(4, int(duration / 0.04))
+	if _active_shake_tween and _active_shake_tween.is_valid():
+		_active_shake_tween.kill()
+		if _orig_shake_cam_pos != Vector3.ZERO:
+			cam.position = _orig_shake_cam_pos
+	_orig_shake_cam_pos = cam.position
+	_active_shake_tween = create_tween()
+	var steps: int = 4
+	var step_dur: float = maxf(0.04, duration / float(steps))
 	for i in range(steps):
 		var decay: float = 1.0 - float(i) / float(steps)
 		var offset := Vector3(
 			randf_range(-intensity, intensity) * decay,
-			randf_range(-intensity * 0.7, intensity * 0.7) * decay,
+			randf_range(-intensity * 0.6, intensity * 0.6) * decay,
 			randf_range(-intensity, intensity) * decay
 		)
-		tw.tween_property(cam, "position", orig_pos + offset, 0.04)
-	tw.tween_property(cam, "position", orig_pos, 0.04)
+		_active_shake_tween.tween_property(cam, "position", _orig_shake_cam_pos + offset, step_dur).set_trans(Tween.TRANS_SINE)
+	_active_shake_tween.tween_property(cam, "position", _orig_shake_cam_pos, 0.05).set_trans(Tween.TRANS_QUAD)
 
 ## Configures the 3D Voxel Bell Click Collision, hover cursor, and callback for both tables
 func _setup_bell_interaction() -> void:
