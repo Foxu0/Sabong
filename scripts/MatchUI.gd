@@ -156,9 +156,9 @@ func _on_battle_started(p1_rooster: RoosterData, p2_rooster: RoosterData, vs_ai:
 	var p2_name: String = p2_rooster.display_name if p2_rooster else "WALA"
 	_show_phase_notification("MATCH START", "%s VS %s" % [p1_name, p2_name], Color.GOLD, false, 0.55)
 
-	# Hold camera looking up at the arena so players can appreciate the arena phase banner & roosters
+	# Snappy presentation hold before initiating duel
 	if is_inside_tree():
-		await get_tree().create_timer(2.2).timeout
+		await get_tree().create_timer(0.55).timeout
 
 	if phase_manager:
 		phase_manager.start_duel(player, opponent, vs_ai, arena_controller)
@@ -361,15 +361,15 @@ func _show_priority_result_pop(pop_text: String, _pop_color: Color = Color.WHITE
 		tw.tween_property(priority_pop_label, "modulate:a", 1.0, 0.15)
 		
 		# Settle to standard scale
-		tw.chain().tween_property(priority_pop_label, "scale", Vector2.ONE, 0.12).set_ease(Tween.EASE_OUT)
+		tw.chain().tween_property(priority_pop_label, "scale", Vector2.ONE, 0.10).set_ease(Tween.EASE_OUT)
 		
-		# Hold for ~1.0s
-		tw.tween_interval(1.0)
+		# Snappy punchy hold
+		tw.tween_interval(0.35)
 		
 		# Fade away with subtle expansion
 		tw.chain().set_parallel(true)
-		tw.tween_property(priority_pop_label, "modulate:a", 0.0, 0.45)
-		tw.tween_property(priority_pop_label, "scale", Vector2(1.25, 1.25), 0.45)
+		tw.tween_property(priority_pop_label, "modulate:a", 0.0, 0.20)
+		tw.tween_property(priority_pop_label, "scale", Vector2(1.15, 1.15), 0.20)
 		
 		# Hide when finished
 		tw.chain().tween_callback(func():

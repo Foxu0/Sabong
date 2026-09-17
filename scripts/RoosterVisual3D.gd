@@ -324,19 +324,19 @@ func play_step_into_arena() -> void:
 	# Cocktaro leap into arena
 	var tw := create_tween()
 	# 1. Anticipation: Crouch down on stage
-	tw.tween_property(self, "scale", Vector3(base_scale.x * 1.2, base_scale.y * 0.7, base_scale.z * 1.2), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector3(base_scale.x * 1.2, base_scale.y * 0.7, base_scale.z * 1.2), 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	
 	# 2. High leap arc down into arena ring
 	var mid_jump := (stage_pos + arena_pos) * 0.5 + Vector3(0, 0.65, 0)
-	tw.tween_property(self, "position", mid_jump, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 0.85, base_scale.y * 1.15, base_scale.z * 0.85), 0.18)
+	tw.tween_property(self, "position", mid_jump, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 0.85, base_scale.y * 1.15, base_scale.z * 0.85), 0.12)
 	
 	# 3. Land on arena floor with impact squash
-	tw.tween_property(self, "position", arena_pos, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 1.3, base_scale.y * 0.7, base_scale.z * 1.3), 0.16)
+	tw.tween_property(self, "position", arena_pos, 0.10).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 1.3, base_scale.y * 0.7, base_scale.z * 1.3), 0.10)
 	
 	# 4. Spring back to idle
-	tw.tween_property(self, "scale", base_scale, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", base_scale, 0.07).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_callback(func():
 		scale = base_scale
 		position = arena_pos
@@ -347,7 +347,7 @@ func play_step_into_arena() -> void:
 
 	# If Star Platinum is present, he manifests solid and glides into the arena
 	if current_stand_instance and is_instance_valid(current_stand_instance):
-		_set_stand_ghostly_mode(false, 0.25)
+		_set_stand_ghostly_mode(false, 0.18)
 		var stand_stage_pos := _get_stand_target_pos(stage_pos)
 		var stand_arena_pos := _get_stand_target_pos(arena_pos)
 		var stand_mid := (stand_stage_pos + stand_arena_pos) * 0.5 + Vector3(0, 0.85, 0)
@@ -356,8 +356,8 @@ func play_step_into_arena() -> void:
 			_stand_hover_tween.kill()
 
 		var stw := current_stand_instance.create_tween()
-		stw.tween_property(current_stand_instance, "position", stand_mid, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		stw.tween_property(current_stand_instance, "position", stand_arena_pos, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		stw.tween_property(current_stand_instance, "position", stand_mid, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		stw.tween_property(current_stand_instance, "position", stand_arena_pos, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		stw.chain().tween_callback(_start_stand_hover_loop)
 
 ## Returns/hops back onto the elevated roost stage after round combat concludes
@@ -369,19 +369,19 @@ func play_return_to_stage() -> void:
 
 	var tw := create_tween()
 	# 1. Crouch on arena floor
-	tw.tween_property(self, "scale", Vector3(base_scale.x * 1.2, base_scale.y * 0.7, base_scale.z * 1.2), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector3(base_scale.x * 1.2, base_scale.y * 0.7, base_scale.z * 1.2), 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	
 	# 2. High leap arc back up to stage
 	var mid_jump := (arena_pos + stage_pos) * 0.5 + Vector3(0, 0.65, 0)
-	tw.tween_property(self, "position", mid_jump, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 0.85, base_scale.y * 1.2, base_scale.z * 0.85), 0.2)
+	tw.tween_property(self, "position", mid_jump, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 0.85, base_scale.y * 1.2, base_scale.z * 0.85), 0.14)
 	
 	# 3. Land on stage
-	tw.tween_property(self, "position", stage_pos, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 1.2, base_scale.y * 0.8, base_scale.z * 1.2), 0.16)
+	tw.tween_property(self, "position", stage_pos, 0.10).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(self, "scale", Vector3(base_scale.x * 1.2, base_scale.y * 0.8, base_scale.z * 1.2), 0.10)
 	
 	# 4. Reset scale
-	tw.tween_property(self, "scale", base_scale, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", base_scale, 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_callback(func():
 		scale = base_scale
 		position = stage_pos
@@ -400,10 +400,10 @@ func play_return_to_stage() -> void:
 			_stand_hover_tween.kill()
 
 		var stw := current_stand_instance.create_tween()
-		stw.tween_property(current_stand_instance, "position", stand_mid, 0.24).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		stw.tween_property(current_stand_instance, "position", stand_stage_pos, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		stw.tween_property(current_stand_instance, "position", stand_mid, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		stw.tween_property(current_stand_instance, "position", stand_stage_pos, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		stw.chain().tween_callback(func():
-			_set_stand_ghostly_mode(true, 0.3)
+			_set_stand_ghostly_mode(true, 0.20)
 			_start_stand_hover_loop()
 		)
 

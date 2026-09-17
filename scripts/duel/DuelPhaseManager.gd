@@ -173,14 +173,14 @@ func _run_dice_roll_phase() -> void:
 			if wala_state.duelist: wala_state.duelist.current_dice_roll = host_roll
 			# Trigger 3D dice animation with the received values
 			if arena_root and arena_root.has_method("transition_camera_view"):
-				arena_root.transition_camera_view(ArenaController.CameraViewState.TABLE_VIEW, 0.35)
+				arena_root.transition_camera_view(ArenaController.CameraViewState.TABLE_VIEW, 0.25)
 			if is_inside_tree():
-				await get_tree().create_timer(0.4).timeout
+				await get_tree().create_timer(0.12).timeout
 			if arena_root:
 				DiceRoller3D.roll_duel_dice(arena_root, meron_dice_model_path, wala_dice_model_path, client_roll, host_roll, false)
 			await _wait_for_dice_settle()
 			dice_rolled.emit(client_roll, host_roll, client_roll == host_roll)
-			if is_inside_tree(): await get_tree().create_timer(0.6).timeout
+			if is_inside_tree(): await get_tree().create_timer(0.20).timeout
 			_resolve_dice_outcome()
 		return
 
@@ -202,11 +202,11 @@ func _run_dice_roll_phase() -> void:
 
 	# Transition camera down to Table View so player watches both dice tumble, bounce, and settle on the table!
 	if arena_root and arena_root.has_method("transition_camera_view"):
-		arena_root.transition_camera_view(ArenaController.CameraViewState.TABLE_VIEW, 0.35)
+		arena_root.transition_camera_view(ArenaController.CameraViewState.TABLE_VIEW, 0.25)
 
-	# Short pause (~0.4s) for camera to settle into table view, THEN roll dice onto the table!
+	# Quick pause (~0.12s) for camera to begin table view, THEN roll dice onto the table!
 	if is_inside_tree():
-		await get_tree().create_timer(0.4).timeout
+		await get_tree().create_timer(0.12).timeout
 
 	# Roll 3D physics dice on the table (in_arena = false)
 	if arena_root:
@@ -224,16 +224,27 @@ func _run_dice_roll_phase() -> void:
 
 	dice_rolled.emit(meron_state.dice_result, wala_state.dice_result, meron_state.dice_result == wala_state.dice_result)
 
-	# Give players a moment to see the dice at rest
+	# Give players a brief moment to see the dice at rest
 	if is_inside_tree():
-		await get_tree().create_timer(0.6).timeout
+		await get_tree().create_timer(0.20).timeout
 
 	_resolve_dice_outcome()
 
 func _wait_for_dice_settle() -> void:
-	# Give the physics engine ~1.6 seconds to settle with natural deceleration
-	if is_inside_tree():
-		await get_tree().create_timer(1.6).timeout
+	if not is_inside_tree():
+		return
+	var dice: Array = DiceRoller3D.active_dice.duplicate()
+	if dice.size() >= 2:
+		var settled_count: int = 0
+		var max_wait := 0.95
+		var timer := get_tree().create_timer(max_wait)
+		for die in dice:
+			if die is DiceRigidBody3D:
+				die.settled.connect(func(_val): settled_count += 1)
+		while settled_count < dice.size() and timer.time_left > 0.0 and is_inside_tree():
+			await get_tree().process_frame
+	else:
+		await get_tree().create_timer(0.75).timeout
 
 func _resolve_dice_outcome() -> void:
 	meron_state.discard_count = meron_state.dice_result
@@ -252,9 +263,9 @@ func _resolve_dice_outcome() -> void:
 		var winner_id: String = "MERON" if meron_wins_priority else "WALA"
 		priority_determined.emit(winner_id)
 
-	# Wait for the YOU FIRST / YOU LAST screen pop announcement to display and fade away
+	# Wait for the punchy YOU FIRST / YOU LAST screen pop announcement to display
 	if is_inside_tree():
-		await get_tree().create_timer(2.0).timeout
+		await get_tree().create_timer(0.70).timeout
 	_advance_phase()
 
 ## ---------------------------------------------------------------------------
@@ -348,15 +359,15 @@ func _run_discard_phase() -> void:
 	var hold_timer: SceneTreeTimer = null
 	if meron_auto_discarded and is_inside_tree():
 		# Brief hold so player can read the auto-discard notice before dealing fresh hand
-		hold_timer = get_tree().create_timer(1.1)
+		hold_timer = get_tree().create_timer(0.45)
 
 	await _wait_for_both_sides_ready()
 
 	if hold_timer and hold_timer.time_left > 0.0:
 		await hold_timer.timeout
 	elif is_inside_tree():
-		# Brief pacing delay to allow card discard animations (0.3s) to finish cleanly
-		await get_tree().create_timer(0.40).timeout
+		# Brief pacing delay to allow card discard animations to finish cleanly
+		await get_tree().create_timer(0.18).timeout
 
 	# Process confirmed discards immediately
 	for player_id in ["MERON", "WALA"]:
@@ -460,7 +471,7 @@ func _run_draw_phase() -> void:
 			cards_drawn.emit(state.player_id, needed)
 
 	if is_inside_tree():
-		await get_tree().create_timer(1.1).timeout
+		await get_tree().create_timer(0.45).timeout
 	_advance_phase()
 
 ## ---------------------------------------------------------------------------
@@ -695,11 +706,11 @@ func _run_round_end() -> void:
 	if p2:
 		p2.reset_turn_for_new_round()
 
-	# Hold in ARENA_VIEW so players can view the Round End arena phase notification and combat aftermath
+	# Hold in ARENA_VIEW briefly so players can view the Round End arena phase notification
 	if is_inside_tree():
-		await get_tree().create_timer(2.2).timeout
+		await get_tree().create_timer(0.60).timeout
 	else:
-		await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(0.05).timeout
 	_advance_phase()
 
 ## ---------------------------------------------------------------------------
@@ -797,8 +808,8 @@ func _run_ai_decision_for_current_phase(state: PlayerRoundState) -> void:
 	if not is_inside_tree():
 		mark_player_ready(state.player_id)
 		return
-	# Natural pacing delay (~0.4 - 0.7s) so AI doesn't feel instantaneous/robotic
-	var delay: float = randf_range(0.4, 0.7)
+	# Natural snappy pacing delay (~0.10 - 0.22s) so AI feels responsive without stall
+	var delay: float = randf_range(0.10, 0.22)
 	await get_tree().create_timer(delay).timeout
 	if not _phase_waiting:
 		return

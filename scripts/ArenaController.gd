@@ -200,20 +200,20 @@ func update_3d_phase_banner(title: String, subtitle: String, _title_color: Color
 		var tw: Tween = banner.create_tween()
 		if tw:
 			# Pop in presentation
-			tw.tween_property(banner, "scale", Vector3.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_property(banner, "scale", Vector3.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			# Hold for viewing
-			tw.tween_interval(1.1)
+			tw.tween_interval(0.55)
 			# Fade away smoothly: BOTH text fill (modulate) AND text border (outline_modulate)
 			var is_first: bool = true
 			for lbl in [r_lbl, t_lbl, s_lbl]:
 				if lbl:
 					if is_first:
-						tw.chain().tween_property(lbl, "modulate:a", 0.0, 0.6)
-						tw.parallel().tween_property(lbl, "outline_modulate:a", 0.0, 0.6)
+						tw.chain().tween_property(lbl, "modulate:a", 0.0, 0.35)
+						tw.parallel().tween_property(lbl, "outline_modulate:a", 0.0, 0.35)
 						is_first = false
 					else:
-						tw.parallel().tween_property(lbl, "modulate:a", 0.0, 0.6)
-						tw.parallel().tween_property(lbl, "outline_modulate:a", 0.0, 0.6)
+						tw.parallel().tween_property(lbl, "modulate:a", 0.0, 0.35)
+						tw.parallel().tween_property(lbl, "outline_modulate:a", 0.0, 0.35)
 			# Hide banner node completely once fade is finished
 			tw.chain().tween_callback(func():
 				if is_instance_valid(banner):
@@ -1034,16 +1034,15 @@ func animate_discard_all_cards(_discarded_cards: Array = []) -> void:
 
 ## Sequentially executes turn combat events for cinematic presentation
 func play_combat_sequence(events: Array[Dictionary]) -> void:
-	# 1. Look up to ARENA_VIEW
-	transition_camera_view(CameraViewState.ARENA_VIEW, 0.35)
-	await get_tree().create_timer(0.2).timeout
+	# 1. Look up to ARENA_VIEW smoothly and quickly
+	transition_camera_view(CameraViewState.ARENA_VIEW, 0.25)
 
 	# 2. Both roosters hop down from their roost stages into the arena ring to fight
 	if p1_rooster_anchor and not p1_rooster_anchor.is_dead:
 		p1_rooster_anchor.play_step_into_arena()
 	if p2_rooster_anchor and not p2_rooster_anchor.is_dead:
 		p2_rooster_anchor.play_step_into_arena()
-	await get_tree().create_timer(0.55).timeout
+	await get_tree().create_timer(0.35).timeout
 
 	for event in events:
 
@@ -1367,12 +1366,12 @@ func play_combat_sequence(events: Array[Dictionary]) -> void:
 	# If match continues, wait for all impact VFX and animations to settle, then roosters hop back up to their roost stages
 	if not has_match_ended:
 		# Cooldown settle pause so all floating numbers, hit flinches, and beams are 100% finished
-		await get_tree().create_timer(0.45).timeout
+		await get_tree().create_timer(0.20).timeout
 
 		if p1_rooster_anchor and not p1_rooster_anchor.is_dead:
 			p1_rooster_anchor.play_return_to_stage()
 		if p2_rooster_anchor and not p2_rooster_anchor.is_dead:
 			p2_rooster_anchor.play_return_to_stage()
-		await get_tree().create_timer(0.6).timeout
+		await get_tree().create_timer(0.35).timeout
 
 	combat_sequence_completed.emit()
