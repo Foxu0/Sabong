@@ -876,7 +876,7 @@ func _create_password_input_row(placeholder: String) -> Dictionary:
 	row.add_child(edit)
 
 	var eye_btn := Button.new()
-	eye_btn.custom_minimum_size = Vector2(46, 44)
+	eye_btn.custom_minimum_size = Vector2(40, 44)
 	eye_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var eye_style := StyleBoxFlat.new()
 	eye_style.bg_color = Color(1.0, 1.0, 1.0, 0.08)
@@ -891,23 +891,28 @@ func _create_password_input_row(placeholder: String) -> Dictionary:
 	eye_btn.add_theme_stylebox_override("pressed", eye_hover)
 	eye_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	eye_btn.add_child(center)
+
 	var icon_rect := TextureRect.new()
-	icon_rect.texture = UIIcons.get_icon("eye_off", 20)
+	icon_rect.texture = UIIcons.get_icon("eye_off", 18)
+	icon_rect.custom_minimum_size = Vector2(18, 18)
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_rect.modulate = Color(0.75, 0.80, 0.90)
-	eye_btn.add_child(icon_rect)
+	center.add_child(icon_rect)
 
 	var update_eye: Callable
 	update_eye = func():
 		if edit.secret:
-			icon_rect.texture = UIIcons.get_icon("eye_off", 20)
+			icon_rect.texture = UIIcons.get_icon("eye_off", 18)
 			icon_rect.modulate = Color(0.75, 0.80, 0.90)
 			eye_btn.tooltip_text = "Show password"
 		else:
-			icon_rect.texture = UIIcons.get_icon("eye", 20)
+			icon_rect.texture = UIIcons.get_icon("eye", 18)
 			icon_rect.modulate = Color(1.0, 0.85, 0.2)
 			eye_btn.tooltip_text = "Hide password"
 
@@ -933,7 +938,7 @@ func _create_password_input_row(placeholder: String) -> Dictionary:
 func _open_account_modal(required_banner: String = "", default_tab: String = "register") -> void:
 	var is_logged: bool = AuthManager and AuthManager.is_logged_in
 	var modal_w: float = 980.0 if is_logged else 720.0
-	var modal_h: float = 680.0 if not required_banner.is_empty() else (580.0 if is_logged else 620.0)
+	var modal_h: float = 680.0 if not required_banner.is_empty() else (580.0 if is_logged else 650.0)
 	var vbox := _create_modal_base("PLAYER ACCOUNT & IDENTITY", modal_w, modal_h)
 
 	if not required_banner.is_empty():
@@ -1231,16 +1236,17 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		UIFontStyle.style_scroll_container(scroll, true)
 		vbox.add_child(scroll)
 
 		var content_box := VBoxContainer.new()
 		content_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		content_box.add_theme_constant_override("separation", 12)
+		content_box.add_theme_constant_override("separation", 10)
 		scroll.add_child(content_box)
 
 		# Tab Panels
 		var reg_panel := VBoxContainer.new()
-		reg_panel.add_theme_constant_override("separation", 10)
+		reg_panel.add_theme_constant_override("separation", 8)
 		reg_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		content_box.add_child(reg_panel)
 
@@ -1844,6 +1850,7 @@ func _open_rank_cards_modal(origin: String = "account") -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	UIFontStyle.style_scroll_container(scroll, false)
 	vbox.add_child(scroll)
 
 	var _on_scroll_wheel := func(ev: InputEvent):
@@ -2092,10 +2099,8 @@ func _open_leaderboard_modal() -> void:
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
-	var v_bar = scroll.get_v_scroll_bar()
-	if v_bar:
-		v_bar.custom_minimum_size = Vector2(14, 0)
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	UIFontStyle.style_scroll_container(scroll, false)
 	vbox.add_child(scroll)
 
 	var rows_vbox := VBoxContainer.new()
@@ -2239,6 +2244,7 @@ func _open_settings_modal() -> void:
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(0, 440)
+	UIFontStyle.style_scroll_container(scroll, false)
 	vbox.add_child(scroll)
 
 	var content_box := VBoxContainer.new()
@@ -2594,6 +2600,7 @@ func _open_credits_modal() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(0, 520)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	UIFontStyle.style_scroll_container(scroll, false)
 	
 	var rtext := RichTextLabel.new()
 	rtext.bbcode_enabled = true

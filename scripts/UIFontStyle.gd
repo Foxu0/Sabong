@@ -161,6 +161,50 @@ static func style_line_edit(line_edit: LineEdit, size: int = 20, use_title_font:
 	le_focus.border_color = Color(1.0, 1.0, 1.0, 0.35)
 	line_edit.add_theme_stylebox_override("focus", le_focus)
 
+## Styles a ScrollContainer's vertical and horizontal scrollbars:
+## - If hide_completely is true: hides the scrollbars (zero width/height, transparent), but mouse wheel / touch dragging still scrolls smoothly.
+## - If hide_completely is false: gives it an ultra-thin (4px), modern minimalist rounded pill grabber with no background track strip.
+static func style_scroll_container(scroll: ScrollContainer, hide_completely: bool = true) -> void:
+	if not scroll:
+		return
+	var v_bar: VScrollBar = scroll.get_v_scroll_bar()
+	if v_bar:
+		var empty_v := StyleBoxEmpty.new()
+		v_bar.add_theme_stylebox_override("scroll", empty_v)
+		v_bar.add_theme_stylebox_override("scroll_focus", empty_v)
+		if hide_completely:
+			v_bar.custom_minimum_size = Vector2(0, 0)
+			v_bar.modulate.a = 0.0
+		else:
+			v_bar.custom_minimum_size = Vector2(4, 0)
+			var grab := StyleBoxFlat.new()
+			grab.bg_color = Color(1.0, 1.0, 1.0, 0.20)
+			grab.set_corner_radius_all(2)
+			var grab_h := grab.duplicate()
+			grab_h.bg_color = Color(1.0, 1.0, 1.0, 0.45)
+			v_bar.add_theme_stylebox_override("grabber", grab)
+			v_bar.add_theme_stylebox_override("grabber_highlight", grab_h)
+			v_bar.add_theme_stylebox_override("grabber_pressed", grab_h)
+
+	var h_bar: HScrollBar = scroll.get_h_scroll_bar()
+	if h_bar:
+		var empty_h := StyleBoxEmpty.new()
+		h_bar.add_theme_stylebox_override("scroll", empty_h)
+		h_bar.add_theme_stylebox_override("scroll_focus", empty_h)
+		if hide_completely:
+			h_bar.custom_minimum_size = Vector2(0, 0)
+			h_bar.modulate.a = 0.0
+		else:
+			h_bar.custom_minimum_size = Vector2(0, 4)
+			var grab2 := StyleBoxFlat.new()
+			grab2.bg_color = Color(1.0, 1.0, 1.0, 0.20)
+			grab2.set_corner_radius_all(2)
+			var grab2_h := grab2.duplicate()
+			grab2_h.bg_color = Color(1.0, 1.0, 1.0, 0.45)
+			h_bar.add_theme_stylebox_override("grabber", grab2)
+			h_bar.add_theme_stylebox_override("grabber_highlight", grab2_h)
+			h_bar.add_theme_stylebox_override("grabber_pressed", grab2_h)
+
 ## Get the popup font directly, for use in 3D billboards (FloatingText3D).
 static func get_popup_font() -> FontFile:
 	_ensure_loaded()
