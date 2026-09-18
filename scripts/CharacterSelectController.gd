@@ -19,12 +19,27 @@ var _online_waiting_label: Label = null
 var ui_layer: CanvasLayer
 var name_label: Label
 var anime_label: Label
-var roster_buttons: Array[Button] = []
+var top_margin: MarginContainer = null
+
+# Navigation (< >) buttons and indicators
+var btn_nav_prev: Button = null
+var btn_nav_next: Button = null
+var rooster_counter_label: Label = null
+
+# Moveset Cards UI (Cards of the selected rooster)
+var cards_layer: Control = null
+var moveset_header_label: Label = null
+var moveset_card_buttons: Array[Button] = []
 var card_rest_positions: Array[Vector2] = []
 var card_rest_rotations: Array[float] = []
 var current_card_scale: float = 1.0
-var roster_layer: Control = null
-var top_margin: MarginContainer = null
+
+# Card hover info panel
+var card_info_panel: PanelContainer = null
+var card_info_title: Label = null
+var card_info_stats: Label = null
+var card_info_desc: Label = null
+var card_info_tween: Tween = null
 
 # 3D Name Stadium Banner (Arena phase notif style behind the rooster)
 var name_banner_3d: Node3D = null
@@ -83,7 +98,8 @@ func _spawn_initial_rooster(r: RoosterData) -> void:
 	
 	GameManager.selected_player_rooster = r
 	_update_ui_details(r)
-	_highlight_active_roster_button()
+	_update_rooster_nav_ui()
+	_display_selected_rooster_cards(r)
 
 func _instantiate_model(path: String) -> Node3D:
 	if ResourceLoader.exists(path):
@@ -181,56 +197,44 @@ func _update_3d_name_banner(r: RoosterData) -> void:
 	if tw:
 		tw.tween_property(name_banner_3d, "scale", Vector3.ONE, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
-func _highlight_active_roster_button() -> void:
-	var total_cards := roster_buttons.size()
-	for i in range(total_cards):
-		var btn: Button = roster_buttons[i]
-		var is_sel: bool = (i == current_index)
-		var style := btn.get_theme_stylebox("normal") as StyleBoxFlat
-		
-		var rx: float = card_rest_positions[i].x if i < card_rest_positions.size() else btn.position.x
-		var ry: float = card_rest_positions[i].y if i < card_rest_positions.size() else btn.position.y
-		var rrot: float = card_rest_rotations[i] if i < card_rest_rotations.size() else 0.0
-		var base_z: int = total_cards - i
-		
-		var tw := btn.create_tween()
-		if tw:
-			tw.set_parallel(true)
-		if is_sel:
-			if style:
-				style.border_color = Color.GOLD
-				style.set_border_width_all(int(maxf(2.0, 4.0 * current_card_scale)))
-				style.shadow_size = int(28.0 * current_card_scale)
-				style.shadow_color = Color(1.0, 0.85, 0.2, 0.85)
-			btn.z_index = 20
-			# Only golden champion glow — stays at standard 1.0 scale matching the fanned lineup
-			tw.tween_property(btn, "position", Vector2(rx, ry), 0.15).set_trans(Tween.TRANS_QUAD)
-			tw.tween_property(btn, "rotation_degrees", rrot, 0.15)
-			tw.tween_property(btn, "scale", Vector2.ONE, 0.15)
-		else:
-			if style:
-				style.border_color = Color(0.3, 0.35, 0.45, 0.5)
-				style.set_border_width_all(1)
-				style.shadow_size = 0
-				style.shadow_color = Color.TRANSPARENT
-			btn.z_index = base_z
-			tw.tween_property(btn, "position", Vector2(rx, ry), 0.15).set_trans(Tween.TRANS_QUAD)
-			tw.tween_property(btn, "rotation_degrees", rrot, 0.15)
-			tw.tween_property(btn, "scale", Vector2.ONE, 0.15)
+func _update_rooster_nav_ui() -> void:
+	if is_instance_valid(rooster_counter_label):
+		var cur_r: RoosterData = roosters[current_index] if current_index < roosters.size() else null
+		var r_name: String = cur_r.display_name.to_upper() if cur_r else ""
+		rooster_counter_label.text = "CHAMPION %d / %d  •  %s" % [current_index + 1, roosters.size(), r_name]
 
-func _on_roster_card_clicked(target_index: int) -> void:
-	# Duplicate click guard: If the same card is clicked, nothing happens!
+func _select_previous_rooster() -> void:
+	if is_transitioning or roosters.is_empty():
+		return
+	var prev_idx: int = (current_index - 1 + roosters.size()) % roosters.size()
+	_select_rooster(prev_idx)
+
+func _select_next_rooster() -> void:
+	if is_transitioning or roosters.is_empty():
+		return
+	var next_idx: int = (current_index + 1) % roosters.size()
+	_select_rooster(next_idx)
+
+func _select_rooster(target_index: int) -> void:
 	if is_transitioning or target_index == current_index:
 		return
-	
+	if roosters.is_empty():
+		return
+
+	target_index = (target_index % roosters.size() + roosters.size()) % roosters.size()
 	var old_r: RoosterData = roosters[current_index]
 	var new_r: RoosterData = roosters[target_index]
 	current_index = target_index
 	GameManager.selected_player_rooster = new_r
-	
+
 	_update_ui_details(new_r)
-	_highlight_active_roster_button()
+	_update_rooster_nav_ui()
+	_display_selected_rooster_cards(new_r)
 	_execute_replacement_cinematic(old_r, new_r)
+
+## Kept for backwards compatibility
+func _on_roster_card_clicked(target_index: int) -> void:
+	_select_rooster(target_index)
 
 
 # ===========================================================================
@@ -1188,102 +1192,369 @@ func _build_select_ui() -> void:
 	fight_btn.pressed.connect(_confirm_and_start_battle)
 	top_bar.add_child(fight_btn)
 
-	# --- Bottom Roster Selection Cards: Dynamically Scaled & Centered Deck Lineup ---
-	roster_layer = Control.new()
-	roster_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	roster_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(roster_layer)
+	# --- Center-Top Rooster Index Pill ---
+	var pill_container := PanelContainer.new()
+	pill_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	pill_container.offset_top = 96
+	pill_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	var pill_style := StyleBoxFlat.new()
+	pill_style.bg_color = Color(0.06, 0.08, 0.14, 0.90)
+	pill_style.border_color = Color(0.85, 0.75, 0.25, 0.65)
+	pill_style.set_border_width_all(1)
+	pill_style.set_corner_radius_all(16)
+	pill_style.shadow_color = Color(0, 0, 0, 0.5)
+	pill_style.shadow_size = 8
+	pill_style.content_margin_left = 22
+	pill_style.content_margin_right = 22
+	pill_style.content_margin_top = 6
+	pill_style.content_margin_bottom = 6
+	pill_container.add_theme_stylebox_override("panel", pill_style)
+	root.add_child(pill_container)
 
-	var total_cards := roosters.size()
-	roster_buttons.clear()
+	rooster_counter_label = Label.new()
+	UIFontStyle.style_subheading(rooster_counter_label, 16)
+	rooster_counter_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.4))
+	pill_container.add_child(rooster_counter_label)
 
-	for i in range(total_cards):
-		var r: RoosterData = roosters[i]
-		var r_btn := Button.new()
-		r_btn.text = ""
-		r_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		
-		if r.portrait_path != "" and ResourceLoader.exists(r.portrait_path):
-			r_btn.icon = load(r.portrait_path)
-			r_btn.expand_icon = true
-			r_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			r_btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		
-		var b_style := StyleBoxFlat.new()
-		b_style.bg_color = Color(0.06, 0.08, 0.14, 0.95)
-		b_style.border_color = Color(0.3, 0.35, 0.45, 0.5)
-		b_style.set_border_width_all(1)
-		b_style.set_corner_radius_all(18)
-		r_btn.add_theme_stylebox_override("normal", b_style)
-		
-		var b_hover := b_style.duplicate() as StyleBoxFlat
-		b_hover.border_color = Color(1.0, 0.85, 0.3)
-		b_hover.shadow_size = 20
-		b_hover.shadow_color = Color(1.0, 0.8, 0.2, 0.65)
-		r_btn.add_theme_stylebox_override("hover", b_hover)
-		
-		# Smooth hover fan lift (temporarily raises card to inspect, then settles back flush into the fan)
-		r_btn.mouse_entered.connect(func():
-			r_btn.z_index = 35
-			var rest_y: float = card_rest_positions[i].y if i < card_rest_positions.size() else r_btn.position.y
-			var rest_rot: float = card_rest_rotations[i] if i < card_rest_rotations.size() else r_btn.rotation_degrees
-			var lift: float = 45.0 * current_card_scale
-			var tw := r_btn.create_tween()
-			if tw:
-				tw.set_parallel(true)
-				tw.tween_property(r_btn, "position:y", rest_y - lift, 0.12).set_trans(Tween.TRANS_QUAD)
-				tw.tween_property(r_btn, "rotation_degrees", rest_rot * 0.3, 0.12)
-				tw.tween_property(r_btn, "scale", Vector2(1.06, 1.06), 0.12)
-		)
-		r_btn.mouse_exited.connect(func():
-			var is_sel: bool = (current_index == i)
-			r_btn.z_index = 20 if is_sel else (total_cards - i)
-			var rest_y: float = card_rest_positions[i].y if i < card_rest_positions.size() else r_btn.position.y
-			var rest_rot: float = card_rest_rotations[i] if i < card_rest_rotations.size() else r_btn.rotation_degrees
-			var tw := r_btn.create_tween()
-			if tw:
-				tw.set_parallel(true)
-				tw.tween_property(r_btn, "position:y", rest_y, 0.12).set_trans(Tween.TRANS_QUAD)
-				tw.tween_property(r_btn, "rotation_degrees", rest_rot, 0.12)
-				tw.tween_property(r_btn, "scale", Vector2.ONE, 0.12)
-		)
-		
-		r_btn.pressed.connect(_on_roster_card_clicked.bind(i))
-		roster_layer.add_child(r_btn)
-		roster_buttons.append(r_btn)
+	# --- Left & Right Side Navigation Chevron Buttons (< and >) ---
+	var nav_btn_size := Vector2(68, 68)
+	var nav_style := StyleBoxFlat.new()
+	nav_style.bg_color = Color(0.06, 0.08, 0.14, 0.88)
+	nav_style.border_color = Color(0.85, 0.75, 0.25, 0.80)
+	nav_style.set_border_width_all(2)
+	nav_style.set_corner_radius_all(34)
+	nav_style.shadow_color = Color(0, 0, 0, 0.6)
+	nav_style.shadow_size = 14
 
-	_update_card_layout()
+	var nav_hover := nav_style.duplicate() as StyleBoxFlat
+	nav_hover.bg_color = Color(0.18, 0.22, 0.35, 0.96)
+	nav_hover.border_color = Color(1.0, 0.90, 0.35, 1.0)
+	nav_hover.shadow_color = Color(1.0, 0.85, 0.2, 0.65)
+	nav_hover.shadow_size = 22
+
+	# 1. Left Button (<)
+	var left_box := VBoxContainer.new()
+	left_box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	left_box.offset_left = 32
+	left_box.offset_top = -46
+	left_box.offset_right = 100
+	left_box.offset_bottom = 46
+	left_box.grow_horizontal = Control.GROW_DIRECTION_END
+	left_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	left_box.add_theme_constant_override("separation", 6)
+	left_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	root.add_child(left_box)
+
+	btn_nav_prev = Button.new()
+	btn_nav_prev.custom_minimum_size = nav_btn_size
+	btn_nav_prev.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn_nav_prev.add_theme_stylebox_override("normal", nav_style)
+	btn_nav_prev.add_theme_stylebox_override("hover", nav_hover)
+	btn_nav_prev.add_theme_stylebox_override("pressed", nav_hover)
+	btn_nav_prev.icon = UIIcons.get_icon("arrow_left", 36)
+	btn_nav_prev.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn_nav_prev.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	btn_nav_prev.tooltip_text = "Previous Rooster (Left Arrow / A)"
+	btn_nav_prev.pressed.connect(_select_previous_rooster)
+	btn_nav_prev.mouse_entered.connect(func():
+		var tw := btn_nav_prev.create_tween()
+		if tw: tw.tween_property(btn_nav_prev, "scale", Vector2(1.10, 1.10), 0.12)
+	)
+	btn_nav_prev.mouse_exited.connect(func():
+		var tw := btn_nav_prev.create_tween()
+		if tw: tw.tween_property(btn_nav_prev, "scale", Vector2.ONE, 0.12)
+	)
+	left_box.add_child(btn_nav_prev)
+
+	var left_hint := Label.new()
+	left_hint.text = "[A]"
+	left_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_body(left_hint, 13, true)
+	left_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.8))
+	left_box.add_child(left_hint)
+
+	# 2. Right Button (>)
+	var right_box := VBoxContainer.new()
+	right_box.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	right_box.offset_left = -100
+	right_box.offset_top = -46
+	right_box.offset_right = -32
+	right_box.offset_bottom = 46
+	right_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	right_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	right_box.add_theme_constant_override("separation", 6)
+	right_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	root.add_child(right_box)
+
+	btn_nav_next = Button.new()
+	btn_nav_next.custom_minimum_size = nav_btn_size
+	btn_nav_next.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn_nav_next.add_theme_stylebox_override("normal", nav_style)
+	btn_nav_next.add_theme_stylebox_override("hover", nav_hover)
+	btn_nav_next.add_theme_stylebox_override("pressed", nav_hover)
+	btn_nav_next.icon = UIIcons.get_icon("arrow_right", 36)
+	btn_nav_next.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn_nav_next.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	btn_nav_next.tooltip_text = "Next Rooster (Right Arrow / D)"
+	btn_nav_next.pressed.connect(_select_next_rooster)
+	btn_nav_next.mouse_entered.connect(func():
+		var tw := btn_nav_next.create_tween()
+		if tw: tw.tween_property(btn_nav_next, "scale", Vector2(1.10, 1.10), 0.12)
+	)
+	btn_nav_next.mouse_exited.connect(func():
+		var tw := btn_nav_next.create_tween()
+		if tw: tw.tween_property(btn_nav_next, "scale", Vector2.ONE, 0.12)
+	)
+	right_box.add_child(btn_nav_next)
+
+	var right_hint := Label.new()
+	right_hint.text = "[D]"
+	right_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_body(right_hint, 13, true)
+	right_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.8))
+	right_box.add_child(right_hint)
+
+	# --- Bottom Moveset Cards Layer ---
+	cards_layer = Control.new()
+	cards_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cards_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(cards_layer)
+
+	# Moveset title banner
+	moveset_header_label = Label.new()
+	moveset_header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_subheading(moveset_header_label, 16)
+	moveset_header_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	cards_layer.add_child(moveset_header_label)
+
+	# Card Hover Detail Panel
+	card_info_panel = PanelContainer.new()
+	card_info_panel.visible = false
+	card_info_panel.modulate.a = 0.0
+	var info_sb := StyleBoxFlat.new()
+	info_sb.bg_color = Color(0.06, 0.08, 0.13, 0.96)
+	info_sb.border_color = Color(1.0, 0.85, 0.25, 0.85)
+	info_sb.set_border_width_all(2)
+	info_sb.set_corner_radius_all(14)
+	info_sb.shadow_color = Color(0, 0, 0, 0.7)
+	info_sb.shadow_size = 16
+	info_sb.content_margin_left = 20
+	info_sb.content_margin_right = 20
+	info_sb.content_margin_top = 10
+	info_sb.content_margin_bottom = 10
+	card_info_panel.add_theme_stylebox_override("panel", info_sb)
+
+	var info_vb := VBoxContainer.new()
+	info_vb.add_theme_constant_override("separation", 3)
+	card_info_panel.add_child(info_vb)
+
+	card_info_title = Label.new()
+	card_info_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var f_title := UIFontStyle.get_anton_font()
+	if f_title:
+		card_info_title.add_theme_font_override("font", f_title)
+	card_info_title.add_theme_font_size_override("font_size", 22)
+	card_info_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.25))
+	info_vb.add_child(card_info_title)
+
+	card_info_stats = Label.new()
+	card_info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIFontStyle.style_subheading(card_info_stats, 15)
+	card_info_stats.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	info_vb.add_child(card_info_stats)
+
+	card_info_desc = Label.new()
+	card_info_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_info_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UIFontStyle.style_body(card_info_desc, 14)
+	card_info_desc.add_theme_color_override("font_color", Color(0.9, 0.93, 0.98))
+	info_vb.add_child(card_info_desc)
+
+	cards_layer.add_child(card_info_panel)
+
+	_update_rooster_nav_ui()
+	_display_selected_rooster_cards(roosters[current_index])
 
 func _on_viewport_size_changed() -> void:
-	_update_card_layout()
-	_highlight_active_roster_button()
+	_update_card_layout(false)
 
-func _update_card_layout() -> void:
-	var total_cards := roster_buttons.size()
+func _display_selected_rooster_cards(r: RoosterData) -> void:
+	if not is_instance_valid(cards_layer):
+		return
+
+	# Clear previous card buttons
+	for b in moveset_card_buttons:
+		if is_instance_valid(b):
+			b.queue_free()
+	moveset_card_buttons.clear()
+	card_rest_positions.clear()
+	card_rest_rotations.clear()
+
+	_hide_card_info()
+
+	if not r:
+		return
+
+	# Collect signature cards from moveset
+	var cards: Array[CardData] = []
+	for c in r.moveset:
+		if c is CardData:
+			cards.append(c)
+
+	if moveset_header_label and is_instance_valid(moveset_header_label):
+		moveset_header_label.text = ("--- %s'S SIGNATURE COMBAT CARDS ---" % r.display_name).to_upper()
+		moveset_header_label.add_theme_color_override("font_color", r.theme_color)
+
+	var total_cards := cards.size()
+	for i in range(total_cards):
+		var card: CardData = cards[i]
+		var c_btn := Button.new()
+		c_btn.text = ""
+		c_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+		var tex: Texture2D = null
+		if card.art_path != "" and ResourceLoader.exists(card.art_path):
+			tex = load(card.art_path)
+		elif ResourceLoader.exists("res://resources/cards/BackCard.png"):
+			tex = load("res://resources/cards/BackCard.png")
+
+		if tex:
+			c_btn.icon = tex
+			c_btn.expand_icon = true
+			c_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			c_btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+
+		var b_style := StyleBoxFlat.new()
+		b_style.bg_color = Color(0.06, 0.08, 0.14, 0.95)
+		b_style.border_color = Color(0.28, 0.34, 0.46, 0.75)
+		b_style.set_border_width_all(2)
+		b_style.set_corner_radius_all(16)
+		b_style.shadow_color = Color(0, 0, 0, 0.6)
+		b_style.shadow_size = 12
+		c_btn.add_theme_stylebox_override("normal", b_style)
+
+		var b_hover := b_style.duplicate() as StyleBoxFlat
+		b_hover.border_color = Color.GOLD
+		b_hover.set_border_width_all(3)
+		b_hover.shadow_size = 24
+		b_hover.shadow_color = Color(1.0, 0.85, 0.2, 0.75)
+		c_btn.add_theme_stylebox_override("hover", b_hover)
+		c_btn.add_theme_stylebox_override("pressed", b_hover)
+
+		var card_idx := i
+		c_btn.mouse_entered.connect(func():
+			c_btn.z_index = 40
+			var rest_y: float = card_rest_positions[card_idx].y if card_idx < card_rest_positions.size() else c_btn.position.y
+			var rest_rot: float = card_rest_rotations[card_idx] if card_idx < card_rest_rotations.size() else 0.0
+			var lift: float = 45.0 * current_card_scale
+			var tw := c_btn.create_tween()
+			if tw:
+				tw.set_parallel(true)
+				tw.tween_property(c_btn, "position:y", rest_y - lift, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+				tw.tween_property(c_btn, "rotation_degrees", rest_rot * 0.25, 0.14)
+				tw.tween_property(c_btn, "scale", Vector2(1.08, 1.08), 0.14)
+			_show_card_info(card, r)
+		)
+
+		c_btn.mouse_exited.connect(func():
+			c_btn.z_index = total_cards - card_idx
+			var rest_y: float = card_rest_positions[card_idx].y if card_idx < card_rest_positions.size() else c_btn.position.y
+			var rest_rot: float = card_rest_rotations[card_idx] if card_idx < card_rest_rotations.size() else 0.0
+			var tw := c_btn.create_tween()
+			if tw:
+				tw.set_parallel(true)
+				tw.tween_property(c_btn, "position:y", rest_y, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+				tw.tween_property(c_btn, "rotation_degrees", rest_rot, 0.14)
+				tw.tween_property(c_btn, "scale", Vector2.ONE, 0.14)
+			_hide_card_info()
+		)
+
+		cards_layer.add_child(c_btn)
+		moveset_card_buttons.append(c_btn)
+
+	_update_card_layout(true)
+
+func _show_card_info(card: CardData, r: RoosterData) -> void:
+	if not is_instance_valid(card_info_panel) or not card:
+		return
+
+	if is_instance_valid(card_info_title):
+		card_info_title.text = card.display_name.to_upper()
+		card_info_title.add_theme_color_override("font_color", r.theme_color if r else Color.GOLD)
+
+	if is_instance_valid(card_info_stats):
+		var type_str := "ATTACK"
+		match card.card_type:
+			CardData.CardType.GUARD: type_str = "GUARD"
+			CardData.CardType.HEAL: type_str = "HEAL"
+			CardData.CardType.DOT: type_str = "POOP/DOT"
+			CardData.CardType.SPECIAL: type_str = "SPECIAL"
+			CardData.CardType.ROLL_MANIPULATION: type_str = "ROLL"
+			_: type_str = "ATTACK"
+
+		var val_part := ""
+		if card.base_value > 0:
+			val_part = "  •  VAL: %d" % card.base_value
+		card_info_stats.text = "[%s]  •  COST: %d TAYA  •  DICE: %d+%s" % [type_str, card.taya_cost, card.dice_requirement, val_part]
+
+	if is_instance_valid(card_info_desc):
+		card_info_desc.text = card.effect_text
+
+	if card_info_tween and card_info_tween.is_valid():
+		card_info_tween.kill()
+	card_info_panel.visible = true
+	card_info_tween = card_info_panel.create_tween()
+	card_info_tween.tween_property(card_info_panel, "modulate:a", 1.0, 0.12).set_trans(Tween.TRANS_QUAD)
+
+func _hide_card_info() -> void:
+	if not is_instance_valid(card_info_panel):
+		return
+	if card_info_tween and card_info_tween.is_valid():
+		card_info_tween.kill()
+	card_info_tween = card_info_panel.create_tween()
+	card_info_tween.tween_property(card_info_panel, "modulate:a", 0.0, 0.10).set_trans(Tween.TRANS_QUAD)
+	card_info_tween.tween_callback(func():
+		if is_instance_valid(card_info_panel):
+			card_info_panel.visible = false
+	)
+
+func _update_card_layout(animate_deal: bool = false) -> void:
+	var total_cards := moveset_card_buttons.size()
 	if total_cards == 0:
 		return
 
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
 	var mid: float = float(total_cards - 1) * 0.5
-	var card_w_base: float = 300.0
-	var card_h_base: float = 420.0
-	var step_x_base: float = 160.0
+	var card_w_base: float = 270.0
+	var card_h_base: float = 380.0
+	var step_x_base: float = 230.0
 
-	# Calculate responsive scale factor so cards never overflow horizontal or vertical space
-	var total_span_base: float = (float(total_cards - 1) * step_x_base) + card_w_base # 1420px
-	var available_w: float = vp_size.x - 64.0
-	var scale_w: float = clampf(available_w / total_span_base, 0.38, 1.0)
-	
-	var max_allowed_h: float = vp_size.y * 0.40
-	var scale_h: float = clampf(max_allowed_h / card_h_base, 0.38, 1.0)
-	
+	# Responsive scaling for viewport width & height
+	var total_span_base: float = (float(total_cards - 1) * step_x_base) + card_w_base
+	var available_w: float = vp_size.x - 260.0 # leave clearance for < > side buttons
+	var scale_w: float = clampf(available_w / total_span_base, 0.40, 1.0)
+
+	var max_allowed_h: float = vp_size.y * 0.38
+	var scale_h: float = clampf(max_allowed_h / card_h_base, 0.40, 1.0)
+
 	current_card_scale = minf(scale_w, scale_h)
 
 	var card_w: float = card_w_base * current_card_scale
 	var card_h: float = card_h_base * current_card_scale
 	var step_x: float = step_x_base * current_card_scale
 	var center_x: float = vp_size.x * 0.5
-	var base_y: float = vp_size.y - card_h - (36.0 * current_card_scale)
+	var base_y: float = vp_size.y - card_h - (24.0 * current_card_scale)
+
+	# Position card_info_panel right above the card hand
+	if is_instance_valid(card_info_panel):
+		var panel_w: float = minf(560.0, vp_size.x - 240.0)
+		card_info_panel.custom_minimum_size = Vector2(panel_w, 0)
+		card_info_panel.position = Vector2(center_x - panel_w * 0.5, base_y - 95.0)
+
+	# Position moveset_header_label above card_info_panel / hand
+	if is_instance_valid(moveset_header_label):
+		moveset_header_label.position = Vector2(0, base_y - 128.0)
+		moveset_header_label.size = Vector2(vp_size.x, 26)
 
 	card_rest_positions.clear()
 	card_rest_rotations.clear()
@@ -1291,20 +1562,37 @@ func _update_card_layout() -> void:
 	for i in range(total_cards):
 		var offset: float = float(i) - mid
 		var rx: float = center_x + offset * step_x - (card_w * 0.5)
-		var ry: float = base_y + abs(offset) * (4.5 * current_card_scale)
-		var rrot: float = offset * 2.0
+		var ry: float = base_y + abs(offset) * (6.0 * current_card_scale)
+		var rrot: float = offset * 3.5
 		var base_z: int = total_cards - i
 
 		card_rest_positions.append(Vector2(rx, ry))
 		card_rest_rotations.append(rrot)
 
-		var r_btn: Button = roster_buttons[i]
-		r_btn.custom_minimum_size = Vector2(card_w, card_h)
-		r_btn.size = Vector2(card_w, card_h)
-		r_btn.pivot_offset = Vector2(card_w * 0.5, card_h * 0.5)
-		r_btn.z_index = 20 if i == current_index else base_z
-		r_btn.position = Vector2(rx, ry)
-		r_btn.rotation_degrees = rrot
+		var c_btn: Button = moveset_card_buttons[i]
+		c_btn.custom_minimum_size = Vector2(card_w, card_h)
+		c_btn.size = Vector2(card_w, card_h)
+		c_btn.pivot_offset = Vector2(card_w * 0.5, card_h * 0.5)
+		c_btn.z_index = base_z
+
+		if animate_deal:
+			c_btn.position = Vector2(rx, ry + 90.0)
+			c_btn.rotation_degrees = rrot * 0.5
+			c_btn.scale = Vector2(0.85, 0.85)
+			c_btn.modulate.a = 0.0
+			var delay: float = float(i) * 0.05
+			var tw := c_btn.create_tween()
+			if tw:
+				tw.tween_interval(delay)
+				tw.tween_property(c_btn, "position:y", ry, 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+				tw.parallel().tween_property(c_btn, "rotation_degrees", rrot, 0.24)
+				tw.parallel().tween_property(c_btn, "scale", Vector2.ONE, 0.24)
+				tw.parallel().tween_property(c_btn, "modulate:a", 1.0, 0.18)
+		else:
+			c_btn.position = Vector2(rx, ry)
+			c_btn.rotation_degrees = rrot
+			c_btn.scale = Vector2.ONE
+			c_btn.modulate.a = 1.0
 
 func _confirm_and_start_battle() -> void:
 	if is_transitioning:
@@ -1394,10 +1682,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if is_transitioning:
 		return
 	if event.is_action_pressed("ui_left") or (event is InputEventKey and event.pressed and event.keycode == KEY_A):
-		var next_idx := (current_index - 1 + roosters.size()) % roosters.size()
-		_on_roster_card_clicked(next_idx)
+		_select_previous_rooster()
 	elif event.is_action_pressed("ui_right") or (event is InputEventKey and event.pressed and event.keycode == KEY_D):
-		var next_idx := (current_index + 1) % roosters.size()
-		_on_roster_card_clicked(next_idx)
+		_select_next_rooster()
 	elif event.is_action_pressed("ui_accept") or (event is InputEventKey and event.pressed and event.keycode == KEY_ENTER):
 		_confirm_and_start_battle()

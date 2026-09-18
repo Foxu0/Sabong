@@ -38,19 +38,14 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation="sensor_landscape"
 
-[input_devices]
-
-pointing/emulate_touch_from_mouse=true
-pointing/emulate_mouse_from_touch=true
-
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/MagicaVoxel_Importer_with_Extensions/plugin.cfg")
 
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
 [rendering]
 
-renderer/rendering_method="forward_plus"
-renderer/rendering_method.web="gl_compatibility"
 textures/default_filters/anisotropic_filtering_level=1
-anti_aliasing/quality/msaa_3d=0
-anti_aliasing/quality/use_debanding=false

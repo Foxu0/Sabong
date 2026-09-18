@@ -16,7 +16,6 @@
 [ext_resource type="PackedScene" uid="uid://dl1k41r0uv84b" path="res://resources/world/bellendturn.vox" id="14_ow1aj"]
 [ext_resource type="Texture2D" uid="uid://bags1vifqp3fx" path="res://resources/cards/BackCard.png" id="15_a43o1"]
 [ext_resource type="Shader" uid="uid://dp4gc4akjpovk" path="res://scenes/card.gdshader" id="16_ow1aj"]
-
 [ext_resource type="PackedScene" uid="uid://dy2b3cilcktyq" path="res://resources/world/hpclock.vox" id="17_ow1aj"]
 [ext_resource type="FontFile" path="res://resources/world/digital_7segment.tres" id="18_dseg"]
 [ext_resource type="Script" uid="uid://ba5r1svjjqgsw" path="res://scripts/duel/DuelPhaseManager.gd" id="21_phase_manager"]
@@ -25,7 +24,7 @@
 albedo_texture = ExtResource("5_naajo")
 
 [sub_resource type="BoxMesh" id="BoxMesh_37uve"]
-size = Vector3(83.794525, 0.001, 36.68882)
+size = Vector3(161.88448, 0.001, 36.68882)
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_arena"]
 sky_top_color = Color(0.12, 0.18, 0.35, 1)
@@ -91,8 +90,6 @@ size = Vector3(5.3041687, 1.4971313, 40)
 size = Vector3(40, 10, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6joey"]
-shading_mode = 1
-texture_filter = 3
 albedo_texture = ExtResource("11_ixwup")
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_adnfk"]
@@ -115,13 +112,13 @@ render_priority = 0
 shader = ExtResource("16_ow1aj")
 shader_parameter/corner_radius = 0.08
 shader_parameter/aspect_ratio = 1.4
+
 [sub_resource type="PlaneMesh" id="PlaneMesh_37uve"]
 size = Vector2(4.7, 1.7)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bqssw"]
 shading_mode = 0
 albedo_color = Color(0.02, 0.02, 0.02, 1)
-
 
 [node name="Arena" type="Node3D" unique_id=1629187076 node_paths=PackedStringArray("camera_p1", "camera_p2", "p1_rooster_anchor", "p2_rooster_anchor")]
 script = ExtResource("7_arena")
@@ -215,12 +212,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36.403908, -2.8650312, 9.7236
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.424201, 0.4349599, -21.34259)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1815186049]
-transform = Transform3D(-4.371139e-08, -0.9766723, 0.21473534, 0, 0.21473534, 0.9766723, -1, 4.2691703e-08, -9.38638e-09, 27.134708, 16.980738, 0.489769)
+transform = Transform3D(-4.371139e-08, -0.9766723, 0.21473534, 0, 0.21473534, 0.9766723, -1, 4.2691703e-08, -9.38638e-09, 27.134708, 16.980738, 4.183815)
 material_override = SubResource("StandardMaterial3D_41jku")
 mesh = SubResource("BoxMesh_37uve")
 
 [node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=186923770]
-transform = Transform3D(-4.371139e-08, 0.9766723, 0.21473522, 0, 0.21473522, -0.9766723, -1, -4.2691703e-08, -9.386375e-09, -31.657087, 16.981, 0.49)
+transform = Transform3D(-4.371139e-08, 0.9766723, 0.21473522, 0, 0.21473522, -0.9766723, -1, -4.2691703e-08, -9.386375e-09, -31.657087, 16.981, 14.114168)
 material_override = SubResource("StandardMaterial3D_41jku")
 mesh = SubResource("BoxMesh_37uve")
 

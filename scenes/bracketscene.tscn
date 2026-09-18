@@ -2,7 +2,8 @@
 
 [ext_resource type="PackedScene" uid="uid://caf5movfvglmp" path="res://resources/world/Jublian_Rocky_Pack/Cliff/cliff.vox" id="1_pgpwh"]
 [ext_resource type="PackedScene" uid="uid://b7tsfmmiluavk" path="res://resources/world/PineFluffy.vox" id="2_4giug"]
-[ext_resource type="Script" path="res://scripts/BracketController.gd" id="3_bracket"]
+[ext_resource type="Script" uid="uid://0wy21na8umcu" path="res://scripts/BracketController.gd" id="3_bracket"]
+[ext_resource type="Texture2D" uid="uid://c3103wle0y8tt" path="res://resources/world/Clouds/Clouds 5/1.png" id="4_omk52"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_omk52"]
 sky_top_color = Color(0.12, 0.18, 0.35, 1)
@@ -61,6 +62,12 @@ adjustment_brightness = 1.02
 adjustment_contrast = 1.06
 adjustment_saturation = 1.12
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_roxxq"]
+albedo_texture = ExtResource("4_omk52")
+
+[sub_resource type="BoxMesh" id="BoxMesh_q6ajk"]
+size = Vector3(176.52986, 0.001, 126.64975)
+
 [node name="bracketscene" type="Node3D" unique_id=1221051062]
 script = ExtResource("3_bracket")
 
@@ -112,17 +119,11 @@ transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 39.331093, 0.45966816, 
 [node name="PineFluffy7" parent="PineFluffy" unique_id=327872682 instance=ExtResource("2_4giug")]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 39.331093, -1.7715216, 2.8750648)
 
-[node name="PineFluffy8" parent="PineFluffy" unique_id=2025533219 instance=ExtResource("2_4giug")]
-transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 39.331093, -1.7715216, -31.120785)
-
 [node name="PineFluffy9" parent="PineFluffy" unique_id=762203848 instance=ExtResource("2_4giug")]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, -2.6252842, -1.7715216, -13.68974)
 
 [node name="PineFluffy10" parent="PineFluffy" unique_id=1367084421 instance=ExtResource("2_4giug")]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, -2.6252842, 0.32628918, -7.207507)
-
-[node name="PineFluffy11" parent="PineFluffy" unique_id=1735545401 instance=ExtResource("2_4giug")]
-transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, -2.6252842, 0.32628918, 12.822545)
 
 [node name="PineFluffy2" parent="PineFluffy" unique_id=322169838 instance=ExtResource("2_4giug")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.19528, 1.5826387, 9.723659)
@@ -132,3 +133,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36.403908, -2.8650312, 9.7236
 
 [node name="PineFluffy6" parent="PineFluffy" unique_id=330644576 instance=ExtResource("2_4giug")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.424201, 0.4349599, -21.34259)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1523736877]
+transform = Transform3D(-1, -7.642742e-15, -8.742278e-08, 0, -1, 8.742278e-08, -8.742278e-08, 8.742278e-08, 1, 2.696483, -11.356496, -3.8184414)
+material_override = SubResource("StandardMaterial3D_roxxq")
+mesh = SubResource("BoxMesh_q6ajk")
