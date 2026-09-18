@@ -60,6 +60,8 @@ var _refresh_btn: Button
 var _selected_lan_ip: String = ""
 var _selected_online_code: String = ""
 var _is_hosting: bool = false
+var _is_waiting_for_room: bool = false
+var _host_online_timer: float = 0.0
 
 func _ready() -> void:
 	_nm = get_node_or_null("/root/NetworkManager")
@@ -79,6 +81,16 @@ func _ready() -> void:
 
 	_build_ui()
 	_switch_tab("online")
+	if _nm:
+		_nm.prewarm_relay_server()
+
+func _process(delta: float) -> void:
+	if _is_waiting_for_room:
+		_host_online_timer += delta
+		if _host_online_timer < 4.0:
+			_set_status("Connecting to global relay server...", Color.YELLOW, true)
+		else:
+			_set_status("Connecting to global relay server (%.0fs)..." % _host_online_timer, Color.YELLOW, true)
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -905,6 +917,7 @@ func _switch_tab(tab: String) -> void:
 		if _nm:
 			_nm.stop_lan_scan()
 			_nm.start_online_room_fetch()
+			_nm.prewarm_relay_server()
 
 		_set_status("Online Relay mode: Enter a room code or choose from open lobbies.")
 	else:
@@ -940,6 +953,8 @@ func _on_host_online_pressed() -> void:
 		return
 	_nm.stop_online_room_fetch()
 	_set_buttons_disabled(true)
+	_host_online_timer = 0.0
+	_is_waiting_for_room = true
 	_set_status("Connecting to global relay server...", Color.YELLOW, true)
 	_is_hosting = true
 	_host_online_btn.visible = false
@@ -955,10 +970,11 @@ func _on_host_online_pressed() -> void:
 		_nm.register_local_tournament_player(host_name, my_rooster)
 
 func _on_room_code_received(code: String) -> void:
+	_is_waiting_for_room = false
 	_stop_spinner()
 	if is_instance_valid(_room_code_large_label):
 		_room_code_large_label.text = code
-	_set_status("Room ready! Share code [%s] with your challenger." % code, Color.GOLD, true)
+	_set_status("Room ready! Share code [%s] with your challenger." % code, Color.GOLD, false)
 	_status_network_label.text = "HOSTING: %s" % code
 	_status_dot.modulate = Color.GOLD
 
@@ -990,6 +1006,7 @@ func _on_host_lan_pressed() -> void:
 	_status_dot.modulate = Color.GOLD
 
 func _on_cancel_host_pressed() -> void:
+	_is_waiting_for_room = false
 	_stop_spinner()
 	_is_hosting = false
 	if _nm:
@@ -1265,7 +1282,15 @@ func _on_forfeit() -> void:
 	_set_buttons_disabled(false)
 
 func _on_online_connection_failed(reason: String) -> void:
+	_is_waiting_for_room = false
 	_stop_spinner()
+	_is_hosting = false
+	_host_online_btn.visible = (_active_tab == "online")
+	_host_lan_btn.visible = (_active_tab == "lan")
+	_cancel_online_host_btn.visible = false
+	_online_code_display_box.visible = false
+	if _tournament_roster_card:
+		_tournament_roster_card.visible = false
 	_set_status("Connection failed: %s" % reason, Color.RED)
 	_status_network_label.text = "ERROR"
 	_status_dot.modulate = Color.RED

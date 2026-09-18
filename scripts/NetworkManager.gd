@@ -97,13 +97,12 @@ var _is_scanning: bool = false
 var _discovered_hosts: Dictionary = {}     ## ip -> host_name
 
 # ---------------------------------------------------------------------------
-# Online Relay State
-# ---------------------------------------------------------------------------
 var _relay_ws: WebSocketPeer = null        ## WebSocket connection to relay server
 var _relay_role: String = ""               ## "host" or "client"
 var _relay_room_code: String = ""
 var _relay_room_fetch_timer: float = 0.0
 var _is_fetching_rooms: bool = false
+var _relay_host_timeout: float = 0.0
 var _upnp: UPNP = null
 var _upnp_thread: Thread = null
 
@@ -128,6 +127,13 @@ func _process(delta: float) -> void:
 	if _relay_ws != null:
 		_relay_ws.poll()
 		_poll_relay_control_messages()
+		# Timeout detection for host room creation
+		if is_host and (_relay_room_code.is_empty() or _relay_room_code == "PENDING"):
+			_relay_host_timeout -= delta
+			if _relay_host_timeout <= 0.0:
+				_relay_host_timeout = 0.0
+				online_connection_failed.emit("Relay connection timed out. The server may still be waking up. Please retry.")
+				_close_relay_ws()
 	# Online room list refresh (client side, every 4s)
 	if _is_fetching_rooms:
 		_relay_room_fetch_timer -= delta
@@ -275,10 +281,20 @@ func _get_relay_base_url() -> String:
 			if host in ["localhost", "127.0.0.1", "0.0.0.0"]:
 				return RELAY_URL_LOCAL
 		return RELAY_URL
-	return RELAY_URL_LOCAL if (use_local_relay or OS.has_feature("editor")) else RELAY_URL
+	return RELAY_URL_LOCAL if use_local_relay else RELAY_URL
 
 func _is_relay_active() -> bool:
 	return _relay_ws != null and _relay_ws.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+## Pre-warm the relay server (async HTTP ping) to ensure Render is awake ahead of room creation
+func prewarm_relay_server() -> void:
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(func(_result, _code, _headers, _body):
+		http.queue_free()
+	)
+	var url := _get_relay_base_url().replace("ws://", "http://").replace("wss://", "https://") + "/ping"
+	http.request(url)
 
 ## Host online: connect to relay server to create room and route game events.
 func host_online(mode: MatchMode = MatchMode.DUEL_1V1, max_players: int = 8) -> void:
@@ -295,6 +311,8 @@ func host_online(mode: MatchMode = MatchMode.DUEL_1V1, max_players: int = 8) -> 
 	p2_submitted_cards.clear()
 	p1_has_locked_turn = false
 	p2_has_locked_turn = false
+	_relay_room_code = ""
+	_relay_host_timeout = 16.0
 	if mode == MatchMode.TOURNAMENT:
 		tournament_roster.clear()
 		var host_name := OS.get_model_name() if OS.get_model_name() != "" else "Host"
@@ -452,16 +470,21 @@ func _poll_relay_control_messages() -> void:
 				_handle_relay_control(data)
 		return
 
-	# Connection closed -- only report error if we haven't started a game yet
+	# Connection closed -- notify UI if game/room hasn't finished
 	if state == WebSocketPeer.STATE_CLOSED:
-		if _relay_role != "" and not is_host:
-			online_connection_failed.emit("Relay connection closed.")
+		var err_msg := "Relay connection closed."
+		var reason := _relay_ws.get_close_reason()
+		if reason != "":
+			err_msg = "Relay closed: " + reason
+		if _relay_room_code.is_empty() or _relay_room_code == "PENDING" or not is_host:
+			online_connection_failed.emit(err_msg)
 		_close_relay_ws()
 
 func _handle_relay_control(data: Dictionary) -> void:
 	var msg_type: String = data.get("type", "")
 	match msg_type:
 		"room_created":
+			_relay_host_timeout = 0.0
 			_relay_room_code = data.get("code", "")
 			room_code_received.emit(_relay_room_code)
 		"client_joined":

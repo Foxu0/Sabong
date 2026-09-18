@@ -37,13 +37,13 @@ _lb_cache = None
 _lb_cache_time = 0.0
 _lb_lock = threading.Lock()
 
-def _get_cached_leaderboard():
+def _get_cached_leaderboard(limit: int = 20):
     global _lb_cache, _lb_cache_time
     now = time.time()
     with _lb_lock:
         if _lb_cache is None or (now - _lb_cache_time > 5.0):
             if db:
-                _lb_cache = db.get_leaderboard(20)
+                _lb_cache = db.get_leaderboard(limit)
                 _lb_cache_time = now
             else:
                 _lb_cache = []
@@ -595,7 +595,9 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
         client_ip = self._get_client_ip()
         try:
             ws_backend = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            ws_backend.settimeout(5.0)
             ws_backend.connect(("127.0.0.1", INTERNAL_WS_PORT))
+            ws_backend.settimeout(None)
         except Exception as e:
             log.error("Failed to connect to internal WebSocket relay on port %d: %s", INTERNAL_WS_PORT, e)
             self.send_error(502, "Bad Gateway: WebSocket server unavailable")
@@ -625,10 +627,11 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
             return
 
         client_sock = self.connection
+        stop_event = threading.Event()
 
         def pipe(src, dst):
             try:
-                while True:
+                while not stop_event.is_set():
                     buf = src.recv(65536)
                     if not buf:
                         break
@@ -636,8 +639,21 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             finally:
+                stop_event.set()
                 try:
-                    dst.shutdown(socket.SHUT_WR)
+                    src.shutdown(socket.SHUT_RDWR)
+                except Exception:
+                    pass
+                try:
+                    dst.shutdown(socket.SHUT_RDWR)
+                except Exception:
+                    pass
+                try:
+                    src.close()
+                except Exception:
+                    pass
+                try:
+                    dst.close()
                 except Exception:
                     pass
 
@@ -645,8 +661,9 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
         t2 = threading.Thread(target=pipe, args=(ws_backend, client_sock), daemon=True)
         t1.start()
         t2.start()
-        t1.join()
-        t2.join()
+        t1.join(timeout=300)
+        t2.join(timeout=300)
+        stop_event.set()
         try:
             ws_backend.close()
         except Exception:
@@ -671,6 +688,15 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
         _cleanup_old_rooms()
         parsed_path = self.path.split("?")[0]
         client_ip = self._get_client_ip()
+
+        # 0. Instant Ping / Pre-warm endpoint (<1ms response, no DB block)
+        if parsed_path in ["/ping", "/livez"]:
+            self._send_json(200, {
+                "status": "ok",
+                "time": time.time(),
+                "rooms": len(rooms)
+            })
+            return
 
         # 1. Health check
         if parsed_path == "/health":
@@ -1130,14 +1156,16 @@ async def main():
     global async_loop
     async_loop = asyncio.get_running_loop()
 
-    # Verify cloud database connectivity
-    if db:
-        if db.test_connection():
-            log.info("[DB] Cloud TiDB MySQL connection verified successfully.")
+    # Verify cloud database connectivity asynchronously so server ports bind immediately
+    def _test_db_async():
+        if db:
+            if db.test_connection():
+                log.info("[DB] Cloud TiDB MySQL connection verified successfully.")
+            else:
+                log.warning("[DB] Failed initial connection test to Cloud TiDB MySQL.")
         else:
-            log.warning("[DB] Failed initial connection test to Cloud TiDB MySQL.")
-    else:
-        log.warning("[DB] DatabaseManager not loaded. Auth endpoints will return 500.")
+            log.warning("[DB] DatabaseManager not loaded. Auth endpoints will return 500.")
+    threading.Thread(target=_test_db_async, daemon=True).start()
 
     # Start dedicated REST API server if API_PORT differs from PORT (e.g. local desktop dev)
     if API_PORT != PORT:

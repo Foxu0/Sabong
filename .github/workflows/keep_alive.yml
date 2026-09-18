@@ -17,7 +17,8 @@ jobs:
       - name: Ping Sabong Roosters Render Server
         run: |
           echo "Sending keep-alive ping to Render..."
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s\n" https://sabong-inxt.onrender.com/health)
+          curl -s --max-time 45 https://sabong-inxt.onrender.com/ping || true
+          RESPONSE=$(curl -s --max-time 45 -w "\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s\n" https://sabong-inxt.onrender.com/health)
           echo "$RESPONSE"
           if echo "$RESPONSE" | grep -q "HTTP_STATUS:200"; then
             echo "Render service is awake and healthy!"
