@@ -24,7 +24,6 @@ var top_margin: MarginContainer = null
 # Navigation (< >) buttons and indicators
 var btn_nav_prev: Button = null
 var btn_nav_next: Button = null
-var rooster_counter_label: Label = null
 
 # Moveset Cards UI (Cards of the selected rooster)
 var cards_layer: Control = null
@@ -190,10 +189,7 @@ func _update_3d_name_banner(r: RoosterData) -> void:
 		tw.tween_property(name_banner_3d, "scale", Vector3.ONE, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _update_rooster_nav_ui() -> void:
-	if is_instance_valid(rooster_counter_label):
-		var cur_r: RoosterData = roosters[current_index] if current_index < roosters.size() else null
-		var r_name: String = cur_r.display_name.to_upper() if cur_r else ""
-		rooster_counter_label.text = "CHAMPION %d / %d  •  %s" % [current_index + 1, roosters.size(), r_name]
+	pass
 
 func _select_previous_rooster() -> void:
 	if is_transitioning or roosters.is_empty():
@@ -1184,29 +1180,7 @@ func _build_select_ui() -> void:
 	fight_btn.pressed.connect(_confirm_and_start_battle)
 	top_bar.add_child(fight_btn)
 
-	# --- Center-Top Rooster Index Pill ---
-	var pill_container := PanelContainer.new()
-	pill_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	pill_container.offset_top = 96
-	pill_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	var pill_style := StyleBoxFlat.new()
-	pill_style.bg_color = Color(0.06, 0.08, 0.14, 0.90)
-	pill_style.border_color = Color(0.85, 0.75, 0.25, 0.65)
-	pill_style.set_border_width_all(1)
-	pill_style.set_corner_radius_all(16)
-	pill_style.shadow_color = Color(0, 0, 0, 0.5)
-	pill_style.shadow_size = 8
-	pill_style.content_margin_left = 22
-	pill_style.content_margin_right = 22
-	pill_style.content_margin_top = 6
-	pill_style.content_margin_bottom = 6
-	pill_container.add_theme_stylebox_override("panel", pill_style)
-	root.add_child(pill_container)
 
-	rooster_counter_label = Label.new()
-	UIFontStyle.style_subheading(rooster_counter_label, 16)
-	rooster_counter_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.4))
-	pill_container.add_child(rooster_counter_label)
 
 	# --- Left & Right Side Navigation Chevron Buttons (< and >) ---
 	var nav_btn_size := Vector2(68, 68)
