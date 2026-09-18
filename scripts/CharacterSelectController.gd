@@ -1183,48 +1183,43 @@ func _build_select_ui() -> void:
 
 
 	# --- Left & Right Side Navigation Chevron Buttons (< and >) ---
-	var nav_btn_size := Vector2(68, 68)
-	var nav_style := StyleBoxFlat.new()
-	nav_style.bg_color = Color(0.06, 0.08, 0.14, 0.88)
-	nav_style.border_color = Color(0.85, 0.75, 0.25, 0.80)
-	nav_style.set_border_width_all(2)
-	nav_style.set_corner_radius_all(34)
-	nav_style.shadow_color = Color(0, 0, 0, 0.6)
-	nav_style.shadow_size = 14
-
-	var nav_hover := nav_style.duplicate() as StyleBoxFlat
-	nav_hover.bg_color = Color(0.18, 0.22, 0.35, 0.96)
-	nav_hover.border_color = Color(1.0, 0.90, 0.35, 1.0)
-	nav_hover.shadow_color = Color(1.0, 0.85, 0.2, 0.65)
-	nav_hover.shadow_size = 22
+	var nav_btn_size := Vector2(80, 100)
+	var empty_sb := StyleBoxEmpty.new()
 
 	# 1. Left Button (<)
 	var left_box := VBoxContainer.new()
 	left_box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	left_box.offset_left = 32
-	left_box.offset_top = -46
-	left_box.offset_right = 100
-	left_box.offset_bottom = 46
+	left_box.offset_left = 24
+	left_box.offset_top = -65
+	left_box.offset_right = 104
+	left_box.offset_bottom = 65
 	left_box.grow_horizontal = Control.GROW_DIRECTION_END
 	left_box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	left_box.add_theme_constant_override("separation", 6)
+	left_box.add_theme_constant_override("separation", 2)
 	left_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_child(left_box)
 
 	btn_nav_prev = Button.new()
 	btn_nav_prev.custom_minimum_size = nav_btn_size
+	btn_nav_prev.pivot_offset = nav_btn_size * 0.5
+	btn_nav_prev.flat = true
 	btn_nav_prev.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn_nav_prev.add_theme_stylebox_override("normal", nav_style)
-	btn_nav_prev.add_theme_stylebox_override("hover", nav_hover)
-	btn_nav_prev.add_theme_stylebox_override("pressed", nav_hover)
-	btn_nav_prev.icon = UIIcons.get_icon("arrow_left", 36)
+	btn_nav_prev.add_theme_stylebox_override("normal", empty_sb)
+	btn_nav_prev.add_theme_stylebox_override("hover", empty_sb)
+	btn_nav_prev.add_theme_stylebox_override("pressed", empty_sb)
+	btn_nav_prev.add_theme_stylebox_override("focus", empty_sb)
+	btn_nav_prev.add_theme_color_override("icon_normal_color", Color(1.0, 0.85, 0.3, 0.85))
+	btn_nav_prev.add_theme_color_override("icon_hover_color", Color(1.0, 0.98, 0.7, 1.0))
+	btn_nav_prev.add_theme_color_override("icon_pressed_color", Color(1.0, 0.65, 0.1, 1.0))
+	btn_nav_prev.icon = UIIcons.get_icon("arrow_left", 72)
+	btn_nav_prev.expand_icon = true
 	btn_nav_prev.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn_nav_prev.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	btn_nav_prev.tooltip_text = "Previous Rooster (Left Arrow / A)"
 	btn_nav_prev.pressed.connect(_select_previous_rooster)
 	btn_nav_prev.mouse_entered.connect(func():
 		var tw := btn_nav_prev.create_tween()
-		if tw: tw.tween_property(btn_nav_prev, "scale", Vector2(1.10, 1.10), 0.12)
+		if tw: tw.tween_property(btn_nav_prev, "scale", Vector2(1.18, 1.18), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	)
 	btn_nav_prev.mouse_exited.connect(func():
 		var tw := btn_nav_prev.create_tween()
@@ -1235,37 +1230,44 @@ func _build_select_ui() -> void:
 	var left_hint := Label.new()
 	left_hint.text = "[A]"
 	left_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UIFontStyle.style_body(left_hint, 13, true)
-	left_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.8))
+	UIFontStyle.style_body(left_hint, 14, true)
+	left_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.75))
 	left_box.add_child(left_hint)
 
 	# 2. Right Button (>)
 	var right_box := VBoxContainer.new()
 	right_box.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	right_box.offset_left = -100
-	right_box.offset_top = -46
-	right_box.offset_right = -32
-	right_box.offset_bottom = 46
+	right_box.offset_left = -104
+	right_box.offset_top = -65
+	right_box.offset_right = -24
+	right_box.offset_bottom = 65
 	right_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	right_box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	right_box.add_theme_constant_override("separation", 6)
+	right_box.add_theme_constant_override("separation", 2)
 	right_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_child(right_box)
 
 	btn_nav_next = Button.new()
 	btn_nav_next.custom_minimum_size = nav_btn_size
+	btn_nav_next.pivot_offset = nav_btn_size * 0.5
+	btn_nav_next.flat = true
 	btn_nav_next.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn_nav_next.add_theme_stylebox_override("normal", nav_style)
-	btn_nav_next.add_theme_stylebox_override("hover", nav_hover)
-	btn_nav_next.add_theme_stylebox_override("pressed", nav_hover)
-	btn_nav_next.icon = UIIcons.get_icon("arrow_right", 36)
+	btn_nav_next.add_theme_stylebox_override("normal", empty_sb)
+	btn_nav_next.add_theme_stylebox_override("hover", empty_sb)
+	btn_nav_next.add_theme_stylebox_override("pressed", empty_sb)
+	btn_nav_next.add_theme_stylebox_override("focus", empty_sb)
+	btn_nav_next.add_theme_color_override("icon_normal_color", Color(1.0, 0.85, 0.3, 0.85))
+	btn_nav_next.add_theme_color_override("icon_hover_color", Color(1.0, 0.98, 0.7, 1.0))
+	btn_nav_next.add_theme_color_override("icon_pressed_color", Color(1.0, 0.65, 0.1, 1.0))
+	btn_nav_next.icon = UIIcons.get_icon("arrow_right", 72)
+	btn_nav_next.expand_icon = true
 	btn_nav_next.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn_nav_next.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	btn_nav_next.tooltip_text = "Next Rooster (Right Arrow / D)"
 	btn_nav_next.pressed.connect(_select_next_rooster)
 	btn_nav_next.mouse_entered.connect(func():
 		var tw := btn_nav_next.create_tween()
-		if tw: tw.tween_property(btn_nav_next, "scale", Vector2(1.10, 1.10), 0.12)
+		if tw: tw.tween_property(btn_nav_next, "scale", Vector2(1.18, 1.18), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	)
 	btn_nav_next.mouse_exited.connect(func():
 		var tw := btn_nav_next.create_tween()
@@ -1276,8 +1278,8 @@ func _build_select_ui() -> void:
 	var right_hint := Label.new()
 	right_hint.text = "[D]"
 	right_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UIFontStyle.style_body(right_hint, 13, true)
-	right_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.8))
+	UIFontStyle.style_body(right_hint, 14, true)
+	right_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.75))
 	right_box.add_child(right_hint)
 
 	# --- Bottom Moveset Cards Layer ---
