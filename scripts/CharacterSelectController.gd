@@ -28,18 +28,10 @@ var rooster_counter_label: Label = null
 
 # Moveset Cards UI (Cards of the selected rooster)
 var cards_layer: Control = null
-var moveset_header_label: Label = null
 var moveset_card_buttons: Array[Button] = []
 var card_rest_positions: Array[Vector2] = []
 var card_rest_rotations: Array[float] = []
 var current_card_scale: float = 1.0
-
-# Card hover info panel
-var card_info_panel: PanelContainer = null
-var card_info_title: Label = null
-var card_info_stats: Label = null
-var card_info_desc: Label = null
-var card_info_tween: Tween = null
 
 # 3D Name Stadium Banner (Arena phase notif style behind the rooster)
 var name_banner_3d: Node3D = null
@@ -1320,58 +1312,6 @@ func _build_select_ui() -> void:
 	cards_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(cards_layer)
 
-	# Moveset title banner
-	moveset_header_label = Label.new()
-	moveset_header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UIFontStyle.style_subheading(moveset_header_label, 16)
-	moveset_header_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-	cards_layer.add_child(moveset_header_label)
-
-	# Card Hover Detail Panel
-	card_info_panel = PanelContainer.new()
-	card_info_panel.visible = false
-	card_info_panel.modulate.a = 0.0
-	var info_sb := StyleBoxFlat.new()
-	info_sb.bg_color = Color(0.06, 0.08, 0.13, 0.96)
-	info_sb.border_color = Color(1.0, 0.85, 0.25, 0.85)
-	info_sb.set_border_width_all(2)
-	info_sb.set_corner_radius_all(14)
-	info_sb.shadow_color = Color(0, 0, 0, 0.7)
-	info_sb.shadow_size = 16
-	info_sb.content_margin_left = 20
-	info_sb.content_margin_right = 20
-	info_sb.content_margin_top = 10
-	info_sb.content_margin_bottom = 10
-	card_info_panel.add_theme_stylebox_override("panel", info_sb)
-
-	var info_vb := VBoxContainer.new()
-	info_vb.add_theme_constant_override("separation", 3)
-	card_info_panel.add_child(info_vb)
-
-	card_info_title = Label.new()
-	card_info_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var f_title := UIFontStyle.get_anton_font()
-	if f_title:
-		card_info_title.add_theme_font_override("font", f_title)
-	card_info_title.add_theme_font_size_override("font_size", 22)
-	card_info_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.25))
-	info_vb.add_child(card_info_title)
-
-	card_info_stats = Label.new()
-	card_info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UIFontStyle.style_subheading(card_info_stats, 15)
-	card_info_stats.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
-	info_vb.add_child(card_info_stats)
-
-	card_info_desc = Label.new()
-	card_info_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	card_info_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UIFontStyle.style_body(card_info_desc, 14)
-	card_info_desc.add_theme_color_override("font_color", Color(0.9, 0.93, 0.98))
-	info_vb.add_child(card_info_desc)
-
-	cards_layer.add_child(card_info_panel)
-
 	_update_rooster_nav_ui()
 	_display_selected_rooster_cards(roosters[current_index])
 
@@ -1390,8 +1330,6 @@ func _display_selected_rooster_cards(r: RoosterData) -> void:
 	card_rest_positions.clear()
 	card_rest_rotations.clear()
 
-	_hide_card_info()
-
 	if not r:
 		return
 
@@ -1400,10 +1338,6 @@ func _display_selected_rooster_cards(r: RoosterData) -> void:
 	for c in r.moveset:
 		if c is CardData:
 			cards.append(c)
-
-	if moveset_header_label and is_instance_valid(moveset_header_label):
-		moveset_header_label.text = ("--- %s'S SIGNATURE COMBAT CARDS ---" % r.display_name).to_upper()
-		moveset_header_label.add_theme_color_override("font_color", r.theme_color)
 
 	var total_cards := cards.size()
 	for i in range(total_cards):
@@ -1453,7 +1387,6 @@ func _display_selected_rooster_cards(r: RoosterData) -> void:
 				tw.tween_property(c_btn, "position:y", rest_y - lift, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 				tw.tween_property(c_btn, "rotation_degrees", rest_rot * 0.25, 0.14)
 				tw.tween_property(c_btn, "scale", Vector2(1.08, 1.08), 0.14)
-			_show_card_info(card, r)
 		)
 
 		c_btn.mouse_exited.connect(func():
@@ -1466,57 +1399,12 @@ func _display_selected_rooster_cards(r: RoosterData) -> void:
 				tw.tween_property(c_btn, "position:y", rest_y, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 				tw.tween_property(c_btn, "rotation_degrees", rest_rot, 0.14)
 				tw.tween_property(c_btn, "scale", Vector2.ONE, 0.14)
-			_hide_card_info()
 		)
 
 		cards_layer.add_child(c_btn)
 		moveset_card_buttons.append(c_btn)
 
 	_update_card_layout(true)
-
-func _show_card_info(card: CardData, r: RoosterData) -> void:
-	if not is_instance_valid(card_info_panel) or not card:
-		return
-
-	if is_instance_valid(card_info_title):
-		card_info_title.text = card.display_name.to_upper()
-		card_info_title.add_theme_color_override("font_color", r.theme_color if r else Color.GOLD)
-
-	if is_instance_valid(card_info_stats):
-		var type_str := "ATTACK"
-		match card.card_type:
-			CardData.CardType.GUARD: type_str = "GUARD"
-			CardData.CardType.HEAL: type_str = "HEAL"
-			CardData.CardType.DOT: type_str = "POOP/DOT"
-			CardData.CardType.SPECIAL: type_str = "SPECIAL"
-			CardData.CardType.ROLL_MANIPULATION: type_str = "ROLL"
-			_: type_str = "ATTACK"
-
-		var val_part := ""
-		if card.base_value > 0:
-			val_part = "  •  VAL: %d" % card.base_value
-		card_info_stats.text = "[%s]  •  COST: %d TAYA  •  DICE: %d+%s" % [type_str, card.taya_cost, card.dice_requirement, val_part]
-
-	if is_instance_valid(card_info_desc):
-		card_info_desc.text = card.effect_text
-
-	if card_info_tween and card_info_tween.is_valid():
-		card_info_tween.kill()
-	card_info_panel.visible = true
-	card_info_tween = card_info_panel.create_tween()
-	card_info_tween.tween_property(card_info_panel, "modulate:a", 1.0, 0.12).set_trans(Tween.TRANS_QUAD)
-
-func _hide_card_info() -> void:
-	if not is_instance_valid(card_info_panel):
-		return
-	if card_info_tween and card_info_tween.is_valid():
-		card_info_tween.kill()
-	card_info_tween = card_info_panel.create_tween()
-	card_info_tween.tween_property(card_info_panel, "modulate:a", 0.0, 0.10).set_trans(Tween.TRANS_QUAD)
-	card_info_tween.tween_callback(func():
-		if is_instance_valid(card_info_panel):
-			card_info_panel.visible = false
-	)
 
 func _update_card_layout(animate_deal: bool = false) -> void:
 	var total_cards := moveset_card_buttons.size()
@@ -1544,17 +1432,6 @@ func _update_card_layout(animate_deal: bool = false) -> void:
 	var step_x: float = step_x_base * current_card_scale
 	var center_x: float = vp_size.x * 0.5
 	var base_y: float = vp_size.y - card_h - (24.0 * current_card_scale)
-
-	# Position card_info_panel right above the card hand
-	if is_instance_valid(card_info_panel):
-		var panel_w: float = minf(560.0, vp_size.x - 240.0)
-		card_info_panel.custom_minimum_size = Vector2(panel_w, 0)
-		card_info_panel.position = Vector2(center_x - panel_w * 0.5, base_y - 95.0)
-
-	# Position moveset_header_label above card_info_panel / hand
-	if is_instance_valid(moveset_header_label):
-		moveset_header_label.position = Vector2(0, base_y - 128.0)
-		moveset_header_label.size = Vector2(vp_size.x, 26)
 
 	card_rest_positions.clear()
 	card_rest_rotations.clear()
