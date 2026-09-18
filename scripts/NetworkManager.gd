@@ -280,6 +280,11 @@ func _get_relay_base_url() -> String:
 			var host = JavaScriptBridge.eval("window.location.hostname")
 			if host in ["localhost", "127.0.0.1", "0.0.0.0"]:
 				return RELAY_URL_LOCAL
+			var proto = JavaScriptBridge.eval("window.location.protocol")
+			var ws_proto = "wss://" if str(proto) == "https:" else "ws://"
+			var port_str = str(JavaScriptBridge.eval("window.location.port"))
+			var port_suffix = (":" + port_str) if (port_str != "" and port_str != "80" and port_str != "443") else ""
+			return ws_proto + str(host) + port_suffix
 		return RELAY_URL
 	return RELAY_URL_LOCAL if use_local_relay else RELAY_URL
 
