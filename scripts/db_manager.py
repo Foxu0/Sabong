@@ -6,7 +6,9 @@ Interfacing with TiDB Cloud MySQL 8.0 (sabong_roosters_db)
 import os
 import ssl
 import logging
+import base64
 import hashlib
+import hmac
 import random
 import string
 from typing import Optional, Dict, Any, List
@@ -14,14 +16,47 @@ import pymysql
 
 log = logging.getLogger("sabong-db")
 
-DB_HOST = os.environ.get("DB_HOST", "gateway01.ap-southeast-1.prod.aws.tidbcloud.com")
+# Credentials come only from the environment (see .env.example). No defaults are shipped.
+DB_HOST = os.environ.get("DB_HOST", "")
 DB_PORT = int(os.environ.get("DB_PORT", 4000))
-DB_USER = os.environ.get("DB_USER", "35JtqKVBmhS4TEY.root")
-DB_PASSWORD = os.environ.get("DB_PASSWORD", "mw1hTTxq5b28o9FB")
+DB_USER = os.environ.get("DB_USER", "")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
 DB_NAME = os.environ.get("DB_NAME", "sabong_roosters_db")
 
+# scrypt parameters (~16 MB memory per hash)
+_SCRYPT_N = 2 ** 14
+_SCRYPT_R = 8
+_SCRYPT_P = 1
+_SCRYPT_DKLEN = 32
+
+def _b64e(raw: bytes) -> str:
+    return base64.b64encode(raw).decode("ascii")
+
 def _hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Returns a salted scrypt hash: scrypt$N$r$p$salt$hash"""
+    salt = os.urandom(16)
+    dk = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=_SCRYPT_N, r=_SCRYPT_R, p=_SCRYPT_P, dklen=_SCRYPT_DKLEN)
+    return f"scrypt${_SCRYPT_N}${_SCRYPT_R}${_SCRYPT_P}${_b64e(salt)}${_b64e(dk)}"
+
+def _is_legacy_hash(stored: str) -> bool:
+    return len(stored) == 64 and all(c in "0123456789abcdef" for c in stored.lower())
+
+def _verify_password(password: str, stored: Optional[str]) -> bool:
+    """Verifies scrypt hashes, plus legacy unsalted SHA-256 hashes (rehashed on next login)."""
+    if not stored:
+        return False
+    if stored.startswith("scrypt$"):
+        try:
+            _, n, r, p, salt_b64, hash_b64 = stored.split("$")
+            expected = base64.b64decode(hash_b64)
+            dk = hashlib.scrypt(password.encode("utf-8"), salt=base64.b64decode(salt_b64),
+                                n=int(n), r=int(r), p=int(p), dklen=len(expected))
+            return hmac.compare_digest(dk, expected)
+        except Exception:
+            return False
+    if _is_legacy_hash(stored):
+        return hmac.compare_digest(hashlib.sha256(password.encode()).hexdigest(), stored.lower())
+    return False
 
 def compute_rank_tier(taya_coins: int) -> str:
     """
@@ -241,7 +276,7 @@ class DatabaseManager:
     def register_player(self, username: str, email: str, password: str) -> Dict[str, Any]:
         username = username.strip()
         email = email.strip().lower()
-        if len(username) < 3 or len(password) < 4:
+        if len(username) < 3 or len(password) < 6:
             return {"success": False, "error": "Username/Password too short"}
         
         pw_hash = _hash_password(password)
@@ -302,75 +337,25 @@ class DatabaseManager:
             log.error("[DB] Registration error: %s", e)
             return {"success": False, "error": str(e)}
 
-    def check_email_exists(self, email: str) -> bool:
-        email = email.strip().lower()
-        if not email:
-            return False
-        try:
-            conn = self.get_connection()
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM players WHERE email = %s AND status = 'ACTIVE' LIMIT 1;", (email,))
-                exists = cur.fetchone() is not None
-            conn.close()
-            return exists
-        except Exception as e:
-            log.error("[DB] Error checking email: %s", e)
-            return False
-
-    def check_username_exists(self, username: str) -> bool:
-        username = username.strip()
-        if not username:
-            return False
-        try:
-            conn = self.get_connection()
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM players WHERE username = %s AND status = 'ACTIVE' LIMIT 1;", (username,))
-                exists = cur.fetchone() is not None
-            conn.close()
-            return exists
-        except Exception as e:
-            log.error("[DB] Error checking username: %s", e)
-            return False
-
-    def reset_password(self, email: str, new_password: str) -> Dict[str, Any]:
-        email = email.strip().lower()
-        if not email:
-            return {"success": False, "error": "Email is required"}
-        if len(new_password) < 4:
-            return {"success": False, "error": "Password must be at least 4 characters long"}
-        pw_hash = _hash_password(new_password)
-        try:
-            conn = self.get_connection()
-            with conn.cursor() as cur:
-                cur.execute("SELECT player_id FROM players WHERE email = %s AND status = 'ACTIVE';", (email,))
-                player = cur.fetchone()
-                if not player:
-                    conn.close()
-                    return {"success": False, "error": "No active player found with that email"}
-                cur.execute("UPDATE players SET password_hash = %s WHERE player_id = %s;", (pw_hash, player["player_id"]))
-            conn.close()
-            log.info("[DB] Reset password for player_id %s (%s)", player["player_id"], email)
-            return {"success": True, "message": "Password reset successfully"}
-        except Exception as e:
-            log.error("[DB] Password reset error: %s", e)
-            return {"success": False, "error": str(e)}
-
     def authenticate_player(self, username_or_email: str, password: str) -> Dict[str, Any]:
-        pw_hash = _hash_password(password)
         u_in = username_or_email.strip()
         try:
             conn = self.get_connection()
             with conn.cursor() as cur:
                 sql = """
-                    SELECT player_id, username, email, taya_coins, elo_rating, rank_tier, wins, losses, total_matches, avatar_url
+                    SELECT player_id, username, email, password_hash, taya_coins, elo_rating, rank_tier, wins, losses, total_matches, avatar_url
                     FROM players
-                    WHERE (username=%s OR email=%s) AND password_hash=%s AND status='ACTIVE';
+                    WHERE (username=%s OR email=%s) AND status='ACTIVE';
                 """
-                cur.execute(sql, (u_in, u_in.lower(), pw_hash))
-                player = cur.fetchone()
+                cur.execute(sql, (u_in, u_in.lower()))
+                player = next((row for row in cur.fetchall() if _verify_password(password, row.get("password_hash"))), None)
                 if not player:
                     conn.close()
                     return {"success": False, "error": "Invalid username or password"}
+
+                if _is_legacy_hash(player["password_hash"] or ""):
+                    cur.execute("UPDATE players SET password_hash=%s WHERE player_id=%s;", (_hash_password(password), player["player_id"]))
+                    log.info("[DB] Upgraded legacy password hash for player_id %s", player["player_id"])
 
                 if player["username"].lower() == "admin" or (player.get("email") or "").lower() == "admin@sabong.ph":
                     tier = "UNRANK"
@@ -449,6 +434,7 @@ class DatabaseManager:
     def place_bet(self, player_id: int, side: str, amount: int, match_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Deducts bet amount into escrow from player's Taya coins.
+        Runs in a single transaction with a row lock so concurrent bets cannot overdraw.
         """
         amount = int(amount)
         side = side.strip().upper()
@@ -457,17 +443,19 @@ class DatabaseManager:
         if side not in ["MERON", "WALA"]:
             return {"success": False, "error": "Invalid bet side (must be MERON or WALA)"}
 
+        conn = None
         try:
             conn = self.get_connection()
+            conn.begin()
             with conn.cursor() as cur:
-                cur.execute("SELECT taya_coins, username FROM players WHERE player_id = %s;", (player_id,))
+                cur.execute("SELECT taya_coins, username FROM players WHERE player_id = %s FOR UPDATE;", (player_id,))
                 p = cur.fetchone()
                 if not p:
-                    conn.close()
+                    conn.rollback()
                     return {"success": False, "error": "Player not found"}
 
                 if p["taya_coins"] < amount:
-                    conn.close()
+                    conn.rollback()
                     return {"success": False, "error": f"Insufficient Taya coins (Available: {p['taya_coins']})"}
 
                 new_balance = p["taya_coins"] - amount
@@ -478,8 +466,7 @@ class DatabaseManager:
                     INSERT INTO taya_transactions (player_id, match_id, transaction_type, amount, balance_before, balance_after, description)
                     VALUES (%s, %s, 'BET_ESCROW', %s, %s, %s, %s);
                 """, (player_id, match_id, -amount, p["taya_coins"], new_balance, f"Bet on {side}"))
-
-            conn.close()
+            conn.commit()
             log.info("[DB] Player %s placed bet of %d Taya on %s. New balance: %d", p["username"], amount, side, new_balance)
             return {
                 "success": True,
@@ -491,19 +478,32 @@ class DatabaseManager:
             }
         except Exception as e:
             log.error("[DB] Bet placement error: %s", e)
-            return {"success": False, "error": str(e)}
+            if conn:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            return {"success": False, "error": "Could not place bet. Please try again."}
+        finally:
+            if conn:
+                conn.close()
 
     def resolve_bets(self, winner_side: str, bets: List[Dict[str, Any]], odds: float = 1.95) -> List[Dict[str, Any]]:
         """
-        Settles all bets placed on a match:
+        Settles all bets placed on a match in one transaction (all credited or none):
           - Winning side receives amount * odds credited to their balance.
+          - DRAW / CANCELLED / REFUND / ABORTED returns each stake.
           - Updates player rank tiers and records ledger transactions.
+        Callers must ensure a match is settled only once (see Room.take_bets_for_settlement).
         """
         winner_side = winner_side.strip().upper()
+        is_refund = winner_side in ["DRAW", "CANCELLED", "REFUND", "ABORTED"]
         payouts = []
 
+        conn = None
         try:
             conn = self.get_connection()
+            conn.begin()
             with conn.cursor() as cur:
                 for bet in bets:
                     pid = int(bet.get("player_id", 0))
@@ -514,76 +514,58 @@ class DatabaseManager:
                     if pid <= 0 or amt <= 0:
                         continue
 
-                    if winner_side in ["DRAW", "CANCELLED", "REFUND", "ABORTED"]:
-                        payout = amt
-                        cur.execute("SELECT taya_coins FROM players WHERE player_id = %s;", (pid,))
-                        row = cur.fetchone()
-                        if row:
-                            curr_bal = row["taya_coins"]
-                            new_bal = curr_bal + payout
-                            new_tier = compute_rank_tier(new_bal)
+                    cur.execute("SELECT taya_coins, rank_tier FROM players WHERE player_id = %s FOR UPDATE;", (pid,))
+                    row = cur.fetchone()
+                    if not row:
+                        continue
+                    curr_bal = row["taya_coins"]
 
-                            cur.execute("UPDATE players SET taya_coins = %s, rank_tier = %s WHERE player_id = %s;", (new_bal, new_tier, pid))
-                            cur.execute("UPDATE leaderboards SET rank_tier = %s WHERE player_id = %s;", (new_tier, pid))
-                            cur.execute("""
-                                INSERT INTO taya_transactions (player_id, transaction_type, amount, balance_before, balance_after, description)
-                                VALUES (%s, 'REFUND', %s, %s, %s, %s);
-                            """, (pid, payout, curr_bal, new_bal, f"Bet refunded due to {winner_side}"))
+                    if is_refund or side == winner_side:
+                        payout = amt if is_refund else int(amt * odds)
+                        new_bal = curr_bal + payout
+                        new_tier = compute_rank_tier(new_bal)
+                        tx_type = "REFUND" if is_refund else "BET_PAYOUT"
+                        desc = f"Bet refunded due to {winner_side}" if is_refund else f"Won bet on {side} ({odds}x)"
 
-                            payouts.append({
-                                "player_id": pid,
-                                "username": username,
-                                "won": False,
-                                "refunded": True,
-                                "payout": payout,
-                                "new_balance": new_bal,
-                                "rank_tier": new_tier
-                            })
-                            log.info("[DB] Bet refunded: %s (+%d Taya, new balance: %d)", username, payout, new_bal)
+                        cur.execute("UPDATE players SET taya_coins = %s, rank_tier = %s WHERE player_id = %s;", (new_bal, new_tier, pid))
+                        cur.execute("UPDATE leaderboards SET rank_tier = %s WHERE player_id = %s;", (new_tier, pid))
+                        cur.execute("""
+                            INSERT INTO taya_transactions (player_id, transaction_type, amount, balance_before, balance_after, description)
+                            VALUES (%s, %s, %s, %s, %s, %s);
+                        """, (pid, tx_type, payout, curr_bal, new_bal, desc))
 
-                    elif side == winner_side:
-                        payout = int(amt * odds)
-                        cur.execute("SELECT taya_coins FROM players WHERE player_id = %s;", (pid,))
-                        row = cur.fetchone()
-                        if row:
-                            curr_bal = row["taya_coins"]
-                            new_bal = curr_bal + payout
-                            new_tier = compute_rank_tier(new_bal)
-
-                            cur.execute("UPDATE players SET taya_coins = %s, rank_tier = %s WHERE player_id = %s;", (new_bal, new_tier, pid))
-                            cur.execute("UPDATE leaderboards SET rank_tier = %s WHERE player_id = %s;", (new_tier, pid))
-                            cur.execute("""
-                                INSERT INTO taya_transactions (player_id, transaction_type, amount, balance_before, balance_after, description)
-                                VALUES (%s, 'BET_PAYOUT', %s, %s, %s, %s);
-                            """, (pid, payout, curr_bal, new_bal, f"Won bet on {side} ({odds}x)"))
-
-                            payouts.append({
-                                "player_id": pid,
-                                "username": username,
-                                "won": True,
-                                "refunded": False,
-                                "payout": payout,
-                                "new_balance": new_bal,
-                                "rank_tier": new_tier
-                            })
-                            log.info("[DB] Bet won: %s (+%d Taya, new balance: %d, tier: %s)", username, payout, new_bal, new_tier)
+                        payouts.append({
+                            "player_id": pid,
+                            "username": username,
+                            "won": not is_refund,
+                            "refunded": is_refund,
+                            "payout": payout,
+                            "new_balance": new_bal,
+                            "rank_tier": new_tier
+                        })
+                        log.info("[DB] Bet %s: %s (+%d Taya, new balance: %d)", tx_type, username, payout, new_bal)
                     else:
-                        cur.execute("SELECT taya_coins, rank_tier FROM players WHERE player_id = %s;", (pid,))
-                        row = cur.fetchone()
-                        bal = row["taya_coins"] if row else 0
-                        tier = row["rank_tier"] if row else "BRONZE"
                         payouts.append({
                             "player_id": pid,
                             "username": username,
                             "won": False,
                             "refunded": False,
                             "payout": 0,
-                            "new_balance": bal,
-                            "rank_tier": tier
+                            "new_balance": curr_bal,
+                            "rank_tier": row["rank_tier"]
                         })
-            conn.close()
+            conn.commit()
         except Exception as e:
-            log.error("[DB] Error resolving bets: %s", e)
+            log.error("[DB] Error resolving bets (rolled back): %s", e)
+            if conn:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            return []
+        finally:
+            if conn:
+                conn.close()
 
         return payouts
 
@@ -648,5 +630,9 @@ class DatabaseManager:
             log.error("[DB] Error recording match result: %s", e)
             return False
 
-# Global instance
-db = DatabaseManager()
+# Global instance (None when the database is not configured via environment variables)
+if DB_HOST and DB_USER and DB_PASSWORD:
+    db = DatabaseManager()
+else:
+    log.error("[DB] DB_HOST / DB_USER / DB_PASSWORD are not set. Database features are disabled.")
+    db = None

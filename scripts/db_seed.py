@@ -1,11 +1,13 @@
+import os
 import pymysql
 import ssl
-import hashlib
+from db_manager import _hash_password
 
-HOST = "gateway01.ap-southeast-1.prod.aws.tidbcloud.com"
-PORT = 4000
-USER = "35JtqKVBmhS4TEY.root"
-PASSWORD = "mw1hTTxq5b28o9FB"
+# Credentials come from the environment (see .env.example)
+HOST = os.environ["DB_HOST"]
+PORT = int(os.environ.get("DB_PORT", 4000))
+USER = os.environ["DB_USER"]
+PASSWORD = os.environ["DB_PASSWORD"]
 DATABASE = "sabong_roosters_db"
 
 ctx = ssl.create_default_context()
@@ -26,7 +28,7 @@ roosters_data = [
 ]
 
 def hash_pw(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
+    return _hash_password(pw)
 
 players_data = [
     ("admin", "admin@sabong.ph", hash_pw("admin123"), 10000, 50, 42, 8, 1850, "GRANDMASTER"),

@@ -1,11 +1,13 @@
+import os
 import pymysql
 import ssl
 import sys
 
-HOST = "gateway01.ap-southeast-1.prod.aws.tidbcloud.com"
-PORT = 4000
-USER = "35JtqKVBmhS4TEY.root"
-PASSWORD = "mw1hTTxq5b28o9FB"
+# Credentials come from the environment (see .env.example)
+HOST = os.environ["DB_HOST"]
+PORT = int(os.environ.get("DB_PORT", 4000))
+USER = os.environ["DB_USER"]
+PASSWORD = os.environ["DB_PASSWORD"]
 DATABASE = "test"
 
 ctx = ssl.create_default_context()

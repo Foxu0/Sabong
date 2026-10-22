@@ -58,14 +58,15 @@ func place_bet(side: String, amount: int) -> bool:
 	player_bet_amount = amount
 	has_active_bet = true
 
-	# Deduct from local wallet immediately and notify backend
+	# Deduct from local wallet immediately and notify backend through exactly one channel,
+	# otherwise the server escrows the stake twice.
+	var was_logged_in: bool = AuthManager.is_logged_in
 	AuthManager.update_taya_balance(AuthManager.taya_points - amount)
-	AuthManager.place_bet(side, amount, active_room_code)
-
-	# Also send to relay WebSocket if connected in spectator arena
 	var nm = get_node_or_null("/root/NetworkManager")
-	if nm and nm.has_method("send_relay_bet"):
+	if nm and nm.has_method("_is_relay_active") and nm._is_relay_active():
 		nm.send_relay_bet(side, amount)
+	elif was_logged_in:
+		AuthManager.place_bet(side, amount, active_room_code)
 
 	# Update local pool estimation
 	if side == "MERON":
@@ -122,18 +123,19 @@ func resolve_winner(winner_side: String, server_payouts: Array = [], winning_odd
 		if player_bet_side == winner_side:
 			won = true
 			# Find server payout if authenticated
-			var found_payout := false
+			var server_balance := -1
 			for p in server_payouts:
-				if p is Dictionary and int(p.get("player_id", 0)) == AuthManager.player_id:
+				if p is Dictionary and AuthManager.player_id > 0 and int(p.get("player_id", 0)) == AuthManager.player_id:
 					payout = int(p.get("payout", 0))
-					found_payout = true
+					server_balance = int(p.get("new_balance", -1))
 					break
-			if not found_payout:
+			if server_balance >= 0:
+				# Trust the server's settled balance over local arithmetic
+				AuthManager.update_taya_balance(server_balance)
+			else:
 				var payout_multiplier: float = winning_odds if winning_odds > 0.0 else (meron_odds if winner_side == "MERON" else wala_odds)
 				payout = int(round(player_bet_amount * payout_multiplier))
-
-			var new_bal := AuthManager.taya_points + payout
-			AuthManager.update_taya_balance(new_bal)
+				AuthManager.update_taya_balance(AuthManager.taya_points + payout)
 		else:
 			won = false
 			payout = 0

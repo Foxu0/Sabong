@@ -22,6 +22,8 @@ var taya_points: int = 500
 var rank_tier: String = "SILVER"
 var wins: int = 0
 var losses: int = 0
+## Server-issued session token; required for any request that spends Taya.
+var session_token: String = ""
 
 const API_BASE_URL := "http://localhost:10006"
 const SESSION_FILE := "user://player_session.json"
@@ -191,13 +193,11 @@ func place_bet(side: String, amount: int, room_code: String = "") -> void:
 			update_taya_balance(taya_points - amount)
 		return
 	var payload := {
-		"player_id": player_id,
-		"username": username,
 		"side": side.to_upper(),
 		"amount": amount,
 		"room_code": room_code
 	}
-	_post_json("/bet/place", payload)
+	_post_json("/bet/place", payload, ["Authorization: Bearer " + session_token])
 
 func update_taya_balance(new_amount: int) -> void:
 	var old_tier := rank_tier
@@ -221,6 +221,7 @@ func logout() -> void:
 	rank_tier = "SILVER"
 	wins = 0
 	losses = 0
+	session_token = ""
 	if FileAccess.file_exists(SESSION_FILE):
 		DirAccess.remove_absolute(SESSION_FILE)
 	logged_out.emit()
@@ -239,7 +240,8 @@ func save_session() -> void:
 		"taya_points": taya_points,
 		"rank_tier": rank_tier,
 		"wins": wins,
-		"losses": losses
+		"losses": losses,
+		"session_token": session_token
 	}
 	var f := FileAccess.open(SESSION_FILE, FileAccess.WRITE)
 	if f:
@@ -256,8 +258,12 @@ func load_saved_session() -> void:
 		var txt := f.get_as_text()
 		f.close()
 		var json_obj = JSON.parse_string(txt)
-		if json_obj is Dictionary:
+		# Sessions saved before tokens existed cannot authenticate; require a fresh sign-in.
+		if json_obj is Dictionary and str(json_obj.get("session_token", "")) != "":
 			_apply_user_data(json_obj)
+		else:
+			DirAccess.remove_absolute(SESSION_FILE)
+			rank_tier = compute_rank_tier(taya_points)
 
 func _apply_user_data(data: Dictionary) -> void:
 	player_id = int(data.get("player_id", 0))
@@ -271,7 +277,8 @@ func _apply_user_data(data: Dictionary) -> void:
 		rank_tier = compute_rank_tier(taya_points, username, email)
 	wins = int(data.get("wins", 0))
 	losses = int(data.get("losses", 0))
-	is_logged_in = (player_id > 0)
+	session_token = str(data.get("session_token", ""))
+	is_logged_in = (player_id > 0 and session_token != "")
 	save_session()
 	login_succeeded.emit(data)
 	taya_balance_updated.emit(taya_points)
@@ -291,10 +298,11 @@ func get_api_base_url() -> String:
 		return "https://sabong-inxt.onrender.com"
 	return API_BASE_URL
 
-func _post_json(endpoint: String, payload: Dictionary) -> void:
+func _post_json(endpoint: String, payload: Dictionary, extra_headers: Array = []) -> void:
 	_current_endpoint = endpoint
 	var url := get_api_base_url() + endpoint
 	var headers := ["Content-Type: application/json"]
+	headers.append_array(extra_headers)
 	var body := JSON.stringify(payload)
 	var err := _http_request.request(url, headers, HTTPClient.METHOD_POST, body)
 	if err != OK:
@@ -327,6 +335,9 @@ func _on_http_request_completed(_result: int, response_code: int, _headers: Pack
 		if json_res is Dictionary and json_res.has("error"):
 			err_msg = str(json_res["error"])
 		_handle_http_error(err_msg)
+		# Expired or invalid session: drop it so the player signs in again.
+		if response_code == 401 and _current_endpoint == "/bet/place":
+			logout()
 
 func _handle_http_error(err_msg: String) -> void:
 	if _current_endpoint == "/auth/send-otp":

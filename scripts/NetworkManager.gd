@@ -384,17 +384,18 @@ func spectate_online(room_code: String) -> void:
 ## Spectator: place bet via relay server
 func send_relay_bet(side: String, amount: int) -> void:
 	if _relay_ws and _relay_ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		var pid = 1
+		# The relay identifies signed-in bettors by session token; without one the bet is a guest bet.
+		var token := ""
 		var uname = "Player"
 		var am = get_node_or_null("/root/AuthManager")
 		if am:
-			if am.get("player_id"):
-				pid = int(am.get("player_id"))
+			if am.get("session_token"):
+				token = str(am.get("session_token"))
 			if am.get("username"):
 				uname = str(am.get("username"))
 		var payload := {
 			"type": "place_bet",
-			"player_id": pid,
+			"session_token": token,
 			"username": uname,
 			"side": side.to_upper(),
 			"amount": amount

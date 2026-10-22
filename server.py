@@ -75,13 +75,14 @@ except Exception as e:
         def compute_rank_tier(taya): return "BRONZE"
 
 try:
-    from security import security_manager
+    from security import security_manager, issue_session_token, verify_session_token, token_from_auth_header, verify_google_id_token
 except Exception as e:
     try:
-        from scripts.security import security_manager
+        from scripts.security import security_manager, issue_session_token, verify_session_token, token_from_auth_header, verify_google_id_token
     except Exception as e2:
-        log.error("Failed to import security_manager: %s | %s", e, e2)
-        security_manager = None
+        # Without the security module the server cannot authenticate anyone; refuse to start.
+        log.critical("Failed to import security module: %s | %s", e, e2)
+        raise
 
 # Config
 PORT = int(os.environ.get("PORT", 10005))
@@ -91,16 +92,15 @@ ROOM_CODE_LENGTH = 4
 ROOM_TIMEOUT_SECS = 300
 
 # Resend HTTP Email API (Port 443 - 100% cloud compatible)
-import base64
-_DEFAULT_RESEND_KEY = base64.b64decode("cmVfWXBCNzV2b29fNGtVNVBFSkVOaHBwaW5wRGQ3VzlrZjlW").decode("ascii")
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", _DEFAULT_RESEND_KEY)
+# All credentials come from the environment only (see .env.example).
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM = os.environ.get("RESEND_FROM", "Sabong Roosters <onboarding@resend.dev>")
 
 # Gmail SMTP Email Configuration (Secondary / fallback)
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
-SMTP_USER = os.environ.get("SMTP_USER", "celluckminecwap@gmail.com")
-SMTP_PASS = os.environ.get("SMTP_PASS", "nulqlrjwpbrojaza").replace(" ", "")
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "").replace(" ", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", f"Sabong Roosters <{SMTP_USER}>")
 
 # WebSocket concurrency tracker per IP
@@ -165,6 +165,28 @@ class Room:
         self.meron_rooster = ""
         self.wala_rooster = ""
         self.winner = None
+        self.settled = False
+        # Bets are appended from both the HTTP threads and the asyncio loop
+        self._bets_lock = threading.Lock()
+
+    def add_bet(self, bet: Dict[str, Any]) -> bool:
+        """Records a bet unless the room has already been settled or closed."""
+        with self._bets_lock:
+            if self.settled or self.closed:
+                return False
+            self.bets.append(bet)
+            return True
+
+    def take_bets_for_settlement(self) -> Optional[List[Dict[str, Any]]]:
+        """Marks the room settled and returns its bets exactly once; later calls return None."""
+        with self._bets_lock:
+            if self.settled:
+                return None
+            self.settled = True
+            return list(self.bets)
+
+    def is_accepting_bets(self) -> bool:
+        return not (self.settled or self.closed)
 
     def is_open(self) -> bool:
         if self.host_ws is None or self.started or self.closed:
@@ -259,17 +281,25 @@ def _read_file_sync(file_path: str) -> bytes:
     with open(file_path, "rb") as f:
         return f.read()
 
-def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -> Tuple[int, Dict[str, Any], int]:
+def _with_session_token(res: Dict[str, Any]) -> Dict[str, Any]:
+    """Attaches a server-issued session token to a successful auth response."""
+    if res.get("success") and int(res.get("player_id", 0)) > 0:
+        res["session_token"] = issue_session_token(int(res["player_id"]), str(res.get("username", "")))
+    return res
+
+def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str, auth_header: str = "") -> Tuple[int, Dict[str, Any], int]:
     """Centralized REST POST handler for both API_PORT and PORT"""
     if parsed_path == "/auth/google":
         if not db:
             return (500, {"success": False, "error": "Database not configured"}, 0)
-        google_id = payload.get("google_id") or payload.get("sub") or payload.get("id") or ""
-        email = payload.get("email") or ""
-        name = payload.get("name") or payload.get("username") or "Challenger"
-        avatar_url = payload.get("avatar_url") or payload.get("picture") or ""
-        res = db.authenticate_or_register_google(google_id, email, name, avatar_url)
-        return (200 if res.get("success") else 400, res, 0)
+        # Only trust identity claims that Google itself has signed.
+        id_token = str(payload.get("id_token") or payload.get("credential") or "")
+        claims, err = verify_google_id_token(id_token)
+        if not claims:
+            return (401, {"success": False, "error": err}, 0)
+        name = claims.get("name") or claims.get("given_name") or "Challenger"
+        res = db.authenticate_or_register_google(claims["sub"], claims["email"], name, claims.get("picture", ""))
+        return (200 if res.get("success") else 400, _with_session_token(res), 0)
 
     if parsed_path == "/auth/login":
         if not db:
@@ -287,7 +317,7 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
         if res.get("success"):
             if security_manager:
                 security_manager.reset_login_failures(client_ip)
-            return (200, res, 0)
+            return (200, _with_session_token(res), 0)
         else:
             if security_manager:
                 security_manager.record_login_failure(client_ip)
@@ -332,7 +362,7 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                 "last_sent": now,
                 "verified": False
             }
-        log.info("[AUTH OTP] Generated %s OTP for %s: %s (expires in 10m)", purpose.upper(), email, otp_code)
+        log.info("[AUTH OTP] Generated %s OTP for %s (expires in 10m)", purpose.upper(), email)
 
         email_sent = False
         resend_err_detail = ""
@@ -380,7 +410,7 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
                         err_payload = json.loads(resend_ex.read().decode())
                         msg_str = str(err_payload.get("message", ""))
                         if "You can only send testing emails" in msg_str:
-                            resend_err_detail = "In Resend test mode, emails can only be sent to your registered email (celluckminecwap@gmail.com). Please check for typos."
+                            resend_err_detail = "Email delivery is in test mode and cannot send to this address yet."
                         else:
                             resend_err_detail = msg_str
                     except Exception:
@@ -489,7 +519,7 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
         if res.get("success"):
             if security_manager:
                 security_manager.record_registration(client_ip)
-            return (200, res, 0)
+            return (200, _with_session_token(res), 0)
         else:
             return (400, res, 0)
 
@@ -522,30 +552,39 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str) -
     if parsed_path == "/bet/place":
         if not db:
             return (500, {"success": False, "error": "Database not configured"}, 0)
-        pid = int(payload.get("player_id", 0))
         side = str(payload.get("side", "")).strip().upper()
-        amount = int(payload.get("amount", 0))
+        try:
+            amount = int(payload.get("amount", 0))
+        except (TypeError, ValueError):
+            amount = 0
         room_code = str(payload.get("room_code", "")).upper()
         if amount <= 0:
             return (400, {"success": False, "error": "Bet amount must be greater than 0"}, 0)
         if side not in ["MERON", "WALA"]:
             return (400, {"success": False, "error": "Side must be MERON or WALA"}, 0)
+        # The bettor is whoever owns the session token, never a client-supplied player_id.
+        session = verify_session_token(token_from_auth_header(auth_header) or str(payload.get("session_token", "")))
+        if not session:
+            return (401, {"success": False, "error": "Please sign in again to place bets."}, 0)
+        # Refuse before taking money if there is no open match to hold it in escrow.
+        r = rooms.get(room_code)
+        if not r or not r.is_accepting_bets():
+            return (400, {"success": False, "error": "Betting is closed for this match."}, 0)
+        pid = session["player_id"]
         res = db.place_bet(pid, side, amount)
-        if res.get("success") and room_code in rooms:
-            r = rooms[room_code]
-            r.bets.append({
-                "player_id": pid,
-                "username": payload.get("username", "Spectator"),
-                "side": side.upper(),
-                "amount": amount
-            })
+        if res.get("success"):
+            bet = {"player_id": pid, "username": session["username"], "side": side, "amount": amount}
+            if not r.add_bet(bet):
+                # Match settled between the check and the deduction: return the stake.
+                db.resolve_bets("REFUND", [bet], 1.0)
+                return (400, {"success": False, "error": "Betting is closed for this match."}, 0)
             if async_loop and not async_loop.is_closed():
                 asyncio.run_coroutine_threadsafe(
                     _broadcast_room(r, json.dumps({
                         "type": "bet_pool_updated",
                         "meron_pool": r.get_meron_pool(),
                         "wala_pool": r.get_wala_pool(),
-                        "new_bet": {"side": side.upper(), "amount": amount, "user": payload.get("username", "Spectator")}
+                        "new_bet": {"side": side, "amount": amount, "user": session["username"]}
                     })),
                     async_loop
                 )
@@ -832,7 +871,7 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
             payload = {}
 
         parsed_path = self.path.split("?")[0]
-        status, resp_data, retry_after = handle_api_post(parsed_path, payload, client_ip)
+        status, resp_data, retry_after = handle_api_post(parsed_path, payload, client_ip, self.headers.get("Authorization", ""))
         self._send_json(status, resp_data, retry_after=retry_after)
 
     def log_message(self, format, *args):
@@ -1014,15 +1053,19 @@ async def _host_loop(room: Room, host_ws: WebSocketServerProtocol) -> None:
                     log.info("Room %s match started: %s (Meron) vs %s (Wala)", room.code, room.meron_rooster, room.wala_rooster)
 
                 elif msg_type == "duel_finished":
-                    winner_side = data.get("winner", "MERON").upper()
+                    winner_side = str(data.get("winner", "")).upper()
+                    bets_to_settle = room.take_bets_for_settlement() if winner_side in ("MERON", "WALA", "DRAW") else None
+                    if bets_to_settle is None:
+                        log.warning("Room %s: ignoring duel_finished (invalid winner %r or bets already settled)", room.code, winner_side)
+                        continue
                     room.winner = winner_side
                     log.info("Room %s: match finished! Winner: %s", room.code, winner_side)
-                    
-                    m_odds, w_odds = room.get_odds()
-                    winning_odds = m_odds if winner_side == "MERON" else w_odds
 
-                    # Settle all bets with dynamic odds
-                    payouts = db.resolve_bets(winner_side, room.bets, winning_odds) if db else []
+                    m_odds, w_odds = room.get_odds()
+                    winning_odds = m_odds if winner_side == "MERON" else (w_odds if winner_side == "WALA" else 1.0)
+
+                    # Settle all bets with dynamic odds (exactly once per room)
+                    payouts = db.resolve_bets(winner_side, bets_to_settle, winning_odds) if db else []
                     
                     # Broadcast victory & bet payouts to everyone (including host)
                     finish_payload = json.dumps({
@@ -1048,9 +1091,10 @@ async def _host_loop(room: Room, host_ws: WebSocketServerProtocol) -> None:
         room.closed = True
 
         # Escrow protection: If host disconnects mid-match before winner declared, refund all bets
-        if room.bets and room.winner is None:
-            log.info("Room %s: Host disconnected mid-match. Automatically refunding %d bets in escrow...", room.code, len(room.bets))
-            refund_payouts = db.resolve_bets("REFUND", room.bets, 1.0) if db else []
+        unsettled_bets = room.take_bets_for_settlement()
+        if unsettled_bets:
+            log.info("Room %s: Host disconnected mid-match. Automatically refunding %d bets in escrow...", room.code, len(unsettled_bets))
+            refund_payouts = db.resolve_bets("REFUND", unsettled_bets, 1.0) if db else []
             refund_msg = json.dumps({
                 "type": "match_finished",
                 "winner": "REFUND",
@@ -1093,10 +1137,11 @@ async def _spectator_loop(room: Room, spec_ws: WebSocketServerProtocol) -> None:
             try:
                 data = json.loads(message)
                 if data.get("type") == "place_bet":
-                    pid = int(data.get("player_id", 0))
                     side = str(data.get("side", "")).strip().upper()
-                    amt = int(data.get("amount", 0))
-                    user = str(data.get("username", "Spectator"))
+                    try:
+                        amt = int(data.get("amount", 0))
+                    except (TypeError, ValueError):
+                        amt = 0
 
                     if amt <= 0:
                         await spec_ws.send(json.dumps({"type": "bet_rejected", "error": "Bet amount must be greater than 0"}))
@@ -1104,39 +1149,50 @@ async def _spectator_loop(room: Room, spec_ws: WebSocketServerProtocol) -> None:
                     if side not in ["MERON", "WALA"]:
                         await spec_ws.send(json.dumps({"type": "bet_rejected", "error": "Invalid side (must be MERON or WALA)"}))
                         continue
+                    if not room.is_accepting_bets():
+                        await spec_ws.send(json.dumps({"type": "bet_rejected", "error": "Betting is closed for this match."}))
+                        continue
 
-                    bet_ok = False
+                    # Signed-in bettors are identified only by their session token.
+                    # Without a token the bet is a guest bet (player_id 0) that never touches the database.
+                    token = str(data.get("session_token", ""))
+                    session = verify_session_token(token) if token else None
+                    if token and not session:
+                        await spec_ws.send(json.dumps({"type": "bet_rejected", "error": "Session expired. Please sign in again."}))
+                        continue
+
+                    pid = 0
+                    user = str(data.get("username", "Guest"))[:32]
                     new_bal = 1000 - amt
-                    if db and pid > 0:
+                    if session:
+                        if not db:
+                            await spec_ws.send(json.dumps({"type": "bet_rejected", "error": "Database not configured"}))
+                            continue
+                        pid = session["player_id"]
+                        user = session["username"]
                         res = db.place_bet(pid, side, amt)
-                        if res.get("success"):
-                            bet_ok = True
-                            new_bal = res.get("new_balance", 0)
-                        elif "Player not found" in res.get("error", ""):
-                            # Allow guest / simulation players in-memory escrow
-                            bet_ok = True
-                        else:
+                        if not res.get("success"):
                             await spec_ws.send(json.dumps({"type": "bet_rejected", "error": res.get("error")}))
                             continue
-                    else:
-                        bet_ok = True
+                        new_bal = res.get("new_balance", 0)
 
-                    if bet_ok:
-                        room.bets.append({
-                            "player_id": pid,
-                            "username": user,
-                            "side": side,
-                            "amount": amt
-                        })
-                        await spec_ws.send(json.dumps({"type": "bet_confirmed", "side": side, "amount": amt, "new_balance": new_bal}))
-                        m_odds, w_odds = room.get_odds()
-                        await _broadcast_room(room, json.dumps({
-                            "type": "bet_pool_updated",
-                            "meron_pool": room.get_meron_pool(),
-                            "wala_pool": room.get_wala_pool(),
-                            "meron_odds": m_odds,
-                            "wala_odds": w_odds
-                        }), include_clients=True, include_spectators=True, include_host=True)
+                    bet = {"player_id": pid, "username": user, "side": side, "amount": amt}
+                    if not room.add_bet(bet):
+                        # Match settled while the stake was being taken: return it.
+                        if pid > 0 and db:
+                            db.resolve_bets("REFUND", [bet], 1.0)
+                        await spec_ws.send(json.dumps({"type": "bet_rejected", "error": "Betting is closed for this match."}))
+                        continue
+
+                    await spec_ws.send(json.dumps({"type": "bet_confirmed", "side": side, "amount": amt, "new_balance": new_bal}))
+                    m_odds, w_odds = room.get_odds()
+                    await _broadcast_room(room, json.dumps({
+                        "type": "bet_pool_updated",
+                        "meron_pool": room.get_meron_pool(),
+                        "wala_pool": room.get_wala_pool(),
+                        "meron_odds": m_odds,
+                        "wala_odds": w_odds
+                    }), include_clients=True, include_spectators=True, include_host=True)
             except Exception as e:
                 log.error("Spectator message error: %s", e)
     except websockets.exceptions.ConnectionClosed:

@@ -5,10 +5,18 @@ Provides thread-safe in-memory sliding-window rate limiting, IP tracking,
 brute-force login defense, payload size capping, and WebSocket connection throttling.
 """
 
+import base64
+import hashlib
+import hmac
+import json
+import os
+import secrets
 import time
 import threading
 import logging
-from typing import Dict, List, Tuple
+import urllib.parse
+import urllib.request
+from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger("sabong-security")
 
@@ -220,3 +228,88 @@ class SlidingWindowRateLimiter:
 
 # Global singleton instance
 security_manager = SlidingWindowRateLimiter()
+
+
+# ---------------------------------------------------------------------------
+# Server-Issued Session Tokens
+# ---------------------------------------------------------------------------
+# Format: base64url(json claims) + "." + base64url(HMAC-SHA256(claims_b64, SESSION_SECRET))
+# The secret must be set in production; otherwise tokens stop working on every restart.
+
+SESSION_TTL_SECS = int(os.environ.get("SESSION_TTL_SECS", 7 * 24 * 3600))
+_SESSION_SECRET = os.environ.get("SESSION_SECRET", "").encode("utf-8")
+if not _SESSION_SECRET:
+    _SESSION_SECRET = secrets.token_bytes(32)
+    log.warning("SESSION_SECRET is not set. Using a random per-process secret; sessions will reset on restart.")
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+def _b64url_decode(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+def issue_session_token(player_id: int, username: str) -> str:
+    claims = {"pid": int(player_id), "usr": str(username), "exp": int(time.time()) + SESSION_TTL_SECS}
+    body = _b64url(json.dumps(claims, separators=(",", ":")).encode("utf-8"))
+    sig = _b64url(hmac.new(_SESSION_SECRET, body.encode("ascii"), hashlib.sha256).digest())
+    return f"{body}.{sig}"
+
+def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
+    """Returns {"player_id", "username"} for a valid, unexpired token, else None."""
+    try:
+        body, sig = str(token).strip().split(".")
+        expected = _b64url(hmac.new(_SESSION_SECRET, body.encode("ascii"), hashlib.sha256).digest())
+        if not hmac.compare_digest(sig, expected):
+            return None
+        claims = json.loads(_b64url_decode(body))
+        if int(claims.get("exp", 0)) < time.time() or int(claims.get("pid", 0)) <= 0:
+            return None
+        return {"player_id": int(claims["pid"]), "username": str(claims.get("usr", ""))}
+    except Exception:
+        return None
+
+def token_from_auth_header(auth_header: str) -> str:
+    if auth_header and auth_header.lower().startswith("bearer "):
+        return auth_header[7:].strip()
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# Google ID Token Verification
+# ---------------------------------------------------------------------------
+# GOOGLE_CLIENT_IDS: comma-separated OAuth client IDs whose tokens are accepted.
+
+GOOGLE_CLIENT_IDS = [c.strip() for c in os.environ.get("GOOGLE_CLIENT_IDS", "").split(",") if c.strip()]
+_GOOGLE_ISSUERS = ("accounts.google.com", "https://accounts.google.com")
+_GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+
+def verify_google_id_token(id_token: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """
+    Verifies a Google ID token with Google's tokeninfo endpoint (signature, expiry)
+    and checks audience, issuer and verified email locally.
+    Returns (claims, "") on success or (None, error_message).
+    """
+    if not GOOGLE_CLIENT_IDS:
+        return None, "Google Sign-In is not configured on this server."
+    if not id_token:
+        return None, "Missing Google ID token."
+    try:
+        url = _GOOGLE_TOKENINFO_URL + "?" + urllib.parse.urlencode({"id_token": id_token})
+        with urllib.request.urlopen(url, timeout=8) as res:
+            claims = json.loads(res.read().decode("utf-8"))
+    except Exception as e:
+        log.warning("Google ID token rejected by tokeninfo: %s", e)
+        return None, "Invalid Google credential."
+
+    if claims.get("aud") not in GOOGLE_CLIENT_IDS:
+        return None, "Google credential was issued for a different application."
+    if claims.get("iss") not in _GOOGLE_ISSUERS:
+        return None, "Invalid Google credential issuer."
+    try:
+        if int(claims.get("exp", 0)) < time.time():
+            return None, "Google credential has expired."
+    except (TypeError, ValueError):
+        return None, "Invalid Google credential."
+    if str(claims.get("email_verified", "")).lower() != "true" or not claims.get("email") or not claims.get("sub"):
+        return None, "Google account email is not verified."
+    return claims, ""
