@@ -743,7 +743,11 @@ func _on_area_input_event(_cam: Node, event: InputEvent, _pos: Vector3, _norm: V
 			var hovering_plus: bool = click_2d.distance_to(plus_center) <= 0.048
 			plus_mesh.scale = Vector3(1.15, 1.15, 1.15) if hovering_plus else Vector3.ONE
 
-	var is_primary_click_or_tap: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed)
+	# Skip the synthetic twin Godot emits for every press (touch from mouse via
+	# emulate_touch_from_mouse, mouse from touch). Handling both fired each click twice,
+	# so a discard selection toggled on and straight back off.
+	var is_emulated: bool = event.device == InputEvent.DEVICE_ID_EMULATION
+	var is_primary_click_or_tap: bool = not is_emulated and ((event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed))
 	if is_primary_click_or_tap:
 		if card_data and card_data.is_variable_cost and (is_primed or is_hovered) and _is_fighting_phase():
 			var local_pos: Vector3 = to_local(_pos) if is_inside_tree() else _pos

@@ -1047,15 +1047,14 @@ func _on_card_discard_requested(card: CardData) -> void:
 	if primed_variable_card != null and primed_variable_card == card:
 		_cancel_taya_priming()
 		return
-	if arena_controller and arena_controller.has_method("close_all_card_prediction_menus"):
-		arena_controller.close_all_card_prediction_menus()
-	if player.queued_cards.has(card):
-		player.unqueue_card(card)
-		if card.card_id == "yagami_ryuks_watch":
-			player.secret_prediction = ""
-	if player.discard_card(card):
-		_log("Discarded: [b]%s[/b] (Sent to Discard Pile)" % card.display_name)
-		_refresh_all_ui(false)
+	# Discarding only happens in the DISCARD phase, and through the phase manager so the
+	# selection counts toward the required discards. Elsewhere right-click does nothing.
+	if not phase_manager or phase_manager.current_phase != DuelPhase.Phase.DISCARD:
+		return
+	DuelLogger.action("MERON", "DISCARD_CARD_RIGHT_CLICKED", "Card: %s" % card.display_name)
+	phase_manager.select_discard_card("MERON", card)
+	_update_discard_visuals()
+	_refresh_all_ui(false)
 
 ## Unified single entry point for ending turn / confirming phase (triggered by 3D Bell or action button)
 func _on_end_turn_triggered() -> void:
