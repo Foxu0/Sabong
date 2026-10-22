@@ -64,6 +64,7 @@ var _is_waiting_for_room: bool = false
 var _host_online_timer: float = 0.0
 
 func _ready() -> void:
+	UITheme.skin(self)
 	_nm = get_node_or_null("/root/NetworkManager")
 	if _nm:
 		_nm.player_connected.connect(_on_player_connected)
@@ -98,7 +99,8 @@ func _build_ui() -> void:
 	# 1. Semi-Transparent Dark Glass Scrim (Softly reveals 3D arena behind)
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.02, 0.03, 0.06, 0.70)
+	bg.color = UITheme.backdrop_color()
+	bg.set_meta("barn_src", bg.color) # already in palette; skip the skin remap
 	add_child(bg)
 
 	var main_margin := MarginContainer.new()
@@ -123,7 +125,7 @@ func _build_ui() -> void:
 
 	# Back Button (Left: Flat style exactly matching Main Menu)
 	var back_btn := Button.new()
-	back_btn.text = "BACK TO MENU"
+	back_btn.text = "BACK"
 	back_btn.icon = UIIcons.get_icon("arrow_left", 22)
 	back_btn.custom_minimum_size = Vector2(200, 48)
 	back_btn.flat = true
@@ -154,14 +156,15 @@ func _build_ui() -> void:
 	top_bar.add_child(title_vbox)
 
 	var title_lbl := Label.new()
-	title_lbl.text = "ONLINE TOURNAMENT ARENA"
+	title_lbl.text = "ONLINE"
 	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIFontStyle.style_title(title_lbl, 48)
 	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	title_vbox.add_child(title_lbl)
 
 	var sub_lbl := Label.new()
-	sub_lbl.text = "AUTHORITATIVE 3D TURN-BASED MULTIPLAYER • GLOBAL RELAY & LAN"
+	sub_lbl.text = ""
+	sub_lbl.visible = false
 	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIFontStyle.style_subheading(sub_lbl, 16)
 	sub_lbl.add_theme_color_override("font_color", Color(0.75, 0.82, 0.95, 0.85))
@@ -196,11 +199,11 @@ func _build_ui() -> void:
 	tab_hbox.add_theme_constant_override("separation", 24)
 	tab_container.add_child(tab_hbox)
 
-	_tab_online_btn = _make_tab_btn("GLOBAL MATCHMAKING (ONLINE)", "globe")
+	_tab_online_btn = _make_tab_btn("INTERNET", "globe")
 	_tab_online_btn.pressed.connect(func(): _switch_tab("online"))
 	tab_hbox.add_child(_tab_online_btn)
 
-	_tab_lan_btn = _make_tab_btn("LOCAL NETWORK (LAN)", "lan")
+	_tab_lan_btn = _make_tab_btn("LAN", "lan")
 	_tab_lan_btn.pressed.connect(func(): _switch_tab("lan"))
 	tab_hbox.add_child(_tab_lan_btn)
 
@@ -256,14 +259,14 @@ func _build_ui() -> void:
 	footer_hbox.add_child(_spinner_holder)
 
 	_status_label = Label.new()
-	_status_label.text = "Select a battle room to join or create a new room to challenge an opponent."
+	_status_label.text = "Join a room, or host your own."
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UIFontStyle.style_body(_status_label, 15)
 	_status_label.add_theme_color_override("font_color", Color(0.80, 0.88, 1.0))
 	footer_hbox.add_child(_status_label)
 
 	var hint_lbl := Label.new()
-	hint_lbl.text = "1V1 SIMULTANEOUS TURN COMBAT • 3 TAYA ENERGY PER ROUND"
+	hint_lbl.text = ""
 	UIFontStyle.style_subheading(hint_lbl, 15)
 	hint_lbl.add_theme_color_override("font_color", Color(0.50, 0.55, 0.65))
 	footer_hbox.add_child(hint_lbl)
@@ -301,17 +304,14 @@ func _build_host_card() -> Control:
 	hdr.add_theme_constant_override("separation", 10)
 	vbox.add_child(hdr)
 
-	var plus_icon := UIIcons.create_icon_rect("plus", 22, Color.GOLD)
-	hdr.add_child(plus_icon)
-
 	var title := Label.new()
-	title.text = "CREATE BATTLE ROOM"
+	title.text = "HOST A ROOM"
 	UIFontStyle.style_title(title, 28)
 	title.add_theme_color_override("font_color", Color.GOLD)
 	hdr.add_child(title)
 
 	var desc := Label.new()
-	desc.text = "Host an authoritative match or multi-player tournament with dynamic brackets and byes."
+	desc.text = "A 1v1 duel, or a bracket for up to 16 players."
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UIFontStyle.style_body(desc, 15)
 	desc.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90, 0.85))
@@ -333,7 +333,7 @@ func _build_host_card() -> Control:
 	_mode_duel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mode_duel_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_mode_duel_btn.add_theme_stylebox_override("normal", seg_active)
-	UIIcons.setup_centered_button(_mode_duel_btn, "1V1 DUEL", "swords", 18, 16, Color.WHITE, Color.WHITE, 8)
+	UIIcons.setup_centered_button(_mode_duel_btn, "DUEL", "swords", 18, 16, Color.WHITE, Color.WHITE, 8)
 	_mode_duel_btn.pressed.connect(func(): _set_host_mode("duel"))
 	mode_hbox.add_child(_mode_duel_btn)
 
@@ -383,7 +383,7 @@ func _build_host_card() -> Control:
 	st_hbox.add_child(step_prev)
 
 	_max_players_label = Label.new()
-	_max_players_label.text = "MAX BRACKET: 8 PLAYERS"
+	_max_players_label.text = "8 PLAYERS"
 	_max_players_label.custom_minimum_size = Vector2(200, 0)
 	_max_players_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIFontStyle.style_body(_max_players_label, 14, true)
@@ -475,7 +475,7 @@ func _build_host_card() -> Control:
 	_online_code_display_box.add_child(code_vbox)
 
 	var code_desc := Label.new()
-	code_desc.text = "SHARE THIS ROOM CODE WITH YOUR OPPONENT"
+	code_desc.text = "SEND THIS CODE TO YOUR OPPONENT"
 	code_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIFontStyle.style_body(code_desc, 13, true)
 	code_desc.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90))
@@ -533,7 +533,7 @@ func _build_host_card() -> Control:
 	tr_vbox.add_child(tr_hdr)
 
 	var tr_title := Label.new()
-	tr_title.text = "TOURNAMENT CONTENDERS"
+	tr_title.text = "PLAYERS"
 	UIFontStyle.style_title(tr_title, 20)
 	tr_title.add_theme_color_override("font_color", Color.GOLD)
 	tr_hdr.add_child(tr_title)
@@ -586,11 +586,8 @@ func _build_direct_join_card() -> Control:
 	hdr.add_theme_constant_override("separation", 10)
 	vbox.add_child(hdr)
 
-	var key_icon := UIIcons.create_icon_rect("key", 22, Color(0.35, 0.80, 1.0))
-	hdr.add_child(key_icon)
-
 	var title := Label.new()
-	title.text = "DIRECT ROOM CONNECT"
+	title.text = "JOIN WITH A CODE"
 	UIFontStyle.style_title(title, 28)
 	title.add_theme_color_override("font_color", Color(0.35, 0.80, 1.0))
 	hdr.add_child(title)
@@ -602,7 +599,7 @@ func _build_direct_join_card() -> Control:
 	vbox.add_child(online_vbox)
 
 	var input_lbl := Label.new()
-	input_lbl.text = "ENTER 4-LETTER ROOM CODE"
+	input_lbl.text = "ROOM CODE"
 	UIFontStyle.style_body(input_lbl, 14, true)
 	input_lbl.add_theme_color_override("font_color", Color(0.70, 0.75, 0.85))
 	online_vbox.add_child(input_lbl)
@@ -748,7 +745,7 @@ func _step_max_players(dir: int) -> void:
 	var next_idx: int = clampi(idx + dir, 0, TOURNAMENT_PLAYER_TIERS.size() - 1)
 	_host_max_players = TOURNAMENT_PLAYER_TIERS[next_idx]
 	if _max_players_label:
-		_max_players_label.text = "MAX BRACKET: %d PLAYERS" % _host_max_players
+		_max_players_label.text = "%d PLAYERS" % _host_max_players
 
 func _build_room_browser_card() -> Control:
 	var vbox := VBoxContainer.new()
@@ -761,11 +758,8 @@ func _build_room_browser_card() -> Control:
 	hdr.custom_minimum_size = Vector2(0, 42)
 	vbox.add_child(hdr)
 
-	var users_icon := UIIcons.create_icon_rect("users", 24, Color.GOLD)
-	hdr.add_child(users_icon)
-
 	var title := Label.new()
-	title.text = "OPEN BATTLE LOBBIES"
+	title.text = "OPEN ROOMS"
 	UIFontStyle.style_title(title, 28)
 	title.add_theme_color_override("font_color", Color.GOLD)
 	hdr.add_child(title)
@@ -796,7 +790,8 @@ func _build_room_browser_card() -> Control:
 
 	# Subtitle / Hint
 	var sub := Label.new()
-	sub.text = "Select an open room to challenge or wait for incoming contenders."
+	sub.text = ""
+	sub.visible = false
 	UIFontStyle.style_body(sub, 15)
 	sub.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90, 0.85))
 	vbox.add_child(sub)
@@ -807,7 +802,7 @@ func _build_room_browser_card() -> Control:
 	vbox.add_child(table_hdr)
 
 	var col1 := Label.new()
-	col1.text = "ROOM / HOST IDENTITY"
+	col1.text = "ROOM"
 	col1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UIFontStyle.style_subheading(col1, 16)
 	col1.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
@@ -822,7 +817,7 @@ func _build_room_browser_card() -> Control:
 	table_hdr.add_child(col2)
 
 	var col3 := Label.new()
-	col3.text = "CONNECT"
+	col3.text = ""
 	col3.custom_minimum_size = Vector2(110, 0)
 	col3.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIFontStyle.style_subheading(col3, 16)
@@ -841,7 +836,7 @@ func _build_room_browser_card() -> Control:
 	_online_list_vbox.add_theme_constant_override("separation", 8)
 	scroll.add_child(_online_list_vbox)
 
-	_online_empty_label = _create_empty_state_view("No open online rooms detected.\nHost a new room or enter a direct room code to connect.")
+	_online_empty_label = _create_empty_state_view("No open rooms right now.")
 	_online_list_vbox.add_child(_online_empty_label)
 
 	# LAN Rooms VBox
@@ -851,7 +846,7 @@ func _build_room_browser_card() -> Control:
 	_lan_list_vbox.visible = false
 	scroll.add_child(_lan_list_vbox)
 
-	_lan_empty_label = _create_empty_state_view("Scanning local network for active hosts...")
+	_lan_empty_label = _create_empty_state_view("Looking for games on your network...")
 	_lan_list_vbox.add_child(_lan_empty_label)
 
 	return vbox
@@ -866,14 +861,10 @@ func _create_empty_state_view(msg: String) -> Control:
 	vbox.add_theme_constant_override("separation", 12)
 	center.add_child(vbox)
 
-	var icon := UIIcons.create_icon_rect("globe", 44, Color(0.40, 0.50, 0.65, 0.65))
-	vbox.add_child(icon)
-
 	var lbl := Label.new()
 	lbl.text = msg
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UIFontStyle.style_body(lbl, 15)
-	lbl.add_theme_color_override("font_color", Color(0.55, 0.60, 0.72))
+	UITheme.style_text(lbl, 18, UITheme.MUTED)
 	vbox.add_child(lbl)
 
 	return center
@@ -919,7 +910,7 @@ func _switch_tab(tab: String) -> void:
 			_nm.start_online_room_fetch()
 			_nm.prewarm_relay_server()
 
-		_set_status("Online Relay mode: Enter a room code or choose from open lobbies.")
+		_set_status("")
 	else:
 		_tab_lan_btn.add_theme_stylebox_override("normal", active_style)
 		_tab_lan_btn.add_theme_stylebox_override("hover", active_style)
@@ -1085,7 +1076,7 @@ func _on_online_rooms_updated(rooms: Array) -> void:
 		c.queue_free()
 
 	if rooms.is_empty():
-		_online_empty_label = _create_empty_state_view("No open online rooms detected.\nHost a new room or enter a direct room code to connect.")
+		_online_empty_label = _create_empty_state_view("No open rooms right now.")
 		_online_list_vbox.add_child(_online_empty_label)
 		return
 
@@ -1103,7 +1094,7 @@ func _on_online_rooms_updated(rooms: Array) -> void:
 		var is_live: bool = (status == "IN_PROGRESS" or cur_p >= max_p)
 		var m_odds: float = float(r.get("meron_odds", 1.95))
 		var w_odds: float = float(r.get("wala_odds", 1.95))
-		var mode_desc := "ONLINE RELAY • 1V1 DUEL" if mode == "duel" else "ONLINE RELAY • TOURNAMENT (%d/%d)" % [cur_p, max_p]
+		var mode_desc := "DUEL" if mode == "duel" else "TOURNAMENT  %d/%d" % [cur_p, max_p]
 		if specs > 0:
 			mode_desc += " • %d Spectating" % specs
 		mode_desc += " • [%.2fx vs %.2fx]" % [m_odds, w_odds]
@@ -1167,7 +1158,7 @@ func _on_host_discovered(host_info: Dictionary) -> void:
 func _on_hosts_cleared() -> void:
 	for c in _lan_list_vbox.get_children():
 		c.queue_free()
-	_lan_empty_label = _create_empty_state_view("Scanning local network for active hosts...")
+	_lan_empty_label = _create_empty_state_view("Looking for games on your network...")
 	_lan_list_vbox.add_child(_lan_empty_label)
 
 func _create_room_card(key: String, title_text: String, subtitle_text: String, on_action: Callable, status_str: String = "[ OPEN ]", status_col: Color = Color(0.3, 1.0, 0.5), action_text: String = "JOIN", action_icon: String = "arrow_right") -> Control:

@@ -33,10 +33,6 @@ var card_rest_rotations: Array[float] = []
 var current_card_scale: float = 1.0
 
 # 3D Name Stadium Banner (Arena phase notif style behind the rooster)
-var name_banner_3d: Node3D = null
-var banner_title_3d: Label3D = null
-var banner_sub_3d: Label3D = null
-var banner_badge_3d: Label3D = null
 
 # Active 3D model instance on the center stage
 var current_rooster_model: Node3D = null
@@ -62,7 +58,6 @@ func _ready() -> void:
 			_nm.match_ready.connect(_on_network_match_ready)
 			_nm.opponent_disconnected_forfeit.connect(_on_online_forfeit)
 
-	_setup_3d_name_banner()
 	_build_select_ui()
 	_spawn_initial_rooster(roosters[current_index])
 
@@ -105,88 +100,7 @@ func _update_ui_details(r: RoosterData) -> void:
 	if is_instance_valid(name_label):
 		name_label.text = r.display_name.to_upper()
 	if is_instance_valid(anime_label):
-		anime_label.text = "%s  •  HP: %d" % [r.anime_reference, r.base_hp]
-	_update_3d_name_banner(r)
-
-func _setup_3d_name_banner() -> void:
-	if is_instance_valid(name_banner_3d):
-		return
-
-	name_banner_3d = Node3D.new()
-	name_banner_3d.name = "RoosterNameBanner3D"
-	# Positioned in 3D world space behind the rooster (pedestal is at Z = 0, Y = 1.2)
-	name_banner_3d.position = Vector3(0, 2.40, -2.1)
-	add_child(name_banner_3d)
-
-	# 1. Top Badge (Anime Lore Reference) — bold uppercase (large)
-	banner_badge_3d = Label3D.new()
-	banner_badge_3d.name = "BadgeLabel3D"
-	banner_badge_3d.text = "--- DRAGON BALL (GOKU) ---"
-	banner_badge_3d.font = UIFontStyle.get_anton_font()
-	banner_badge_3d.font_size = 110
-	banner_badge_3d.outline_size = 20
-	banner_badge_3d.outline_modulate = Color(0.04, 0.04, 0.06, 0.98)
-	banner_badge_3d.modulate = Color(0.85, 0.92, 1.0, 0.95)
-	banner_badge_3d.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	banner_badge_3d.no_depth_test = false
-	banner_badge_3d.position = Vector3(0, 1.80, 0.0)
-	name_banner_3d.add_child(banner_badge_3d)
-
-	# 2. Main Giant Rooster Name — Massive Anton font uppercase matching Arena phase banner
-	banner_title_3d = Label3D.new()
-	banner_title_3d.name = "TitleLabel3D"
-	banner_title_3d.text = "HEN-GOKU"
-	banner_title_3d.font = UIFontStyle.get_anton_font()
-	banner_title_3d.font_size = 420
-	banner_title_3d.outline_size = 40
-	banner_title_3d.outline_modulate = Color(0.04, 0.04, 0.06, 0.98)
-	banner_title_3d.modulate = Color(1.0, 0.85, 0.2)
-	banner_title_3d.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	banner_title_3d.no_depth_test = false
-	banner_title_3d.position = Vector3(0, 0.60, 0.0)
-	name_banner_3d.add_child(banner_title_3d)
-
-	# 3. Subtitle / HP and Combatant details — Anton font uppercase (large)
-	banner_sub_3d = Label3D.new()
-	banner_sub_3d.name = "SubLabel3D"
-	banner_sub_3d.text = "BASE HP: 22  •  SIGNATURE COMBATANT"
-	banner_sub_3d.font = UIFontStyle.get_anton_font()
-	banner_sub_3d.font_size = 100
-	banner_sub_3d.outline_size = 18
-	banner_sub_3d.outline_modulate = Color(0.04, 0.04, 0.06, 0.98)
-	banner_sub_3d.modulate = Color(0.80, 0.88, 1.0, 0.90)
-	banner_sub_3d.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	banner_sub_3d.no_depth_test = false
-	banner_sub_3d.position = Vector3(0, -0.70, 0.0)
-	name_banner_3d.add_child(banner_sub_3d)
-
-func _update_3d_name_banner(r: RoosterData) -> void:
-	if not r:
-		return
-	_setup_3d_name_banner()
-	if not is_instance_valid(name_banner_3d):
-		return
-
-	if banner_badge_3d:
-		banner_badge_3d.text = ("--- %s ---" % r.anime_reference).to_upper()
-	if banner_title_3d:
-		banner_title_3d.text = r.display_name.to_upper()
-		banner_title_3d.modulate = Color(1.0, 0.85, 0.2)
-		var name_len := r.display_name.length()
-		if name_len > 12:
-			banner_title_3d.font_size = 340
-		elif name_len > 9:
-			banner_title_3d.font_size = 380
-		else:
-			banner_title_3d.font_size = 420
-	if banner_sub_3d:
-		banner_sub_3d.text = ("BASE HP: %d  •  SIGNATURE COMBATANT" % r.base_hp).to_upper()
-
-	# Punchy pop-in animation matching the Arena Phase Banner
-	name_banner_3d.scale = Vector3(0.6, 0.6, 0.6)
-	var tw := name_banner_3d.create_tween()
-	if tw:
-		tw.tween_property(name_banner_3d, "scale", Vector3.ONE, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		anime_label.text = "%s  ·  %d HP" % [r.anime_reference, r.base_hp]
 
 func _update_rooster_nav_ui() -> void:
 	pass
@@ -1114,16 +1028,7 @@ func _build_select_ui() -> void:
 
 	var btn_back := Button.new()
 	btn_back.text = "MAIN MENU"
-	btn_back.icon = UIIcons.get_icon("arrow_left", 20)
-	btn_back.flat = true
-	btn_back.add_theme_constant_override("h_separation", 10)
-	var empty_back := StyleBoxEmpty.new()
-	btn_back.add_theme_stylebox_override("normal", empty_back)
-	btn_back.add_theme_stylebox_override("hover", empty_back)
-	btn_back.add_theme_stylebox_override("pressed", empty_back)
-	btn_back.add_theme_color_override("font_hover_color", Color(1.0, 0.85, 0.2))
-	btn_back.add_theme_color_override("icon_hover_color", Color(1.0, 0.85, 0.2))
-	UIFontStyle.style_button(btn_back, 26)
+	UITheme.style_link(btn_back, 26)
 	btn_back.pressed.connect(func(): GameManager.change_scene("res://scenes/main_menu.tscn"))
 	top_bar.add_child(btn_back)
 
@@ -1131,52 +1036,33 @@ func _build_select_ui() -> void:
 	header_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_bar.add_child(header_spacer)
 
-	# Keep hidden header_vbox so existing name_label and anime_label references remain valid in memory
+	# Rooster name heading, centred at the top (the old 3D banner sat behind the model)
 	var header_vbox := VBoxContainer.new()
-	header_vbox.visible = false
+	header_vbox.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	header_vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	header_vbox.offset_top = 22
+	header_vbox.alignment = BoxContainer.ALIGNMENT_BEGIN
+	header_vbox.add_theme_constant_override("separation", 0)
+	header_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(header_vbox)
 
 	name_label = Label.new()
 	name_label.text = "HEN-GOKU"
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.style_title(name_label, 72, UITheme.STRAW)
 	header_vbox.add_child(name_label)
 
 	anime_label = Label.new()
-	anime_label.text = "Dragon Ball (Goku)  |  HP: 22"
+	anime_label.text = "Dragon Ball (Goku)  ·  22 HP"
+	anime_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.style_text(anime_label, 24, UITheme.CREAM, true)
+	anime_label.add_theme_constant_override("outline_size", 7)
 	header_vbox.add_child(anime_label)
 
 	var fight_btn := Button.new()
-	fight_btn.custom_minimum_size = Vector2(260, 58)
-	fight_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	
-	var fight_style := StyleBoxFlat.new()
-	fight_style.bg_color = Color(0.8, 0.12, 0.12, 0.95)
-	fight_style.border_color = Color.GOLD
-	fight_style.set_border_width_all(2)
-	fight_style.set_corner_radius_all(10)
-	fight_style.shadow_color = Color(1.0, 0.2, 0.2, 0.6)
-	fight_style.shadow_size = 14
-	fight_style.content_margin_left = 20
-	fight_style.content_margin_right = 20
-	fight_style.content_margin_top = 8
-	fight_style.content_margin_bottom = 8
-	fight_btn.add_theme_stylebox_override("normal", fight_style)
-	
-	var fight_hover := fight_style.duplicate() as StyleBoxFlat
-	fight_hover.bg_color = Color(0.95, 0.2, 0.2, 1.0)
-	fight_hover.shadow_size = 20
-	fight_btn.add_theme_stylebox_override("hover", fight_hover)
-	fight_btn.add_theme_stylebox_override("pressed", fight_hover)
-
-	UIIcons.setup_centered_button(
-		fight_btn,
-		"FIGHT!",
-		"swords",
-		26,
-		32,
-		Color(1.0, 0.95, 0.2),
-		Color.WHITE,
-		12
-	)
+	fight_btn.text = "FIGHT"
+	fight_btn.custom_minimum_size = Vector2(220, 0)
+	UITheme.style_button(fight_btn, "primary", 32, 28, 8)
 	fight_btn.pressed.connect(_confirm_and_start_battle)
 	top_bar.add_child(fight_btn)
 
@@ -1208,9 +1094,9 @@ func _build_select_ui() -> void:
 	btn_nav_prev.add_theme_stylebox_override("hover", empty_sb)
 	btn_nav_prev.add_theme_stylebox_override("pressed", empty_sb)
 	btn_nav_prev.add_theme_stylebox_override("focus", empty_sb)
-	btn_nav_prev.add_theme_color_override("icon_normal_color", Color(1.0, 0.85, 0.3, 0.85))
-	btn_nav_prev.add_theme_color_override("icon_hover_color", Color(1.0, 0.98, 0.7, 1.0))
-	btn_nav_prev.add_theme_color_override("icon_pressed_color", Color(1.0, 0.65, 0.1, 1.0))
+	btn_nav_prev.add_theme_color_override("icon_normal_color", UITheme.CREAM)
+	btn_nav_prev.add_theme_color_override("icon_hover_color", UITheme.STRAW)
+	btn_nav_prev.add_theme_color_override("icon_pressed_color", UITheme.STRAW.darkened(0.2))
 	btn_nav_prev.icon = UIIcons.get_icon("arrow_left", 72)
 	btn_nav_prev.expand_icon = true
 	btn_nav_prev.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1230,8 +1116,7 @@ func _build_select_ui() -> void:
 	var left_hint := Label.new()
 	left_hint.text = "[A]"
 	left_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UIFontStyle.style_body(left_hint, 14, true)
-	left_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.75))
+	UITheme.style_text(left_hint, 15, UITheme.MUTED, true)
 	left_box.add_child(left_hint)
 
 	# 2. Right Button (>)
@@ -1256,9 +1141,9 @@ func _build_select_ui() -> void:
 	btn_nav_next.add_theme_stylebox_override("hover", empty_sb)
 	btn_nav_next.add_theme_stylebox_override("pressed", empty_sb)
 	btn_nav_next.add_theme_stylebox_override("focus", empty_sb)
-	btn_nav_next.add_theme_color_override("icon_normal_color", Color(1.0, 0.85, 0.3, 0.85))
-	btn_nav_next.add_theme_color_override("icon_hover_color", Color(1.0, 0.98, 0.7, 1.0))
-	btn_nav_next.add_theme_color_override("icon_pressed_color", Color(1.0, 0.65, 0.1, 1.0))
+	btn_nav_next.add_theme_color_override("icon_normal_color", UITheme.CREAM)
+	btn_nav_next.add_theme_color_override("icon_hover_color", UITheme.STRAW)
+	btn_nav_next.add_theme_color_override("icon_pressed_color", UITheme.STRAW.darkened(0.2))
 	btn_nav_next.icon = UIIcons.get_icon("arrow_right", 72)
 	btn_nav_next.expand_icon = true
 	btn_nav_next.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1278,8 +1163,7 @@ func _build_select_ui() -> void:
 	var right_hint := Label.new()
 	right_hint.text = "[D]"
 	right_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UIFontStyle.style_body(right_hint, 14, true)
-	right_hint.add_theme_color_override("font_color", Color(0.85, 0.75, 0.35, 0.75))
+	UITheme.style_text(right_hint, 15, UITheme.MUTED, true)
 	right_box.add_child(right_hint)
 
 	# --- Bottom Moveset Cards Layer ---

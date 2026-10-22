@@ -84,21 +84,18 @@ func _build_menu_ui() -> void:
 	title_box.add_child(title_hbox)
 
 	title_label = Label.new()
-	title_label.text = "SABONG LEGENDS:"
-	UIFontStyle.style_title(title_label, 92)
-	title_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	title_label.text = "SABONG LEGENDS"
+	UITheme.style_title(title_label, 92, UITheme.STRAW)
 	title_hbox.add_child(title_label)
 
 	sub_title_label = Label.new()
 	sub_title_label.text = "CLUCK COCK"
-	UIFontStyle.style_title(sub_title_label, 92)
-	sub_title_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2))
+	UITheme.style_title(sub_title_label, 92, UITheme.BARN_RED_LIGHT)
 	title_hbox.add_child(sub_title_label)
 
 	subtitle_label = Label.new()
 	subtitle_label.text = "Sloppier version of the 2d one"
-	UIFontStyle.style_body(subtitle_label, 26, true)
-	subtitle_label.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0, 0.95))
+	UITheme.style_text(subtitle_label, 24, UITheme.CREAM, true)
 	title_box.add_child(subtitle_label)
 
 	# Menu Buttons List (Large, bold smooth text buttons)
@@ -107,27 +104,27 @@ func _build_menu_ui() -> void:
 	btn_vbox.add_theme_constant_override("separation", 16)
 	cam1_vbox.add_child(btn_vbox)
 
-	var btn_start := _create_menu_button("START GAME", 46, "gamepad")
+	var btn_start := _create_menu_button("PLAY", 46, "", "primary")
 	btn_start.pressed.connect(_on_start_game_pressed)
 	btn_vbox.add_child(btn_start)
 	menu_buttons.append(btn_start)
 
-	var btn_leader := _create_menu_button("LEADERBOARDS", 46, "trophy")
+	var btn_leader := _create_menu_button("LEADERBOARD", 46)
 	btn_leader.pressed.connect(_open_leaderboard_modal)
 	btn_vbox.add_child(btn_leader)
 	menu_buttons.append(btn_leader)
 
-	var btn_settings := _create_menu_button("SETTINGS", 46, "gear")
+	var btn_settings := _create_menu_button("SETTINGS", 46)
 	btn_settings.pressed.connect(_open_settings_modal)
 	btn_vbox.add_child(btn_settings)
 	menu_buttons.append(btn_settings)
 
-	var btn_credits := _create_menu_button("CREDITS", 46, "award")
+	var btn_credits := _create_menu_button("CREDITS", 46)
 	btn_credits.pressed.connect(_open_credits_modal)
 	btn_vbox.add_child(btn_credits)
 	menu_buttons.append(btn_credits)
 
-	var btn_exit := _create_menu_button("EXIT", 46, "power")
+	var btn_exit := _create_menu_button("QUIT", 46)
 	btn_exit.pressed.connect(func(): get_tree().quit())
 	btn_vbox.add_child(btn_exit)
 	menu_buttons.append(btn_exit)
@@ -136,8 +133,7 @@ func _build_menu_ui() -> void:
 	ver_label = Label.new()
 	ver_label.text = "v1.0.0"
 	ver_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	UIFontStyle.style_body(ver_label, 15)
-	ver_label.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85, 0.75))
+	UITheme.style_text(ver_label, 15, UITheme.MUTED)
 	cam1_container.add_child(ver_label)
 
 
@@ -164,16 +160,15 @@ func _build_menu_ui() -> void:
 	cam2_vbox.add_child(mode_title_box)
 
 	mode_title = Label.new()
-	mode_title.text = "CHOOSE GAME MODE"
-	UIFontStyle.style_title(mode_title, 84)
-	mode_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	mode_title.text = "PICK A MODE"
+	UITheme.style_title(mode_title, 84, UITheme.STRAW)
 	mode_title_box.add_child(mode_title)
 
 	var mode_subtitle := Label.new()
-	mode_subtitle.text = "Select your battlefield challenge"
+	mode_subtitle.text = ""
+	mode_subtitle.custom_minimum_size = Vector2(0, 34)
 	mode_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UIFontStyle.style_body(mode_subtitle, 26, true)
-	mode_subtitle.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0, 0.9))
+	UITheme.style_text(mode_subtitle, 22, UITheme.CREAM, true)
 	mode_title_box.add_child(mode_subtitle)
 
 	# Menu Buttons List (Organized into ONLINE PLAY and OFFLINE PLAY)
@@ -182,7 +177,7 @@ func _build_menu_ui() -> void:
 	mode_vbox.add_theme_constant_override("separation", 16)
 	cam2_vbox.add_child(mode_vbox)
 
-	var default_hint := "Select your battlefield challenge"
+	var default_hint := ""
 
 	# =========================================================================
 	# SECTION 1: ONLINE PLAY
@@ -191,19 +186,19 @@ func _build_menu_ui() -> void:
 	online_sec.add_theme_constant_override("separation", 8)
 	mode_vbox.add_child(online_sec)
 
-	var online_hdr := _create_mode_section_header("ONLINE PLAY", "MULTIPLAYER / RANKED", Color(0.35, 0.85, 1.0))
+	var online_hdr := _create_mode_section_header("ONLINE")
 	online_sec.add_child(online_hdr)
 
 	var online_btn_box := VBoxContainer.new()
 	online_btn_box.add_theme_constant_override("separation", 6)
 	online_sec.add_child(online_btn_box)
 
-	btn_online_menu = _create_menu_button("TOURNAMENT (ONLINE MATCHMAKING)", 42, "globe")
+	btn_online_menu = _create_menu_button("ONLINE TOURNAMENT", 42, "", "primary")
 	btn_online_menu.mouse_entered.connect(func():
 		if AuthManager and AuthManager.is_logged_in:
-			mode_subtitle.text = "Compete against live duelists in ranked online multiplayer over LAN or Global Relay."
+			mode_subtitle.text = "Play real people, over the internet or your LAN."
 		else:
-			mode_subtitle.text = "Sign In Required! Create an account or sign in to join online tournaments & rank ladder."
+			mode_subtitle.text = "Sign in first. Online games count toward your rank."
 	)
 	btn_online_menu.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_online_menu.pressed.connect(func(): _launch_game_mode(GameManager.GameMode.TOURNAMENT_ONLINE))
@@ -217,25 +212,25 @@ func _build_menu_ui() -> void:
 	offline_sec.add_theme_constant_override("separation", 8)
 	mode_vbox.add_child(offline_sec)
 
-	var offline_hdr := _create_mode_section_header("OFFLINE PLAY", "SINGLEPLAYER / PRACTICE", Color(1.0, 0.82, 0.25))
+	var offline_hdr := _create_mode_section_header("OFFLINE")
 	offline_sec.add_child(offline_hdr)
 
 	var offline_btn_box := VBoxContainer.new()
 	offline_btn_box.add_theme_constant_override("separation", 6)
 	offline_sec.add_child(offline_btn_box)
 
-	var btn_casual := _create_menu_button("CASUAL (TOURNAMENT WITH BOTS)", 42, "bot")
+	var btn_casual := _create_menu_button("TOURNAMENT VS BOTS", 42)
 	btn_casual.mouse_entered.connect(func():
-		mode_subtitle.text = "Battle through an 8-rooster anime bracket elimination ladder in 3D bird's-eye view."
+		mode_subtitle.text = "An 8-rooster knockout bracket against the CPU."
 	)
 	btn_casual.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_casual.pressed.connect(func(): _launch_game_mode(GameManager.GameMode.CASUAL_BOTS))
 	offline_btn_box.add_child(btn_casual)
 	menu_buttons.append(btn_casual)
 
-	var btn_1v1 := _create_menu_button("1V1 QUICK DUEL", 42, "swords")
+	var btn_1v1 := _create_menu_button("QUICK DUEL", 42)
 	btn_1v1.mouse_entered.connect(func():
-		mode_subtitle.text = "Jump straight into a single cockpit duel against a random anime rooster."
+		mode_subtitle.text = "One fight against a random rooster."
 	)
 	btn_1v1.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
 	btn_1v1.pressed.connect(func(): _launch_game_mode(GameManager.GameMode.VERSUS_1V1))
@@ -249,16 +244,7 @@ func _build_menu_ui() -> void:
 	nav_box.add_theme_constant_override("separation", 8)
 	mode_vbox.add_child(nav_box)
 
-	var nav_sep := ColorRect.new()
-	nav_sep.custom_minimum_size = Vector2(220, 1)
-	nav_sep.color = Color(1.0, 1.0, 1.0, 0.14)
-	nav_box.add_child(nav_sep)
-
-	var btn_back := _create_menu_button("BACK TO MAIN MENU", 38, "arrow_left")
-	btn_back.mouse_entered.connect(func():
-		mode_subtitle.text = "Return to the main title screen."
-	)
-	btn_back.mouse_exited.connect(func(): mode_subtitle.text = default_hint)
+	var btn_back := _create_menu_button("BACK", 38, "", "link")
 	btn_back.pressed.connect(_on_back_to_menu_pressed)
 	nav_box.add_child(btn_back)
 	menu_buttons.append(btn_back)
@@ -268,79 +254,31 @@ func _build_menu_ui() -> void:
 	_update_online_button_state()
 	_update_responsive_layout()
 
-func _create_mode_section_header(title_text: String, tag_text: String, accent_color: Color) -> Control:
-	var container := HBoxContainer.new()
-	container.add_theme_constant_override("separation", 12)
-	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	# Decorative vertical accent bar
-	var bar := ColorRect.new()
-	bar.custom_minimum_size = Vector2(4, 18)
-	bar.color = accent_color
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	container.add_child(bar)
-
-	# Section Title Label
+func _create_mode_section_header(title_text: String) -> Control:
 	var lbl := Label.new()
 	lbl.text = title_text
-	UIFontStyle.style_subheading(lbl, 20)
-	lbl.add_theme_color_override("font_color", accent_color)
-	lbl.add_theme_constant_override("outline_size", 0)
-	container.add_child(lbl)
-
-	# Category tag pill
-	if not tag_text.is_empty():
-		var tag_panel := PanelContainer.new()
-		var t_style := StyleBoxFlat.new()
-		t_style.bg_color = accent_color.lerp(Color.BLACK, 0.78)
-		t_style.border_color = accent_color
-		t_style.set_border_width_all(1)
-		t_style.set_corner_radius_all(6)
-		t_style.content_margin_left = 10
-		t_style.content_margin_right = 10
-		t_style.content_margin_top = 2
-		t_style.content_margin_bottom = 2
-		tag_panel.add_theme_stylebox_override("panel", t_style)
-
-		var tag_lbl := Label.new()
-		tag_lbl.text = tag_text
-		UIFontStyle.style_body(tag_lbl, 11, true)
-		tag_lbl.add_theme_color_override("font_color", accent_color)
-		tag_lbl.add_theme_constant_override("outline_size", 0)
-		tag_panel.add_child(tag_lbl)
-		container.add_child(tag_panel)
-
-	# Decorative horizontal extending line
-	var line := ColorRect.new()
-	line.custom_minimum_size = Vector2(80, 1)
-	line.color = accent_color.lerp(Color.BLACK, 0.5)
-	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	container.add_child(line)
-
-	return container
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UITheme.style_caption(lbl, 20)
+	return lbl
 
 
-func _create_menu_button(label_text: String, font_sz: int = 46, icon_name: String = "") -> Button:
+## kind: "primary" (red block), "secondary" (wood block) or "link" (plain text)
+func _create_menu_button(label_text: String, font_sz: int = 46, _icon_name: String = "", kind: String = "secondary") -> Button:
 	var btn := Button.new()
 	btn.text = label_text
-	if not icon_name.is_empty():
-		btn.icon = UIIcons.get_icon(icon_name, int(font_sz * 0.70))
-		btn.add_theme_constant_override("h_separation", 18)
-		btn.add_theme_color_override("icon_normal_color", Color(0.95, 0.95, 1.0))
-		btn.add_theme_color_override("icon_hover_color", Color(1.0, 0.85, 0.2))
-		btn.add_theme_color_override("icon_pressed_color", Color(0.9, 0.7, 0.1))
-	btn.flat = true
-	btn.custom_minimum_size = Vector2(0, 56)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	UIFontStyle.style_button(btn, font_sz)
-
-	var empty_style := StyleBoxEmpty.new()
-	btn.add_theme_stylebox_override("normal", empty_style)
-	btn.add_theme_stylebox_override("hover", empty_style)
-	btn.add_theme_stylebox_override("pressed", empty_style)
-	btn.add_theme_stylebox_override("focus", empty_style)
+	btn.set_meta("menu_kind", kind)
+	_apply_menu_button_style(btn, font_sz)
 	return btn
+
+func _apply_menu_button_style(btn: Button, font_sz: int) -> void:
+	var kind: String = btn.get_meta("menu_kind", "secondary")
+	if kind == "link":
+		UITheme.style_link(btn, int(font_sz * 0.8))
+		btn.custom_minimum_size = Vector2(0, 0)
+		return
+	UITheme.style_button(btn, kind, int(font_sz * 0.8), 22, 6)
+	btn.custom_minimum_size = Vector2(maxf(360.0, font_sz * 9.0), 0)
 
 
 func _on_viewport_size_changed() -> void:
@@ -369,17 +307,17 @@ func _update_responsive_layout() -> void:
 		cam2_margin.add_theme_constant_override("margin_right", int(margin_x))
 
 	if is_instance_valid(title_label):
-		UIFontStyle.style_title(title_label, title_sz)
+		UITheme.style_title(title_label, title_sz, UITheme.STRAW)
 	if is_instance_valid(sub_title_label):
-		UIFontStyle.style_title(sub_title_label, title_sz)
+		UITheme.style_title(sub_title_label, title_sz, UITheme.BARN_RED_LIGHT)
 	if is_instance_valid(subtitle_label):
-		UIFontStyle.style_body(subtitle_label, sub_sz, true)
+		UITheme.style_text(subtitle_label, sub_sz, UITheme.CREAM, true)
 	if is_instance_valid(mode_title):
-		UIFontStyle.style_title(mode_title, int(title_sz * 0.90))
+		UITheme.style_title(mode_title, int(title_sz * 0.90), UITheme.STRAW)
 
 	for btn in menu_buttons:
 		if is_instance_valid(btn):
-			UIFontStyle.style_button(btn, btn_sz)
+			_apply_menu_button_style(btn, btn_sz)
 
 	if is_instance_valid(ver_label):
 		ver_label.offset_left = margin_x
@@ -459,6 +397,8 @@ func _open_online_lobby() -> void:
 	cam2_container.visible = false
 	var lobby := LobbyUI.new()
 	lobby.set_anchors_preset(Control.PRESET_FULL_RECT)
+	if profile_bar and is_instance_valid(profile_bar):
+		profile_bar.visible = false
 	lobby.modulate.a = 0.0
 	ui_layer.add_child(lobby)
 	# Fade lobby in
@@ -467,6 +407,8 @@ func _open_online_lobby() -> void:
 	
 	# Restore game mode selection when returning from lobby
 	lobby.tree_exited.connect(func():
+		if profile_bar and is_instance_valid(profile_bar):
+			profile_bar.visible = true
 		if cam2_container and is_instance_valid(cam2_container):
 			cam2_container.visible = true
 			cam2_container.modulate.a = 1.0
@@ -516,7 +458,7 @@ func _create_modal_base(title: String, width: float = 640, height: float = 520) 
 	
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.01, 0.02, 0.04, 0.65)
+	backdrop.color = UITheme.backdrop_color()
 	backdrop.mouse_filter = Control.MOUSE_FILTER_PASS
 	overlay.add_child(backdrop)
 	
@@ -537,18 +479,7 @@ func _create_modal_base(title: String, width: float = 640, height: float = 520) 
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.custom_minimum_size = Vector2(final_w, final_h)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.05, 0.08, 0.84)
-	style.border_color = Color(1.0, 1.0, 1.0, 0.12)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(14)
-	style.content_margin_left = 32
-	style.content_margin_right = 32
-	style.content_margin_top = 22
-	style.content_margin_bottom = 22
-	style.shadow_color = Color(0, 0, 0, 0.45)
-	style.shadow_size = 24
-	panel.add_theme_stylebox_override("panel", style)
+	panel.add_theme_stylebox_override("panel", UITheme.panel(UITheme.WOOD_DARK, 32, 22))
 	center.add_child(panel)
 	
 	var vbox := VBoxContainer.new()
@@ -562,21 +493,13 @@ func _create_modal_base(title: String, width: float = 640, height: float = 520) 
 	
 	var title_lbl := Label.new()
 	title_lbl.text = title
-	UIFontStyle.style_title(title_lbl, 32)
-	title_lbl.add_theme_color_override("font_color", Color.WHITE)
+	UITheme.style_title(title_lbl, 34, UITheme.STRAW)
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title_lbl)
 	
 	var close_btn := Button.new()
 	close_btn.text = "CLOSE"
-	close_btn.flat = true
-	var empty_style := StyleBoxEmpty.new()
-	close_btn.add_theme_stylebox_override("normal", empty_style)
-	close_btn.add_theme_stylebox_override("hover", empty_style)
-	close_btn.add_theme_stylebox_override("pressed", empty_style)
-	close_btn.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90))
-	close_btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	UIFontStyle.style_button(close_btn, 22)
+	UITheme.style_link(close_btn, 22)
 	close_btn.pressed.connect(func():
 		_pending_launch_online_after_login = false
 		_dismiss_modal()
@@ -586,6 +509,9 @@ func _create_modal_base(title: String, width: float = 640, height: float = 520) 
 	overlay.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(overlay, "modulate:a", 1.0, 0.18).set_trans(Tween.TRANS_QUAD)
+
+	# Modal contents are built by each caller; convert their styling as they are added
+	UITheme.skin(panel)
 	
 	return vbox
 
@@ -612,11 +538,9 @@ func _update_online_button_state() -> void:
 	if not btn_online_menu or not is_instance_valid(btn_online_menu):
 		return
 	if AuthManager and AuthManager.is_logged_in:
-		btn_online_menu.text = "TOURNAMENT (ONLINE MATCHMAKING)"
-		btn_online_menu.icon = UIIcons.get_icon("globe", 30)
+		btn_online_menu.text = "ONLINE TOURNAMENT"
 	else:
-		btn_online_menu.text = "TOURNAMENT (ONLINE - SIGN IN REQUIRED)"
-		btn_online_menu.icon = UIIcons.get_icon("lock", 30)
+		btn_online_menu.text = "ONLINE TOURNAMENT (SIGN IN)"
 
 func _show_rank_up_toast(new_tier: String) -> void:
 	var toast := PanelContainer.new()
@@ -700,16 +624,7 @@ func _update_profile_chip() -> void:
 
 	if is_logged:
 		var chip_panel := PanelContainer.new()
-		var ps := StyleBoxFlat.new()
-		ps.bg_color = Color(0.08, 0.10, 0.16, 0.88)
-		ps.border_color = Color(1.0, 1.0, 1.0, 0.22)
-		ps.set_border_width_all(1)
-		ps.set_corner_radius_all(10)
-		ps.content_margin_left = 14
-		ps.content_margin_right = 16
-		ps.content_margin_top = 6
-		ps.content_margin_bottom = 6
-		ps.shadow_size = 0
+		var ps := UITheme.panel(UITheme.WOOD_DARK, 14, 6)
 		chip_panel.add_theme_stylebox_override("panel", ps)
 
 		var chip_hbox := HBoxContainer.new()
@@ -719,44 +634,23 @@ func _update_profile_chip() -> void:
 
 		var badge := PanelContainer.new()
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var b_style := StyleBoxFlat.new()
-		b_style.bg_color = tier_color.lerp(Color.BLACK, 0.70)
-		b_style.border_color = tier_color
-		b_style.set_border_width_all(1)
-		b_style.set_corner_radius_all(8)
-		b_style.content_margin_left = 12
-		b_style.content_margin_right = 12
-		b_style.content_margin_top = 4
-		b_style.content_margin_bottom = 4
+		var b_style := UITheme.inset(tier_color.lerp(UITheme.INK, 0.55), 10)
 		badge.add_theme_stylebox_override("panel", b_style)
 		chip_hbox.add_child(badge)
 
 		var badge_lbl := Label.new()
 		badge_lbl.text = current_tier.to_upper()
-		UIFontStyle.style_body(badge_lbl, 16, true)
-		badge_lbl.add_theme_color_override("font_color", tier_color)
-		badge_lbl.add_theme_constant_override("outline_size", 0)
+		UITheme.style_text(badge_lbl, 16, tier_color.lightened(0.25), true)
 		badge.add_child(badge_lbl)
 
 		var name_lbl := Label.new()
 		name_lbl.text = current_user
-		UIFontStyle.style_body(name_lbl, 17, true)
-		name_lbl.add_theme_color_override("font_color", Color.WHITE)
+		UITheme.style_text(name_lbl, 18, UITheme.CREAM, true)
 		chip_hbox.add_child(name_lbl)
-
-		var div_lbl := Label.new()
-		div_lbl.text = "|"
-		UIFontStyle.style_body(div_lbl, 16)
-		div_lbl.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
-		chip_hbox.add_child(div_lbl)
-
-		var c_icon := UIIcons.create_icon_rect("coin", 18, Color(1.0, 0.85, 0.25))
-		chip_hbox.add_child(c_icon)
 
 		var coin_lbl := Label.new()
 		coin_lbl.text = "%s TAYA" % _format_number(current_taya)
-		UIFontStyle.style_body(coin_lbl, 17, true)
-		coin_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
+		UITheme.style_text(coin_lbl, 18, UITheme.STRAW, true)
 		chip_hbox.add_child(coin_lbl)
 
 		# Transparent button overlay for smooth clicking and hover highlight
@@ -766,10 +660,12 @@ func _update_profile_chip() -> void:
 		chip_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		chip_btn.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 		chip_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		var hover_ps := ps.duplicate()
-		hover_ps.bg_color = Color(0.14, 0.18, 0.26, 0.94)
-		hover_ps.border_color = Color(1.0, 1.0, 1.0, 0.50)
-		hover_ps.shadow_size = 0
+		# Hover only outlines the chip so its text stays visible underneath
+		var hover_ps := StyleBoxFlat.new()
+		hover_ps.draw_center = false
+		hover_ps.border_color = UITheme.STRAW
+		hover_ps.set_border_width_all(3)
+		hover_ps.set_meta("barn", true)
 		chip_btn.add_theme_stylebox_override("hover", hover_ps)
 		chip_btn.add_theme_stylebox_override("pressed", hover_ps)
 		chip_btn.pressed.connect(func(): _open_account_modal())
@@ -779,43 +675,8 @@ func _update_profile_chip() -> void:
 
 	else:
 		var btn_auth := Button.new()
-		btn_auth.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn_auth.custom_minimum_size = Vector2(200, 42)
-
-		# Clean, simple dark card with subtle 1px border and no loud neon outline or shadow
-		var a_style := StyleBoxFlat.new()
-		a_style.bg_color = Color(0.08, 0.10, 0.16, 0.88)
-		a_style.border_color = Color(1.0, 1.0, 1.0, 0.22)
-		a_style.set_border_width_all(1)
-		a_style.set_corner_radius_all(10)
-		a_style.content_margin_left = 18
-		a_style.content_margin_right = 18
-		a_style.shadow_size = 0
-		btn_auth.add_theme_stylebox_override("normal", a_style)
-
-		var a_hover := a_style.duplicate()
-		a_hover.bg_color = Color(0.14, 0.18, 0.26, 0.94)
-		a_hover.border_color = Color(1.0, 1.0, 1.0, 0.50)
-		btn_auth.add_theme_stylebox_override("hover", a_hover)
-
-		var a_pressed := a_style.duplicate()
-		a_pressed.bg_color = Color(0.05, 0.07, 0.11, 0.96)
-		a_pressed.border_color = Color(1.0, 1.0, 1.0, 0.15)
-		btn_auth.add_theme_stylebox_override("pressed", a_pressed)
-
-		btn_auth.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-
-		# Clean centered button with white user icon and clean readable label
-		UIIcons.setup_centered_button(
-			btn_auth,
-			"SIGN IN / REGISTER",
-			"user",
-			18,
-			14,
-			Color.WHITE,
-			Color.WHITE,
-			8
-		)
+		btn_auth.text = "SIGN IN"
+		UITheme.style_button(btn_auth, "accent", 20, 20, 4)
 
 		btn_auth.pressed.connect(func(): _open_account_modal("", "login"))
 		hbox.add_child(btn_auth)
@@ -939,7 +800,7 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 	var is_logged: bool = AuthManager and AuthManager.is_logged_in
 	var modal_w: float = 980.0 if is_logged else 720.0
 	var modal_h: float = 680.0 if not required_banner.is_empty() else (580.0 if is_logged else 650.0)
-	var vbox := _create_modal_base("PLAYER ACCOUNT & IDENTITY", modal_w, modal_h)
+	var vbox := _create_modal_base("ACCOUNT", modal_w, modal_h)
 
 	if not required_banner.is_empty():
 		var warn_box := PanelContainer.new()
@@ -1162,7 +1023,7 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		btn_show_ranks.add_theme_stylebox_override("hover", bsr_h)
 		btn_show_ranks.add_theme_stylebox_override("pressed", bsr_h)
 		btn_show_ranks.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		UIIcons.setup_centered_button(btn_show_ranks, "VIEW ALL 7 RANK CARDS", "crown", 18, 14, Color.WHITE, Color.WHITE)
+		UIIcons.setup_centered_button(btn_show_ranks, "SEE ALL RANKS", "crown", 18, 14, Color.WHITE, Color.WHITE)
 		btn_show_ranks.pressed.connect(func(): _open_rank_cards_modal())
 		action_row.add_child(btn_show_ranks)
 
@@ -1206,7 +1067,7 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		btn_view_ranks_tab.add_theme_stylebox_override("hover", bvr_h)
 		btn_view_ranks_tab.add_theme_stylebox_override("pressed", bvr_h)
 		btn_view_ranks_tab.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		UIIcons.setup_centered_button(btn_view_ranks_tab, "VIEW ALL 7 PRESTIGE RANK CARDS", "crown", 18, 14, Color.WHITE, Color.WHITE)
+		UIIcons.setup_centered_button(btn_view_ranks_tab, "SEE ALL RANKS", "crown", 18, 14, Color.WHITE, Color.WHITE)
 		btn_view_ranks_tab.pressed.connect(func(): _open_rank_cards_modal())
 		vbox.add_child(btn_view_ranks_tab)
 
@@ -1219,7 +1080,7 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		tab_btn_reg.custom_minimum_size = Vector2(0, 46)
 		tab_btn_reg.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		tab_btn_reg.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		var reg_tab_ui := UIIcons.setup_centered_button(tab_btn_reg, "CREATE NEW ACCOUNT", "user_plus", 18, 15, Color.GOLD, Color.WHITE)
+		var reg_tab_ui := UIIcons.setup_centered_button(tab_btn_reg, "CREATE ACCOUNT", "user_plus", 18, 15, Color.GOLD, Color.WHITE)
 		tab_hbox.add_child(tab_btn_reg)
 
 		var tab_btn_log := Button.new()
@@ -1227,7 +1088,7 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		tab_btn_log.custom_minimum_size = Vector2(0, 46)
 		tab_btn_log.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		tab_btn_log.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		var log_tab_ui := UIIcons.setup_centered_button(tab_btn_log, "SIGN IN / LOGIN", "log_in", 18, 15, Color(0.7, 0.75, 0.85), Color.WHITE)
+		var log_tab_ui := UIIcons.setup_centered_button(tab_btn_log, "SIGN IN", "log_in", 18, 15, Color(0.7, 0.75, 0.85), Color.WHITE)
 		tab_hbox.add_child(tab_btn_log)
 
 		# ScrollContainer to accommodate OTP fields smoothly on all displays
@@ -1308,7 +1169,7 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 
 		# --- REGISTER TAB ---
 		var reg_sub := Label.new()
-		reg_sub.text = "Choose your fighter username, verify your email, and receive 500 starter Taya coins in the SILVER tier."
+		reg_sub.text = "New accounts start with 500 Taya."
 		reg_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		UIFontStyle.style_body(reg_sub, 14)
 		reg_sub.add_theme_color_override("font_color", Color(0.80, 0.85, 0.95, 0.85))
@@ -1320,20 +1181,20 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		reg_panel.add_child(reg_grid)
 
 		var u_lbl := Label.new()
-		u_lbl.text = "FIGHTER USERNAME *"
+		u_lbl.text = "USERNAME"
 		UIFontStyle.style_body(u_lbl, 13, true)
 		u_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		u_lbl.add_theme_constant_override("outline_size", 0)
 		reg_grid.add_child(u_lbl)
 
 		var reg_user_edit := LineEdit.new()
-		reg_user_edit.placeholder_text = "Fighter name (3-20 letters, numbers, underscores)"
+		reg_user_edit.placeholder_text = "3-20 letters, numbers or _"
 		reg_user_edit.custom_minimum_size = Vector2(0, 44)
 		UIFontStyle.style_line_edit(reg_user_edit, 16)
 		reg_grid.add_child(reg_user_edit)
 
 		var em_lbl := Label.new()
-		em_lbl.text = "EMAIL ADDRESS (OTP VERIFICATION REQUIRED) *"
+		em_lbl.text = "EMAIL"
 		UIFontStyle.style_body(em_lbl, 13, true)
 		em_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		em_lbl.add_theme_constant_override("outline_size", 0)
@@ -1361,38 +1222,38 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		email_row.add_child(btn_send_reg_otp)
 
 		var otp_lbl := Label.new()
-		otp_lbl.text = "VERIFICATION CODE (OTP) *"
+		otp_lbl.text = "CODE FROM EMAIL"
 		UIFontStyle.style_body(otp_lbl, 13, true)
 		otp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		otp_lbl.add_theme_constant_override("outline_size", 0)
 		reg_grid.add_child(otp_lbl)
 
 		var reg_otp_edit := LineEdit.new()
-		reg_otp_edit.placeholder_text = "Enter 6-digit code sent to your email"
+		reg_otp_edit.placeholder_text = "6 digits"
 		reg_otp_edit.max_length = 6
 		reg_otp_edit.custom_minimum_size = Vector2(0, 44)
 		UIFontStyle.style_line_edit(reg_otp_edit, 16)
 		reg_grid.add_child(reg_otp_edit)
 
 		var p_lbl := Label.new()
-		p_lbl.text = "PASSWORD (MIN. 6 CHARACTERS) *"
+		p_lbl.text = "PASSWORD"
 		UIFontStyle.style_body(p_lbl, 13, true)
 		p_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		p_lbl.add_theme_constant_override("outline_size", 0)
 		reg_grid.add_child(p_lbl)
 
-		var reg_pass_data := _create_password_input_row("Create a secure password")
+		var reg_pass_data := _create_password_input_row("6+ characters")
 		var reg_pass_edit: LineEdit = reg_pass_data["edit"]
 		reg_grid.add_child(reg_pass_data["row"])
 
 		var cp_lbl := Label.new()
-		cp_lbl.text = "CONFIRM PASSWORD *"
+		cp_lbl.text = "PASSWORD AGAIN"
 		UIFontStyle.style_body(cp_lbl, 13, true)
 		cp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		cp_lbl.add_theme_constant_override("outline_size", 0)
 		reg_grid.add_child(cp_lbl)
 
-		var reg_confirm_data := _create_password_input_row("Re-enter your password")
+		var reg_confirm_data := _create_password_input_row("Type it again")
 		var reg_confirm_edit: LineEdit = reg_confirm_data["edit"]
 		reg_grid.add_child(reg_confirm_data["row"])
 
@@ -1522,13 +1383,13 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		log_grid.add_child(lu_lbl)
 
 		var log_user_edit := LineEdit.new()
-		log_user_edit.placeholder_text = "Your registered username or email"
+		log_user_edit.placeholder_text = "Username or email"
 		log_user_edit.custom_minimum_size = Vector2(0, 44)
 		UIFontStyle.style_line_edit(log_user_edit, 16)
 		log_grid.add_child(log_user_edit)
 
 		var lp_lbl := Label.new()
-		lp_lbl.text = "PASSWORD *"
+		lp_lbl.text = "PASSWORD"
 		UIFontStyle.style_body(lp_lbl, 13, true)
 		lp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		lp_lbl.add_theme_constant_override("outline_size", 0)
@@ -1646,21 +1507,21 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		forgot_email_row.add_child(btn_send_forgot_otp)
 
 		var fo_lbl := Label.new()
-		fo_lbl.text = "VERIFICATION CODE (OTP) *"
+		fo_lbl.text = "CODE FROM EMAIL"
 		UIFontStyle.style_body(fo_lbl, 13, true)
 		fo_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		fo_lbl.add_theme_constant_override("outline_size", 0)
 		forgot_grid.add_child(fo_lbl)
 
 		var forgot_otp_edit := LineEdit.new()
-		forgot_otp_edit.placeholder_text = "6-digit code sent to your email"
+		forgot_otp_edit.placeholder_text = "6 digits"
 		forgot_otp_edit.max_length = 6
 		forgot_otp_edit.custom_minimum_size = Vector2(0, 44)
 		UIFontStyle.style_line_edit(forgot_otp_edit, 16)
 		forgot_grid.add_child(forgot_otp_edit)
 
 		var fnp_lbl := Label.new()
-		fnp_lbl.text = "NEW PASSWORD (MIN. 6 CHARACTERS) *"
+		fnp_lbl.text = "NEW PASSWORD (6+ CHARACTERS)"
 		UIFontStyle.style_body(fnp_lbl, 13, true)
 		fnp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		fnp_lbl.add_theme_constant_override("outline_size", 0)
@@ -1671,7 +1532,7 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		forgot_grid.add_child(forgot_pass_data["row"])
 
 		var fcp_lbl := Label.new()
-		fcp_lbl.text = "CONFIRM NEW PASSWORD *"
+		fcp_lbl.text = "PASSWORD AGAIN"
 		UIFontStyle.style_body(fcp_lbl, 13, true)
 		fcp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 		fcp_lbl.add_theme_constant_override("outline_size", 0)
@@ -1829,7 +1690,7 @@ func _get_next_tier_info(taya: int) -> Dictionary:
 		return {"min": 20000, "max": 20000, "text": "MAX TIER: GRANDMASTER (Apex Champion)"}
 
 func _open_rank_cards_modal(origin: String = "account") -> void:
-	var vbox := _create_modal_base("PRESTIGE RANK LADDER & CARDS", 1180, 640)
+	var vbox := _create_modal_base("RANKS", 1180, 640)
 
 	var sub_row := HBoxContainer.new()
 	sub_row.add_theme_constant_override("separation", 16)
@@ -2017,14 +1878,14 @@ func _open_rank_cards_modal(origin: String = "account") -> void:
 	bot_row.add_child(btn_back)
 
 func _open_leaderboard_modal() -> void:
-	var vbox := _create_modal_base("COCKPIT LEADERBOARDS", 900, 640)
+	var vbox := _create_modal_base("LEADERBOARD", 900, 640)
 
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 16)
 	vbox.add_child(desc_row)
 
 	var desc := Label.new()
-	desc.text = "Real-time TiDB Cloud Standings • Ranked strictly by Taya Points"
+	desc.text = "Ranked by Taya."
 	UIFontStyle.style_body(desc, 16)
 	desc.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9, 0.8))
 	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2044,7 +1905,7 @@ func _open_leaderboard_modal() -> void:
 	btn_show_tiers.add_theme_stylebox_override("hover", bst_hover)
 	btn_show_tiers.add_theme_stylebox_override("pressed", bst_hover)
 	btn_show_tiers.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	UIIcons.setup_centered_button(btn_show_tiers, "RANK TIERS & CARDS", "crown", 16, 13, Color.WHITE, Color.WHITE)
+	UIIcons.setup_centered_button(btn_show_tiers, "RANKS", "crown", 16, 13, Color.WHITE, Color.WHITE)
 	btn_show_tiers.pressed.connect(func(): _open_rank_cards_modal())
 	desc_row.add_child(btn_show_tiers)
 
@@ -2065,7 +1926,7 @@ func _open_leaderboard_modal() -> void:
 	th.add_child(th_rank)
 
 	var th_name := Label.new()
-	th_name.text = "PLAYER IDENTITY"
+	th_name.text = "PLAYER"
 	th_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UIFontStyle.style_subheading(th_name, 15)
 	th_name.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
@@ -2131,7 +1992,7 @@ func _open_leaderboard_modal() -> void:
 
 		if arr.is_empty():
 			var emp := Label.new()
-			emp.text = "No champions recorded yet. Play ranked matches to take the throne!"
+			emp.text = "Nobody on the board yet."
 			UIFontStyle.style_body(emp, 18)
 			emp.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
 			rows_vbox.add_child(emp)
@@ -2221,7 +2082,7 @@ func _open_leaderboard_modal() -> void:
 	http.request(url)
 
 func _open_settings_modal() -> void:
-	var vbox := _create_modal_base("SETTINGS & PREFERENCES", 760, 580)
+	var vbox := _create_modal_base("SETTINGS", 760, 580)
 
 	# Tab Buttons (Audio vs Graphics)
 	var tab_bar := HBoxContainer.new()
@@ -2231,12 +2092,12 @@ func _open_settings_modal() -> void:
 
 	var btn_audio_tab := Button.new()
 	btn_audio_tab.custom_minimum_size = Vector2(240, 44)
-	UIIcons.setup_centered_button(btn_audio_tab, "AUDIO SETTINGS", "volume", 20, 18, Color.WHITE, Color.WHITE)
+	UIIcons.setup_centered_button(btn_audio_tab, "AUDIO", "volume", 20, 18, Color.WHITE, Color.WHITE)
 	tab_bar.add_child(btn_audio_tab)
 
 	var btn_gfx_tab := Button.new()
 	btn_gfx_tab.custom_minimum_size = Vector2(280, 44)
-	UIIcons.setup_centered_button(btn_gfx_tab, "GRAPHICS & PERFORMANCE", "zap", 20, 18, Color(0.7, 0.7, 0.8), Color.WHITE)
+	UIIcons.setup_centered_button(btn_gfx_tab, "GRAPHICS", "zap", 20, 18, Color(0.7, 0.7, 0.8), Color.WHITE)
 	tab_bar.add_child(btn_gfx_tab)
 
 	# Scroll Container for settings content
@@ -2593,7 +2454,7 @@ func _open_settings_modal() -> void:
 	_switch_settings_tab.call(true)
 
 func _open_credits_modal() -> void:
-	var vbox := _create_modal_base("GAME CREDITS", 860, 680)
+	var vbox := _create_modal_base("CREDITS", 860, 680)
 	
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2609,7 +2470,7 @@ func _open_credits_modal() -> void:
 	rtext.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UIFontStyle.style_rich_text(rtext, 17)
 	rtext.text = """[center][b][color=#FFFFFF]SABONG LEGENDS: CLUCK COCK[/color][/b]
-[i][color=#A0B4C8]The Ultimate 3D Anime Cockpit Card Battler[/color][/i][/center]
+[/center]
 
 [color=#FFFFFF][b]3D VOXEL ASSETS & ENVIRONMENT[/b][/color]
 • [b]Max Parata[/b] — Voxel Country Side 3D Props Pack (Environment & Scenery)

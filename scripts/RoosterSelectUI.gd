@@ -39,6 +39,7 @@ func _ready() -> void:
 		p2_selected = roosters[randi() % roosters.size()]
 
 	_build_ui()
+	UITheme.skin(self)
 	_update_character_details(p1_selected)
 
 func _build_ui() -> void:

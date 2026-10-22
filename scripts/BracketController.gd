@@ -38,6 +38,7 @@ func _ready() -> void:
 	_setup_3d_containers()
 	_ensure_tournament_initialized()
 	_build_ui()
+	UITheme.skin(ui_layer)
 	_render_bracket()
 
 	var mm = get_node_or_null("/root/MusicManager")
@@ -385,7 +386,7 @@ func _build_ui() -> void:
 
 	# Back button
 	var btn_back := Button.new()
-	btn_back.text = "BACK TO MENU"
+	btn_back.text = "BACK"
 	btn_back.icon = UIIcons.get_icon("arrow_left", 16)
 	btn_back.custom_minimum_size = Vector2(160, 42)
 	UIFontStyle.style_button(btn_back, 15)
@@ -410,13 +411,14 @@ func _build_ui() -> void:
 	top_hbox.add_child(title_vbox)
 
 	title_label = Label.new()
-	title_label.text = "SABONG CHAMPIONSHIP BRACKET"
+	title_label.text = "BRACKET"
 	UIFontStyle.style_title(title_label, 26)
 	title_label.add_theme_color_override("font_color", Color.GOLD)
 	title_vbox.add_child(title_label)
 
 	var subtitle_lbl := Label.new()
-	subtitle_lbl.text = "3D BIRD'S-EYE ARENA • SINGLE & DOUBLE ELIMINATION"
+	subtitle_lbl.text = ""
+	subtitle_lbl.visible = false
 	UIFontStyle.style_body(subtitle_lbl, 12, true)
 	subtitle_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90, 0.85))
 	title_vbox.add_child(subtitle_lbl)
@@ -472,7 +474,7 @@ func _build_ui() -> void:
 	bot_hbox.add_child(btn_bot_prev)
 
 	bot_count_label = Label.new()
-	bot_count_label.text = "7 BOTS (8 DUELISTS)"
+	bot_count_label.text = "8 PLAYERS"
 	bot_count_label.custom_minimum_size = Vector2(190, 0)
 	bot_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIFontStyle.style_body(bot_count_label, 14, true)
@@ -560,7 +562,7 @@ func _build_ui() -> void:
 	btn_start_match.add_theme_stylebox_override("hover", sm_hover)
 	UIIcons.setup_centered_button(
 		btn_start_match,
-		"ENTER ARENA (START MATCH)",
+		"START MATCH",
 		"swords",
 		20,
 		17,
@@ -613,7 +615,7 @@ func _update_hud() -> void:
 	else:
 		var fmt_str: String = "SINGLE ELIMINATION" if TournamentManager.current_format == TournamentManager.Format.SINGLE_ELIMINATION else "DOUBLE ELIMINATION"
 		btn_format_toggle.text = "FORMAT: %s" % fmt_str
-		bot_count_label.text = "%d BOTS (%d DUELISTS)" % [TournamentManager.current_bot_count, TournamentManager.current_bot_count + 1]
+		bot_count_label.text = "%d PLAYERS" % (TournamentManager.current_bot_count + 1)
 
 	var any_completed: bool = false
 	for m in TournamentManager.matches:
@@ -653,7 +655,7 @@ func _update_hud() -> void:
 			else:
 				btn_start_match.disabled = true
 		else:
-			UIIcons.update_centered_button(btn_start_match, "ENTER ARENA (START MATCH)", "swords", 20)
+			UIIcons.update_centered_button(btn_start_match, "START MATCH", "swords", 20)
 			btn_start_match.disabled = (active_match["rooster_1"] == null or active_match["rooster_2"] == null)
 
 func _on_bot_count_prev() -> void:

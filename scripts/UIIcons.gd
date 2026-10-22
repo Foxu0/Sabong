@@ -163,7 +163,8 @@ static func setup_centered_button(btn: Button, text: String, icon_name: String =
 	btn.add_child(hbox)
 
 	var icon_rect: TextureRect = null
-	if not icon_name.is_empty():
+	# Icons only on icon-only buttons; labelled buttons stay plain text
+	if not icon_name.is_empty() and text.strip_edges().is_empty():
 		icon_rect = create_icon_rect(icon_name, icon_size, normal_color)
 		icon_rect.name = "ButtonIcon"
 		hbox.add_child(icon_rect)

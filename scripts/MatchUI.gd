@@ -62,6 +62,7 @@ func _ready() -> void:
 			universal_cards.append(c)
 
 	_build_cockpit_ui()
+	UITheme.skin(self)
 
 	if GameManager and (GameManager.is_spectator or GameManager.is_online_match):
 		_build_live_odds_bar()
@@ -191,16 +192,9 @@ func _build_cockpit_ui() -> void:
 
 	# Top-left Menu button
 	var btn_menu := Button.new()
-	btn_menu.text = "≡ MENU"
+	btn_menu.text = "MENU"
 	btn_menu.position = Vector2(28, 22)
-	btn_menu.custom_minimum_size = Vector2(130, 46)
-	UIFontStyle.style_button(btn_menu, 18)
-	var m_style := StyleBoxFlat.new()
-	m_style.bg_color = Color(0.08, 0.1, 0.15, 0.85)
-	m_style.border_color = Color.GOLD
-	m_style.set_border_width_all(1)
-	m_style.set_corner_radius_all(8)
-	btn_menu.add_theme_stylebox_override("normal", m_style)
+	UITheme.style_button(btn_menu, "secondary", 20, 18, 4)
 	btn_menu.pressed.connect(_on_pause_menu_pressed)
 	add_child(btn_menu)
 
