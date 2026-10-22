@@ -692,36 +692,26 @@ static func _format_number(n: int) -> String:
 			result = "," + result
 	return result
 
+## Disables btn for cooldown_secs, showing "LABEL (Ns)", then restores it.
+## (A plain await loop: the old self-rescheduling lambda captured itself as null and stopped after one tick.)
 func _start_otp_cooldown(btn: Button, default_text: String, cooldown_secs: int = 30) -> void:
 	btn.disabled = true
-	var remaining: int = cooldown_secs
-	var lbl_node: Label = btn.get_node_or_null("CenteredButtonContent/ButtonLabel") as Label
-	if lbl_node:
-		lbl_node.text = "%ds" % remaining
-	else:
-		btn.text = "%ds" % remaining
-
-	var timer := get_tree().create_timer(1.0)
-	var tick: Callable
-	tick = func():
-		remaining -= 1
+	for remaining in range(cooldown_secs, 0, -1):
 		if not is_instance_valid(btn):
 			return
-		if remaining > 0:
-			var l: Label = btn.get_node_or_null("CenteredButtonContent/ButtonLabel") as Label
-			if l:
-				l.text = "%ds" % remaining
-			else:
-				btn.text = "%ds" % remaining
-			get_tree().create_timer(1.0).timeout.connect(tick)
-		else:
-			btn.disabled = false
-			var l: Label = btn.get_node_or_null("CenteredButtonContent/ButtonLabel") as Label
-			if l:
-				l.text = default_text
-			else:
-				btn.text = default_text
-	timer.timeout.connect(tick)
+		_set_button_label(btn, "%s (%ds)" % [default_text, remaining])
+		await get_tree().create_timer(1.0).timeout
+	if is_instance_valid(btn):
+		btn.disabled = false
+		_set_button_label(btn, default_text)
+
+## Sets a button's text, including buttons built with UIIcons.setup_centered_button.
+func _set_button_label(btn: Button, text: String) -> void:
+	var lbl := btn.get_node_or_null("CenteredButtonContent/ButtonLabel") as Label
+	if lbl:
+		lbl.text = text
+	else:
+		btn.text = text
 
 func _create_password_input_row(placeholder: String) -> Dictionary:
 	var row := HBoxContainer.new()
@@ -795,6 +785,58 @@ func _create_password_input_row(placeholder: String) -> Dictionary:
 	row.add_child(eye_btn)
 
 	return {"row": row, "edit": edit, "button": eye_btn}
+
+func _form_label(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	UITheme.style_caption(lbl, 16, UITheme.CREAM)
+	return lbl
+
+func _form_input(placeholder: String) -> LineEdit:
+	var edit := LineEdit.new()
+	edit.placeholder_text = placeholder
+	edit.custom_minimum_size = Vector2(0, 44)
+	UITheme.style_input(edit, 17)
+	return edit
+
+func _form_status_label() -> Label:
+	var lbl := Label.new()
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.visible = false
+	UITheme.style_text(lbl, 16, UITheme.CREAM, true)
+	return lbl
+
+## kind: "info" (cream), "ok" (green) or "error" (red). Empty text hides the label.
+func _set_form_status(lbl: Label, text: String, kind: String) -> void:
+	lbl.text = text
+	lbl.visible = not text.is_empty()
+	var col := UITheme.CREAM
+	if kind == "ok":
+		col = Color("9cc861")
+	elif kind == "error":
+		col = Color("f08a70")
+	lbl.add_theme_color_override("font_color", col)
+
+func _is_valid_email(em: String) -> bool:
+	return RegEx.create_from_string("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").search(em) != null
+
+## Waits for whichever of the two signals fires first, disconnects both, then calls
+## on_done(ok, payload). Handlers live in a Dictionary because lambdas copy plain locals
+## when created, so a handler could not otherwise refer to itself to disconnect.
+func _await_auth_result(ok_signal: Signal, fail_signal: Signal, on_done: Callable) -> void:
+	var handlers := {}
+	handlers["finish"] = func(ok: bool, payload) -> void:
+		if ok_signal.is_connected(handlers["ok"]):
+			ok_signal.disconnect(handlers["ok"])
+		if fail_signal.is_connected(handlers["fail"]):
+			fail_signal.disconnect(handlers["fail"])
+		on_done.call(ok, payload)
+	handlers["ok"] = func(a = null, _b = null) -> void:
+		handlers["finish"].call(true, a)
+	handlers["fail"] = func(err = "") -> void:
+		handlers["finish"].call(false, err)
+	ok_signal.connect(handlers["ok"])
+	fail_signal.connect(handlers["fail"])
 
 func _open_account_modal(required_banner: String = "", default_tab: String = "register") -> void:
 	var is_logged: bool = AuthManager and AuthManager.is_logged_in
@@ -1168,198 +1210,155 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		s_btn_hover.bg_color = Color(1.0, 1.0, 1.0, 0.15)
 
 		# --- REGISTER TAB ---
+		# Two steps so nothing hides below the fold: details first, then the emailed code.
+		var reg_details := VBoxContainer.new()
+		reg_details.add_theme_constant_override("separation", 8)
+		reg_panel.add_child(reg_details)
+
+		var reg_code := VBoxContainer.new()
+		reg_code.add_theme_constant_override("separation", 10)
+		reg_code.visible = false
+		reg_panel.add_child(reg_code)
+
+		# Step 1: account details
 		var reg_sub := Label.new()
 		reg_sub.text = "New accounts start with 500 Taya."
-		reg_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		UIFontStyle.style_body(reg_sub, 14)
-		reg_sub.add_theme_color_override("font_color", Color(0.80, 0.85, 0.95, 0.85))
-		reg_sub.add_theme_constant_override("outline_size", 0)
-		reg_panel.add_child(reg_sub)
+		UITheme.style_text(reg_sub, 15, UITheme.MUTED)
+		reg_details.add_child(reg_sub)
 
-		var reg_grid := VBoxContainer.new()
-		reg_grid.add_theme_constant_override("separation", 8)
-		reg_panel.add_child(reg_grid)
+		reg_details.add_child(_form_label("USERNAME"))
+		var reg_user_edit := _form_input("3-20 letters, numbers or _")
+		reg_details.add_child(reg_user_edit)
 
-		var u_lbl := Label.new()
-		u_lbl.text = "USERNAME"
-		UIFontStyle.style_body(u_lbl, 13, true)
-		u_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
-		u_lbl.add_theme_constant_override("outline_size", 0)
-		reg_grid.add_child(u_lbl)
+		reg_details.add_child(_form_label("EMAIL"))
+		var reg_email_edit := _form_input("yourname@example.com")
+		reg_details.add_child(reg_email_edit)
 
-		var reg_user_edit := LineEdit.new()
-		reg_user_edit.placeholder_text = "3-20 letters, numbers or _"
-		reg_user_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(reg_user_edit, 16)
-		reg_grid.add_child(reg_user_edit)
-
-		var em_lbl := Label.new()
-		em_lbl.text = "EMAIL"
-		UIFontStyle.style_body(em_lbl, 13, true)
-		em_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
-		em_lbl.add_theme_constant_override("outline_size", 0)
-		reg_grid.add_child(em_lbl)
-
-		var email_row := HBoxContainer.new()
-		email_row.add_theme_constant_override("separation", 8)
-		reg_grid.add_child(email_row)
-
-		var reg_email_edit := LineEdit.new()
-		reg_email_edit.placeholder_text = "yourname@example.com"
-		reg_email_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		reg_email_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(reg_email_edit, 16)
-		email_row.add_child(reg_email_edit)
-
-		var btn_send_reg_otp := Button.new()
-		btn_send_reg_otp.custom_minimum_size = Vector2(130, 44)
-		btn_send_reg_otp.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn_send_reg_otp.add_theme_stylebox_override("normal", s_btn_style)
-		btn_send_reg_otp.add_theme_stylebox_override("hover", s_btn_hover)
-		btn_send_reg_otp.add_theme_stylebox_override("pressed", s_btn_hover)
-		btn_send_reg_otp.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		UIIcons.setup_centered_button(btn_send_reg_otp, "SEND CODE", "mail", 16, 13, Color.WHITE, Color.WHITE)
-		email_row.add_child(btn_send_reg_otp)
-
-		var otp_lbl := Label.new()
-		otp_lbl.text = "CODE FROM EMAIL"
-		UIFontStyle.style_body(otp_lbl, 13, true)
-		otp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
-		otp_lbl.add_theme_constant_override("outline_size", 0)
-		reg_grid.add_child(otp_lbl)
-
-		var reg_otp_edit := LineEdit.new()
-		reg_otp_edit.placeholder_text = "6 digits"
-		reg_otp_edit.max_length = 6
-		reg_otp_edit.custom_minimum_size = Vector2(0, 44)
-		UIFontStyle.style_line_edit(reg_otp_edit, 16)
-		reg_grid.add_child(reg_otp_edit)
-
-		var p_lbl := Label.new()
-		p_lbl.text = "PASSWORD"
-		UIFontStyle.style_body(p_lbl, 13, true)
-		p_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
-		p_lbl.add_theme_constant_override("outline_size", 0)
-		reg_grid.add_child(p_lbl)
-
+		reg_details.add_child(_form_label("PASSWORD"))
 		var reg_pass_data := _create_password_input_row("6+ characters")
 		var reg_pass_edit: LineEdit = reg_pass_data["edit"]
-		reg_grid.add_child(reg_pass_data["row"])
+		reg_details.add_child(reg_pass_data["row"])
 
-		var cp_lbl := Label.new()
-		cp_lbl.text = "PASSWORD AGAIN"
-		UIFontStyle.style_body(cp_lbl, 13, true)
-		cp_lbl.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
-		cp_lbl.add_theme_constant_override("outline_size", 0)
-		reg_grid.add_child(cp_lbl)
-
+		reg_details.add_child(_form_label("PASSWORD AGAIN"))
 		var reg_confirm_data := _create_password_input_row("Type it again")
 		var reg_confirm_edit: LineEdit = reg_confirm_data["edit"]
-		reg_grid.add_child(reg_confirm_data["row"])
+		reg_details.add_child(reg_confirm_data["row"])
 
-		var reg_status_lbl := Label.new()
-		reg_status_lbl.text = ""
-		reg_status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		UIFontStyle.style_body(reg_status_lbl, 14)
-		reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
-		reg_status_lbl.add_theme_constant_override("outline_size", 0)
-		reg_panel.add_child(reg_status_lbl)
+		var btn_reg_next := Button.new()
+		btn_reg_next.text = "NEXT: EMAIL ME A CODE"
+		UITheme.style_button(btn_reg_next, "primary", 22)
+		reg_details.add_child(btn_reg_next)
+
+		var reg_details_status := _form_status_label()
+		reg_details.add_child(reg_details_status)
+
+		# Step 2: code from email
+		var reg_code_info := Label.new()
+		reg_code_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		UITheme.style_text(reg_code_info, 17, UITheme.CREAM)
+		reg_code.add_child(reg_code_info)
+
+		reg_code.add_child(_form_label("CODE FROM EMAIL"))
+		var reg_otp_edit := _form_input("6 digits")
+		reg_otp_edit.max_length = 6
+		reg_code.add_child(reg_otp_edit)
 
 		var btn_submit_reg := Button.new()
-		btn_submit_reg.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn_submit_reg.custom_minimum_size = Vector2(0, 48)
-		var sreg_style := StyleBoxFlat.new()
-		sreg_style.bg_color = Color(1.0, 1.0, 1.0, 0.12)
-		sreg_style.border_color = Color(1.0, 1.0, 1.0, 0.35)
-		sreg_style.set_border_width_all(1)
-		sreg_style.set_corner_radius_all(8)
-		btn_submit_reg.add_theme_stylebox_override("normal", sreg_style)
-		var sreg_hover := sreg_style.duplicate()
-		sreg_hover.bg_color = Color(1.0, 1.0, 1.0, 0.20)
-		btn_submit_reg.add_theme_stylebox_override("hover", sreg_hover)
-		btn_submit_reg.add_theme_stylebox_override("pressed", sreg_hover)
-		btn_submit_reg.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		UIIcons.setup_centered_button(btn_submit_reg, "CREATE ACCOUNT & ENTER ARENA", "user_plus", 20, 16, Color.WHITE, Color.WHITE)
-		reg_panel.add_child(btn_submit_reg)
+		btn_submit_reg.text = "CREATE ACCOUNT"
+		UITheme.style_button(btn_submit_reg, "primary", 22)
+		reg_code.add_child(btn_submit_reg)
 
-		# OTP send button handler
-		btn_send_reg_otp.pressed.connect(func():
-			var em := reg_email_edit.text.strip_edges()
-			if em.is_empty() or not ("@" in em and "." in em):
-				reg_status_lbl.text = "Please enter a valid email address first."
-				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
+		var reg_code_status := _form_status_label()
+		reg_code.add_child(reg_code_status)
+
+		var reg_code_links := HBoxContainer.new()
+		reg_code_links.add_theme_constant_override("separation", 28)
+		reg_code.add_child(reg_code_links)
+
+		var btn_reg_back := Button.new()
+		btn_reg_back.text = "BACK"
+		UITheme.style_link(btn_reg_back, 18)
+		reg_code_links.add_child(btn_reg_back)
+
+		var btn_reg_resend := Button.new()
+		btn_reg_resend.text = "RESEND CODE"
+		UITheme.style_link(btn_reg_resend, 18)
+		reg_code_links.add_child(btn_reg_resend)
+
+		# Every field is checked before any email goes out
+		var validate_reg_details := func() -> String:
+			if not RegEx.create_from_string("^[A-Za-z0-9_]{3,20}$").search(reg_user_edit.text.strip_edges()):
+				return "Username must be 3-20 letters, numbers or underscores."
+			if not _is_valid_email(reg_email_edit.text.strip_edges()):
+				return "Enter a valid email address."
+			if reg_pass_edit.text.length() < 6:
+				return "Password needs at least 6 characters."
+			if reg_pass_edit.text != reg_confirm_edit.text:
+				return "The two passwords don't match."
+			return ""
+
+		btn_reg_next.pressed.connect(func():
+			var problem: String = validate_reg_details.call()
+			if problem != "":
+				_set_form_status(reg_details_status, problem, "error")
 				return
-			reg_status_lbl.text = "Sending verification code..."
-			reg_status_lbl.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-			btn_send_reg_otp.disabled = true
-
-			var on_reg_otp_sent: Callable
-			var on_reg_otp_fail: Callable
-			on_reg_otp_sent = func(msg: String, _dev_otp: String):
-				if AuthManager.otp_sent.is_connected(on_reg_otp_sent): AuthManager.otp_sent.disconnect(on_reg_otp_sent)
-				if AuthManager.otp_failed.is_connected(on_reg_otp_fail): AuthManager.otp_failed.disconnect(on_reg_otp_fail)
-				reg_status_lbl.text = msg
-				reg_status_lbl.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
-				_start_otp_cooldown(btn_send_reg_otp, "SEND CODE", 30)
+			var em := reg_email_edit.text.strip_edges()
+			btn_reg_next.disabled = true
+			btn_reg_next.text = "SENDING..."
+			_set_form_status(reg_details_status, "Sending a code to %s..." % em, "info")
+			_await_auth_result(AuthManager.otp_sent, AuthManager.otp_failed, func(ok: bool, payload):
+				btn_reg_next.disabled = false
+				btn_reg_next.text = "NEXT: EMAIL ME A CODE"
+				if not ok:
+					_set_form_status(reg_details_status, "Code not sent. %s" % str(payload), "error")
+					return
+				_set_form_status(reg_details_status, "", "info")
+				reg_details.visible = false
+				reg_code.visible = true
+				reg_code_info.text = "We sent a 6-digit code to %s.\nCheck your inbox and spam folder." % em
+				_set_form_status(reg_code_status, "", "info")
+				reg_otp_edit.text = ""
 				reg_otp_edit.grab_focus()
-
-			on_reg_otp_fail = func(err: String):
-				if AuthManager.otp_sent.is_connected(on_reg_otp_sent): AuthManager.otp_sent.disconnect(on_reg_otp_sent)
-				if AuthManager.otp_failed.is_connected(on_reg_otp_fail): AuthManager.otp_failed.disconnect(on_reg_otp_fail)
-				reg_status_lbl.text = str(err)
-				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
-				btn_send_reg_otp.disabled = false
-
-			AuthManager.otp_sent.connect(on_reg_otp_sent)
-			AuthManager.otp_failed.connect(on_reg_otp_fail)
+				_start_otp_cooldown(btn_reg_resend, "RESEND CODE", 30)
+			)
 			AuthManager.send_otp(em, "register")
 		)
 
-		btn_submit_reg.pressed.connect(func():
-			var u := reg_user_edit.text.strip_edges()
+		btn_reg_resend.pressed.connect(func():
 			var em := reg_email_edit.text.strip_edges()
+			btn_reg_resend.disabled = true
+			_set_form_status(reg_code_status, "Sending a new code...", "info")
+			_await_auth_result(AuthManager.otp_sent, AuthManager.otp_failed, func(ok: bool, payload):
+				if ok:
+					_set_form_status(reg_code_status, "New code sent to %s." % em, "ok")
+					_start_otp_cooldown(btn_reg_resend, "RESEND CODE", 30)
+				else:
+					btn_reg_resend.disabled = false
+					_set_form_status(reg_code_status, "Code not sent. %s" % str(payload), "error")
+			)
+			AuthManager.send_otp(em, "register")
+		)
+
+		btn_reg_back.pressed.connect(func():
+			reg_code.visible = false
+			reg_details.visible = true
+		)
+
+		btn_submit_reg.pressed.connect(func():
 			var otp := reg_otp_edit.text.strip_edges()
-			var p := reg_pass_edit.text.strip_edges()
-			var cp := reg_confirm_edit.text.strip_edges()
-			if u.length() < 3:
-				reg_status_lbl.text = "Username must be at least 3 characters long."
-				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
+			if not RegEx.create_from_string("^[0-9]{6}$").search(otp):
+				_set_form_status(reg_code_status, "Enter the 6-digit code from the email.", "error")
 				return
-			if em.is_empty() or not ("@" in em and "." in em):
-				reg_status_lbl.text = "A valid email address is required to register."
-				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
-				return
-			if otp.length() < 6:
-				reg_status_lbl.text = "Please enter the 6-digit verification code sent to your email."
-				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
-				return
-			if p.length() < 6:
-				reg_status_lbl.text = "Password must be at least 6 characters long."
-				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
-				return
-			if p != cp:
-				reg_status_lbl.text = "Passwords do not match. Please re-enter."
-				reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
-				return
-			reg_status_lbl.text = "Verifying code and creating account in TiDB Cloud..."
-			reg_status_lbl.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
 			btn_submit_reg.disabled = true
-			if AuthManager:
-				var on_succ: Callable
-				var on_fail: Callable
-				on_succ = func(_d):
-					if AuthManager.login_succeeded.is_connected(on_succ): AuthManager.login_succeeded.disconnect(on_succ)
-					if AuthManager.login_failed.is_connected(on_fail): AuthManager.login_failed.disconnect(on_fail)
+			_set_form_status(reg_code_status, "Creating your account...", "info")
+			_await_auth_result(AuthManager.login_succeeded, AuthManager.login_failed, func(ok: bool, payload):
+				btn_submit_reg.disabled = false
+				if ok:
 					_dismiss_modal()
-				on_fail = func(err):
-					if AuthManager.login_succeeded.is_connected(on_succ): AuthManager.login_succeeded.disconnect(on_succ)
-					if AuthManager.login_failed.is_connected(on_fail): AuthManager.login_failed.disconnect(on_fail)
-					reg_status_lbl.text = str(err)
-					reg_status_lbl.add_theme_color_override("font_color", Color.SALMON)
-					btn_submit_reg.disabled = false
-				AuthManager.login_succeeded.connect(on_succ)
-				AuthManager.login_failed.connect(on_fail)
-				AuthManager.register_account(u, em, p, otp)
+				else:
+					_set_form_status(reg_code_status, str(payload), "error")
+			)
+			AuthManager.register_account(reg_user_edit.text.strip_edges(), reg_email_edit.text.strip_edges(), reg_pass_edit.text, otp)
 		)
 
 		# --- LOGIN TAB ---
@@ -1551,13 +1550,8 @@ func _open_account_modal(required_banner: String = "", default_tab: String = "re
 		forgot_panel.add_child(forgot_status_lbl)
 
 		var btn_submit_reset := Button.new()
-		btn_submit_reset.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn_submit_reset.custom_minimum_size = Vector2(0, 48)
-		btn_submit_reset.add_theme_stylebox_override("normal", sreg_style)
-		btn_submit_reset.add_theme_stylebox_override("hover", sreg_hover)
-		btn_submit_reset.add_theme_stylebox_override("pressed", sreg_hover)
-		btn_submit_reset.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		UIIcons.setup_centered_button(btn_submit_reset, "RESET PASSWORD & SIGN IN", "lock", 20, 16, Color.WHITE, Color.WHITE)
+		btn_submit_reset.text = "RESET PASSWORD & SIGN IN"
+		UITheme.style_button(btn_submit_reset, "primary", 20)
 		forgot_panel.add_child(btn_submit_reset)
 
 		var btn_back_to_log := Button.new()

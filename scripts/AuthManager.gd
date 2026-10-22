@@ -33,6 +33,8 @@ var _http_request: HTTPRequest = null
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_http_request = HTTPRequest.new()
+	# Render's free tier can take ~50s to wake up; give up after that instead of hanging
+	_http_request.timeout = 60.0
 	add_child(_http_request)
 	_http_request.request_completed.connect(_on_http_request_completed)
 
@@ -299,14 +301,22 @@ func get_api_base_url() -> String:
 	return API_BASE_URL
 
 func _post_json(endpoint: String, payload: Dictionary, extra_headers: Array = []) -> void:
-	_current_endpoint = endpoint
 	var url := get_api_base_url() + endpoint
 	var headers := ["Content-Type: application/json"]
 	headers.append_array(extra_headers)
 	var body := JSON.stringify(payload)
 	var err := _http_request.request(url, headers, HTTPClient.METHOD_POST, body)
-	if err != OK:
-		login_failed.emit("Failed to send network request (error %d)" % err)
+	if err == OK:
+		_current_endpoint = endpoint
+		return
+	# Report the failure to this endpoint's listeners without hijacking a request still in flight
+	var in_flight := _current_endpoint
+	_current_endpoint = endpoint
+	if err == ERR_BUSY:
+		_handle_http_error("Still waiting on the last request. Try again in a moment.")
+	else:
+		_handle_http_error("Couldn't send the request (error %d)." % err)
+	_current_endpoint = in_flight
 
 func _on_http_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	var response_text := body.get_string_from_utf8()
@@ -332,6 +342,8 @@ func _on_http_request_completed(_result: int, response_code: int, _headers: Pack
 				_handle_http_error(err_msg)
 	else:
 		var err_msg := "Server returned error %d" % response_code
+		if response_code == 0:
+			err_msg = "Couldn't reach the server. Check your internet and try again."
 		if json_res is Dictionary and json_res.has("error"):
 			err_msg = str(json_res["error"])
 		_handle_http_error(err_msg)
