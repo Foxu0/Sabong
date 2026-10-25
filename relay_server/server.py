@@ -103,6 +103,11 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "").replace(" ", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", f"Sabong Roosters <{SMTP_USER}>")
 
+# External mailer (mailer/ on Vercel): sends over Gmail SMTP for us, reached via HTTPS,
+# because Render's free plan blocks outbound SMTP ports. Tried before Resend/SMTP when set.
+MAILER_URL = os.environ.get("MAILER_URL", "")
+MAILER_SECRET = os.environ.get("MAILER_SECRET", "")
+
 # WebSocket concurrency tracker per IP
 _active_ws_per_ip: Dict[str, int] = {}
 _ws_ip_lock = threading.Lock()
@@ -366,6 +371,34 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str, a
 
         email_sent = False
         resend_err_detail = ""
+        otp_subject = "Sabong Roosters - Email Verification Code" if purpose == "register" else "Sabong Roosters - Password Reset Code"
+        otp_text = (
+            f"Your Sabong Roosters code is:\n\n"
+            f"    {otp_code}\n\n"
+            f"It expires in 10 minutes. If you didn't ask for it, ignore this email."
+        )
+
+        # Priority 0: external mailer over HTTPS
+        if MAILER_URL and MAILER_SECRET:
+            try:
+                import urllib.request
+                mail_req = urllib.request.Request(
+                    MAILER_URL,
+                    data=json.dumps({"to": email, "subject": otp_subject, "text": otp_text}).encode("utf-8"),
+                    headers={"Authorization": f"Bearer {MAILER_SECRET}", "Content-Type": "application/json"},
+                )
+                with urllib.request.urlopen(mail_req, timeout=25) as res_obj:
+                    if 200 <= res_obj.status < 300:
+                        log.info("[AUTH OTP] Dispatched email via external mailer to %s", email)
+                        email_sent = True
+            except Exception as mailer_ex:
+                detail = ""
+                if hasattr(mailer_ex, "read"):
+                    try:
+                        detail = json.loads(mailer_ex.read().decode()).get("error", "")
+                    except Exception:
+                        pass
+                log.warning("[AUTH OTP] External mailer failed: %s %s", mailer_ex, detail)
 
         # Priority 1: Resend HTTP REST API (Port 443 - 100% reliable on Render & cloud hosts)
         if RESEND_API_KEY:
@@ -456,6 +489,9 @@ def handle_api_post(parsed_path: str, payload: Dict[str, Any], client_ip: str, a
                 log.error("[AUTH OTP] SMTP dispatch failed: %s", ex)
 
         if not email_sent:
+            # Nothing went out, so don't make the player wait out the resend cooldown
+            with _otp_lock:
+                _otp_store.pop(email, None)
             err_msg = resend_err_detail or "Could not dispatch verification email. Please check that your email address is correct."
             return (400, {"success": False, "error": err_msg}, 0)
 
