@@ -241,7 +241,33 @@ func _apply_lights_shadow_state() -> void:
 	if not tree or not tree.current_scene: return
 	for node in tree.current_scene.find_children("*", "Light3D", true, false):
 		if node is Light3D:
-			node.shadow_enabled = shadows_enabled
+			_configure_light_shadow(node)
+	for node in tree.current_scene.find_children("*", "GeometryInstance3D", true, false):
+		_configure_backdrop_shadow(node)
+
+## Shadows only from the first directional light in each group (the others are fill
+## lights), limited to the play area with 2 cascades. Every shadow-casting directional
+## light redraws the whole scene once per cascade, which dominated the frame.
+const SHADOW_MAX_DISTANCE := 40.0
+func _configure_light_shadow(light: Light3D) -> void:
+	var casts := shadows_enabled
+	if light is DirectionalLight3D and light.get_parent():
+		for sibling in light.get_parent().get_children():
+			if sibling is DirectionalLight3D:
+				casts = casts and sibling == light
+				break
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		light.directional_shadow_max_distance = SHADOW_MAX_DISTANCE
+	light.shadow_enabled = casts
+
+## Background scenery that is far too dense to also draw into the shadow maps.
+const SHADOWLESS_MESH_SOURCES := ["PineFluffy"]
+func _configure_backdrop_shadow(geo: Node) -> void:
+	if geo is MeshInstance3D and geo.mesh:
+		for src in SHADOWLESS_MESH_SOURCES:
+			if src in geo.mesh.resource_path:
+				geo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				return
 
 func set_shadows_enabled(enabled: bool) -> void:
 	shadows_enabled = enabled
@@ -289,7 +315,9 @@ func _on_node_added(node: Node) -> void:
 	if node is WorldEnvironment and node.environment:
 		apply_to_environment(node.environment)
 	elif node is Light3D:
-		node.shadow_enabled = shadows_enabled
+		_configure_light_shadow(node)
+	elif node is MeshInstance3D:
+		_configure_backdrop_shadow(node)
 
 # ---------------------------------------------------------------------------
 # In-Game FPS Telemetry Overlay

@@ -29,24 +29,50 @@ static func _format_prefix(level: String) -> String:
 	var msec: int = Time.get_ticks_msec() % 1000
 	return "[%s.%03d] [%s]" % [time_str, msec, level]
 
-static func _write_raw(text: String) -> void:
-	# 1. Write to res:// (directly in project workspace)
-	var fa_res := FileAccess.open(LOG_FILE_RES, FileAccess.READ_WRITE)
-	if not fa_res:
-		fa_res = FileAccess.open(LOG_FILE_RES, FileAccess.WRITE)
-	if fa_res:
-		fa_res.seek_end()
-		fa_res.store_string(text)
-		fa_res.flush()
+## Lines are buffered and written in one batch about once a second. Opening, flushing and
+## closing both log files for every line stalled phase changes (and on the web each close
+## syncs browser storage).
+const FLUSH_INTERVAL_SEC: float = 1.0
+const MAX_LOG_BYTES: int = 2 * 1024 * 1024
+static var _pending: PackedStringArray = []
+static var _flush_scheduled: bool = false
 
-	# 2. Write to user:// (persistent application data)
-	var fa_user := FileAccess.open(LOG_FILE_USER, FileAccess.READ_WRITE)
-	if not fa_user:
-		fa_user = FileAccess.open(LOG_FILE_USER, FileAccess.WRITE)
-	if fa_user:
-		fa_user.seek_end()
-		fa_user.store_string(text)
-		fa_user.flush()
+static func _write_raw(text: String) -> void:
+	_pending.append(text)
+	if _flush_scheduled:
+		return
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree:
+		_flush_scheduled = true
+		tree.create_timer(FLUSH_INTERVAL_SEC, true).timeout.connect(flush)
+	else:
+		flush()
+
+## Writes buffered lines to disk now (also called on a timer).
+static func flush() -> void:
+	_flush_scheduled = false
+	if _pending.is_empty():
+		return
+	var text := "".join(_pending)
+	_pending.clear()
+	# In the browser user:// lives in IndexedDB and every write syncs the whole file back,
+	# which froze the game for hundreds of ms. Lines still go to the browser console.
+	if OS.has_feature("web"):
+		return
+	_append_to(LOG_FILE_USER, text)
+	# res:// is only writable when running from the editor
+	if OS.has_feature("editor"):
+		_append_to(LOG_FILE_RES, text)
+
+static func _append_to(path: String, text: String) -> void:
+	var fa := FileAccess.open(path, FileAccess.READ_WRITE)
+	if fa and fa.get_length() > MAX_LOG_BYTES:
+		fa = null # start over instead of growing forever
+	if not fa:
+		fa = FileAccess.open(path, FileAccess.WRITE)
+	if fa:
+		fa.seek_end()
+		fa.store_string(text)
 
 static func _log(level: String, context: String, message: String) -> void:
 	_init_log_file()

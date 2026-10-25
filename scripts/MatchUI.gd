@@ -132,6 +132,36 @@ func _connect_phase_manager() -> void:
 		phase_manager.combat_resolved.connect(_on_combat_resolved)
 		phase_manager.auto_discarded.connect(_on_auto_discarded)
 
+## Textures kept loaded for the match. Decoding a card's art the first time it is dealt
+## took 175-230 ms and froze the Draw phase; loading them all up front avoids that.
+var _card_art_refs: Array[Texture2D] = []
+
+func _preload_card_art(roosters: Array) -> void:
+	var paths: Array[String] = [Card3D.BACK_CARD_PATH, Card3D.REPEAT_SYMBOL_PATH, Card3D.PLUS_SYMBOL_PATH, Card3D.MINUS_SYMBOL_PATH]
+	var cards: Array = universal_cards.duplicate()
+	for r in roosters:
+		if r:
+			cards.append_array(r.moveset)
+	for c in cards:
+		if c and c.art_path != "" and not paths.has(c.art_path):
+			paths.append(c.art_path)
+
+	var pending: Array[String] = []
+	for p in paths:
+		if ResourceLoader.exists(p) and ResourceLoader.load_threaded_request(p) == OK:
+			pending.append(p)
+	# Wait (at most ~5 s) without blocking frames; web builds without threads finish immediately
+	var deadline := Time.get_ticks_msec() + 5000
+	while not pending.is_empty() and Time.get_ticks_msec() < deadline and is_inside_tree():
+		for p in pending.duplicate():
+			if ResourceLoader.load_threaded_get_status(p) != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+				pending.erase(p)
+				var tex := ResourceLoader.load_threaded_get(p) as Texture2D
+				if tex:
+					_card_art_refs.append(tex)
+		if not pending.is_empty():
+			await get_tree().process_frame
+
 func _on_battle_started(p1_rooster: RoosterData, p2_rooster: RoosterData, vs_ai: bool) -> void:
 	is_vs_ai = vs_ai
 	player = Duelist.new(1, "MERON (You)", p1_rooster)
@@ -157,9 +187,12 @@ func _on_battle_started(p1_rooster: RoosterData, p2_rooster: RoosterData, vs_ai:
 	var p2_name: String = p2_rooster.display_name if p2_rooster else "WALA"
 	_show_phase_notification("MATCH START", "%s VS %s" % [p1_name, p2_name], Color.GOLD, false, 0.55)
 
-	# Snappy presentation hold before initiating duel
+	# Presentation hold before initiating duel; card art loads meanwhile
 	if is_inside_tree():
-		await get_tree().create_timer(0.55).timeout
+		var hold := get_tree().create_timer(0.55)
+		await _preload_card_art([p1_rooster, p2_rooster])
+		if hold.time_left > 0.0:
+			await hold.timeout
 
 	if phase_manager:
 		phase_manager.start_duel(player, opponent, vs_ai, arena_controller)

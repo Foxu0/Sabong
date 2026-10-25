@@ -64,11 +64,68 @@ func get_rooster_by_id(rooster_id: String) -> RoosterData:
 			return r
 	return null
 
+var _changing_scene: bool = false
+var _loading_layer: CanvasLayer = null
+
+## Switches scene behind a "LOADING" screen. Loading the arena froze the browser build for
+## ~1 s with the old screen still showing, which looked like a hang.
 func change_scene(target_path: String) -> void:
+	if _changing_scene:
+		return
+	_changing_scene = true
 	var mm = get_node_or_null("/root/MusicManager")
 	if mm and mm.has_method("handle_scene_transition"):
 		mm.handle_scene_transition(target_path)
-	get_tree().change_scene_to_file(target_path)
+
+	_show_loading_screen()
+	# Let the loading screen reach the display before the (possibly blocking) load starts
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var packed: PackedScene = null
+	if ResourceLoader.load_threaded_request(target_path) == OK:
+		while ResourceLoader.load_threaded_get_status(target_path) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			await get_tree().process_frame
+		packed = ResourceLoader.load_threaded_get(target_path) as PackedScene
+	if packed:
+		get_tree().change_scene_to_packed(packed)
+	else:
+		get_tree().change_scene_to_file(target_path)
+
+	# Keep covering the screen until the new scene has drawn its first frames
+	for i in 3:
+		await get_tree().process_frame
+	_hide_loading_screen()
+	_changing_scene = false
+
+func _show_loading_screen() -> void:
+	if is_instance_valid(_loading_layer):
+		return
+	_loading_layer = CanvasLayer.new()
+	_loading_layer.layer = 128
+	add_child(_loading_layer)
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = UITheme.INK
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	_loading_layer.add_child(bg)
+	var lbl := Label.new()
+	lbl.text = "LOADING..."
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.style_title(lbl, 64, UITheme.STRAW)
+	_loading_layer.add_child(lbl)
+
+func _hide_loading_screen() -> void:
+	if not is_instance_valid(_loading_layer):
+		return
+	var layer := _loading_layer
+	_loading_layer = null
+	var tw := create_tween()
+	for child in layer.get_children():
+		tw.parallel().tween_property(child, "modulate:a", 0.0, 0.2)
+	tw.tween_callback(layer.queue_free)
 
 ## Resets online match state — called when returning to main menu or after forfeit
 func reset_online_state() -> void:
