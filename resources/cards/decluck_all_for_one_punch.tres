@@ -16,6 +16,6 @@ base_value = 1
 value_per_taya = 2
 self_damage = 0
 required_state = ""
-effect_text = "Deals 1. Each additional taya committed adds +2 power (+4 during All For One Cock)."
+effect_text = "Deals 3. Each additional taya committed adds +4 power (+7 during All For One Cock)."
 art_path = "res://resources/cards/Onepunch.png"
 vfx_type = "punch"

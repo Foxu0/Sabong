@@ -19,6 +19,6 @@ scales_with_turn = true
 turn_scale_amount = 1
 usage_gate = 0
 required_state = ""
-effect_text = "Deals 2 + 1 per elapsed turn in match."
+effect_text = "Deals 2, +1 every 3 turns of the match (max +3)."
 art_path = "res://resources/cards/UnseenClaw.png"
 vfx_type = "slash"

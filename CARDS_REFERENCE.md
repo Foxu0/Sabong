@@ -36,7 +36,7 @@ This document lists all **8 Parody Roosters** and all **40 Cards** (8 Champion I
 ---
 
 ### <a id="cluckey-d-puffy"></a>Cluckey D Puffy — *One Piece (Luffy)*
-- **Base HP**: 19
+- **Base HP**: 23
 - **Champion Portrait Card**: `res://resources/cards/Puffy.png`
 - **Passive / Identity**: Builds Tension to awaken 5th Gear.
 
@@ -46,12 +46,12 @@ This document lists all **8 Parody Roosters** and all **40 Cards** (8 Champion I
 |---|:---:|:---:|:---:|:---:|:---:|---|---|
 | **5th Gear** | Transform / Special | 2 | 🎲 5+ | 0 | 0 | `res://resources/cards/5thGear.png` | Consumes 5 Tension to enter 5th Gear. |
 | **Gum Barrier** | Shield | 1 | 🎲 1+ | 2 | 0 | `res://resources/cards/GumBarrier.png` | Gains 2 Shield and +1 Tension. |
-| **Gum Slash** | Attack | 1 | 🎲 1+ | 2 | 0 | `res://resources/cards/GumSlash.png` | Ignores 50% shield. Gains +1 Tension on hit. |
+| **Gum Slash** | Attack | 1 | 🎲 1+ | 3 | 0 | `res://resources/cards/GumSlash.png` | Ignores 50% shield. Gains +1 Tension on hit. |
 
 ---
 
 ### <a id="cocktaro"></a>Cocktaro — *JoJo Bizarre Adventure (Jotaro)*
-- **Base HP**: 24
+- **Base HP**: 21
 - **Champion Portrait Card**: `res://resources/cards/Cocktaro.png`
 - **Passive / Identity**: Stand user counter-striker with Platinum Chick.
 
@@ -59,7 +59,7 @@ This document lists all **8 Parody Roosters** and all **40 Cards** (8 Champion I
 
 | Card Name | Type | Taya Cost | Dice Req | Value | Self Dmg | Art File | Effect / Mechanics |
 |---|:---:|:---:|:---:|:---:|:---:|---|---|
-| **Ora Ora** | Attack | 1 | 🎲 2+ | 3 | 0 | `res://resources/cards/OraOra.png` | Rapid pecks dealing 3 damage (+2 if Shield active). |
+| **Ora Ora** | Attack | 1 | 🎲 2+ | 3 | 0 | `res://resources/cards/OraOra.png` | Rapid pecks dealing 3 damage (+1 if Shield active). |
 | **Platinum Chick** | Transform / Special | 0 | 🎲 1+ | 2 | 0 | `res://resources/cards/PlatinumChick.png` | Passive: Automatically counters for 2 damage whenever Shield absorbs a hit. |
 | **Platinum Shield** | Shield | 1 | 🎲 1+ | 3 | 0 | `res://resources/cards/PlatinumSHield.png` | Summons Stand barrier gaining 3 Shield. |
 
@@ -74,14 +74,14 @@ This document lists all **8 Parody Roosters** and all **40 Cards** (8 Champion I
 
 | Card Name | Type | Taya Cost | Dice Req | Value | Self Dmg | Art File | Effect / Mechanics |
 |---|:---:|:---:|:---:|:---:|:---:|---|---|
-| **Chick to Zero** | Transform / Special | 1 | 🎲 1+ | 0 | 0 | `res://resources/cards/ChickZero.png` | Revives Daniel to full HP upon fatal damage. |
-| **Chicken's Heart** | Heal | 1 | 🎲 1+ | 10 | 0 | `res://resources/cards/Chicken'sHeart.png` | Heals 10 - 1 per elapsed turn in match. |
-| **Unseen Claw** | Attack | 1 | 🎲 1+ | 2 | 0 | `res://resources/cards/UnseenClaw.png` | Deals 2 + 1 per elapsed turn in match. |
+| **Chick to Zero** | Transform / Special | 1 | 🎲 1+ | 0 | 0 | `res://resources/cards/ChickZero.png` | Revives Daniel at 1/3 HP upon fatal damage (once). |
+| **Chicken's Heart** | Heal | 1 | 🎲 1+ | 6 | 0 | `res://resources/cards/Chicken'sHeart.png` | Heals 6 - 1 per elapsed turn in match (min 2). |
+| **Unseen Claw** | Attack | 1 | 🎲 1+ | 2 | 0 | `res://resources/cards/UnseenClaw.png` | Deals 2, +1 every 3 turns (max +3). |
 
 ---
 
 ### <a id="decluck"></a>Decluck — *My Hero Academia (Deku)*
-- **Base HP**: 20
+- **Base HP**: 24
 - **Champion Portrait Card**: `res://resources/cards/Decluck.png`
 - **Passive / Identity**: Variable Taya user. 2x power during All For One Cock.
 
@@ -89,9 +89,9 @@ This document lists all **8 Parody Roosters** and all **40 Cards** (8 Champion I
 
 | Card Name | Type | Taya Cost | Dice Req | Value | Self Dmg | Art File | Effect / Mechanics |
 |---|:---:|:---:|:---:|:---:|:---:|---|---|
-| **All for one cock** | Transform / Special | 3 | 🎲 3+ | 0 | 0 | `res://resources/cards/Onecock.png` | Doubles the power of All For One cards for 3 turns. |
-| **All for one heart** | Shield | 1+ | 🎲 1+ | 1 | 0 | `res://resources/cards/Oneheart.png` | Gains 1 + 1 shield per extra Taya (doubled in AFO mode). |
-| **All for one punch** | Attack | 1+ | 🎲 1+ | 1 | 0 | `res://resources/cards/Onepunch.png` | Deals 1 + 1 per extra Taya (doubled in AFO mode). |
+| **All for one cock** | Transform / Special | 2 | 🎲 2+ | 0 | 0 | `res://resources/cards/Onecock.png` | All For One cards gain +7 (not +4) per extra Taya for the next 3 turns. |
+| **All for one heart** | Shield | 1+ | 🎲 1+ | 3 | 0 | `res://resources/cards/Oneheart.png` | Gains 3 + 4 shield per extra Taya (+7 in AFO mode). |
+| **All for one punch** | Attack | 1+ | 🎲 1+ | 3 | 0 | `res://resources/cards/Onepunch.png` | Deals 3 + 4 per extra Taya (+7 in AFO mode). |
 
 ---
 
@@ -134,9 +134,9 @@ This document lists all **8 Parody Roosters** and all **40 Cards** (8 Champion I
 
 | Card Name | Type | Taya Cost | Dice Req | Value | Self Dmg | Art File | Effect / Mechanics |
 |---|:---:|:---:|:---:|:---:|:---:|---|---|
-| **Demon Form** | Transform / Special | 3 | 🎲 3+ | 0 | 0 | `res://resources/cards/DemonForm.png` | Awakens Demon Form (+2 to all heals for 3 turns). |
+| **Demon Form** | Transform / Special | 2 | 🎲 3+ | 0 | 0 | `res://resources/cards/DemonForm.png` | Awakens Demon Form (+2 to all heals for 3 turns). |
 | **Ketchup Aura** | Heal | 1 | 🎲 1+ | 1 | 0 | `res://resources/cards/Ketchup.png` | Consumes all Demonic Aura stacks to heal. |
-| **Peck Breaker** | Attack | 1 | 🎲 1+ | 1 | 0 | `res://resources/cards/Peck Breaker.png` | Consumes all Demonic Aura stacks for burst damage. |
+| **Peck Breaker** | Attack | 1 | 🎲 1+ | 3 | 0 | `res://resources/cards/Peck Breaker.png` | Deals 3 + 2 per Demonic Aura stack, consuming them. |
 
 ---
 
@@ -168,19 +168,19 @@ These 8 cards form the core shared deck available to all roosters:
 | 5 | **Cluckey D Puffy** (Champion) | Cluckey D Puffy (One Piece (Luffy)) | Champion Identity | - | - | 19 HP | `res://resources/cards/Puffy.png` |
 | 6 | **5th Gear** | Cluckey D Puffy | Transform / Special | 2 | 🎲 5+ | 0 | `res://resources/cards/5thGear.png` |
 | 7 | **Gum Barrier** | Cluckey D Puffy | Shield | 1 | 🎲 1+ | 2 | `res://resources/cards/GumBarrier.png` |
-| 8 | **Gum Slash** | Cluckey D Puffy | Attack | 1 | 🎲 1+ | 2 | `res://resources/cards/GumSlash.png` |
+| 8 | **Gum Slash** | Cluckey D Puffy | Attack | 1 | 🎲 1+ | 3 | `res://resources/cards/GumSlash.png` |
 | 9 | **Cocktaro** (Champion) | Cocktaro (JoJo Bizarre Adventure (Jotaro)) | Champion Identity | - | - | 24 HP | `res://resources/cards/Cocktaro.png` |
 | 10 | **Ora Ora** | Cocktaro | Attack | 1 | 🎲 2+ | 3 | `res://resources/cards/OraOra.png` |
 | 11 | **Platinum Chick** | Cocktaro | Transform / Special | 0 | 🎲 1+ | 2 | `res://resources/cards/PlatinumChick.png` |
 | 12 | **Platinum Shield** | Cocktaro | Shield | 1 | 🎲 1+ | 3 | `res://resources/cards/PlatinumSHield.png` |
 | 13 | **Daniel** (Champion) | Daniel (Re:Zero (Subaru)) | Champion Identity | - | - | 15 HP | `res://resources/cards/Daniel.png` |
 | 14 | **Chick to Zero** | Daniel | Transform / Special | 1 | 🎲 1+ | 0 | `res://resources/cards/ChickZero.png` |
-| 15 | **Chicken's Heart** | Daniel | Heal | 1 | 🎲 1+ | 10 | `res://resources/cards/Chicken'sHeart.png` |
+| 15 | **Chicken's Heart** | Daniel | Heal | 1 | 🎲 1+ | 6 | `res://resources/cards/Chicken'sHeart.png` |
 | 16 | **Unseen Claw** | Daniel | Attack | 1 | 🎲 1+ | 2 | `res://resources/cards/UnseenClaw.png` |
 | 17 | **Decluck** (Champion) | Decluck (My Hero Academia (Deku)) | Champion Identity | - | - | 20 HP | `res://resources/cards/Decluck.png` |
-| 18 | **All for one cock** | Decluck | Transform / Special | 3 | 🎲 3+ | 0 | `res://resources/cards/Onecock.png` |
-| 19 | **All for one heart** | Decluck | Shield | 1+ | 🎲 1+ | 1 | `res://resources/cards/Oneheart.png` |
-| 20 | **All for one punch** | Decluck | Attack | 1+ | 🎲 1+ | 1 | `res://resources/cards/Onepunch.png` |
+| 18 | **All for one cock** | Decluck | Transform / Special | 2 | 🎲 2+ | 0 | `res://resources/cards/Onecock.png` |
+| 19 | **All for one heart** | Decluck | Shield | 1+ | 🎲 1+ | 3 | `res://resources/cards/Oneheart.png` |
+| 20 | **All for one punch** | Decluck | Attack | 1+ | 🎲 1+ | 3 | `res://resources/cards/Onepunch.png` |
 | 21 | **Eren Pecker** (Champion) | Eren Pecker (Attack on Titan (Eren)) | Champion Identity | - | - | 21 HP | `res://resources/cards/ErenPecker.png` |
 | 22 | **Claw Stomp** | Eren Pecker | Attack | 1 | 🎲 1+ | 3 | `res://resources/cards/ClawStomp.png` |
 | 23 | **Pecker Titan** | Eren Pecker | Transform / Special | 3 | 🎲 4+ | 0 | `res://resources/cards/PeckerTitan.png` |
@@ -190,9 +190,9 @@ These 8 cards form the core shared deck available to all roosters:
 | 27 | **Kame-cock** | Hen-Goku | Attack | 2 | 🎲 2+ | 4 | `res://resources/cards/Kamecock.png` |
 | 28 | **Ki-kiri-ki Barrier** | Hen-Goku | Shield | 1 | 🎲 1+ | 2 | `res://resources/cards/KirikiriBarier.png` |
 | 29 | **Nechicko** (Champion) | Nechicko (Demon Slayer (Nezuko)) | Champion Identity | - | - | 24 HP | `res://resources/cards/Nechiko.png` |
-| 30 | **Demon Form** | Nechicko | Transform / Special | 3 | 🎲 3+ | 0 | `res://resources/cards/DemonForm.png` |
+| 30 | **Demon Form** | Nechicko | Transform / Special | 2 | 🎲 3+ | 0 | `res://resources/cards/DemonForm.png` |
 | 31 | **Ketchup Aura** | Nechicko | Heal | 1 | 🎲 1+ | 1 | `res://resources/cards/Ketchup.png` |
-| 32 | **Peck Breaker** | Nechicko | Attack | 1 | 🎲 1+ | 1 | `res://resources/cards/Peck Breaker.png` |
+| 32 | **Peck Breaker** | Nechicko | Attack | 1 | 🎲 1+ | 3 | `res://resources/cards/Peck Breaker.png` |
 | 33 | **Chick'n Turd** | Universal | DoT | 1 | 🎲 2+ | 2 | `res://resources/cards/Chick'nTurd.png` |
 | 34 | **Claw Slash** | Universal | Attack | 1 | 🎲 1+ | 2 | `res://resources/cards/ClawSlash.png` |
 | 35 | **Feather Block** | Universal | Shield | 1 | 🎲 1+ | 2 | `res://resources/cards/FeatherBlock.png` |

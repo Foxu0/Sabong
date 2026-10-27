@@ -53,13 +53,22 @@ static func make_ai_turn(ai_duelist: Duelist, opponent: Duelist) -> void:
 					if ai_duelist.taya_remaining <= 0:
 						return
 
-	# Priority 3: Attack / DoT Spends
+	# Priority 3: Attack / DoT Spends (attacks considered before defensive cards)
+	var ordered: Array[CardData] = []
 	for card in playable:
+		if card.card_type == CardData.CardType.ATTACK or card.card_type == CardData.CardType.DOT:
+			ordered.append(card)
+	for card in playable:
+		if not ordered.has(card):
+			ordered.append(card)
+	for card in ordered:
 		if not ai_duelist.hand.has(card):
 			continue
 		if ai_duelist.can_play_card(card):
 			var extra_taya: int = 0
-			if card.is_variable_cost:
+			# Pour spare Taya into scaling attacks; into scaling shields only when in danger
+			# (a full-Taya shield at healthy HP wasted the whole turn)
+			if card.is_variable_cost and (card.card_type != CardData.CardType.GUARD or is_low_hp):
 				extra_taya = min(2, ai_duelist.taya_remaining - card.taya_cost)
 			ai_duelist.queue_card(card, extra_taya)
 			if ai_duelist.taya_remaining <= 0:

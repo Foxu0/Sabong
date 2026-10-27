@@ -18,7 +18,7 @@ signal roll_manipulated(player_id: String, new_roll: int)
 signal combat_resolved(events: Array[Dictionary])
 signal auto_discarded(player_id: String, discarded_cards: Array)
 
-const CARD_LIMIT: int = 6
+const CARD_LIMIT: int = 5
 const FREE_REROLLS_PER_ROUND: int = 3
 const MAX_CARD_ROLL_MANIPULATIONS_PER_ROUND: int = 1
 const HUMAN_TIMEOUT_SECONDS: float = 60.0
@@ -463,7 +463,7 @@ func _draw_cards_for_player(state: PlayerRoundState, count: int) -> void:
 			break
 
 func _run_draw_phase() -> void:
-	var target_count: int = CARD_LIMIT # Draw up to 6 cards on start of round and all rounds
+	var target_count: int = CARD_LIMIT # Refill the hand to CARD_LIMIT every round
 	for state in [meron_state, wala_state]:
 		var needed: int = target_count - state.hand.size()
 		if needed > 0:

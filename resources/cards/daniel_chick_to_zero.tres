@@ -20,7 +20,7 @@ usage_gate = 0
 required_state = ""
 is_passive_trigger = true
 trigger_condition = "on_fatal_damage"
-effect_text = "Passive: Automatically revives Daniel to full HP upon fatal damage (once per match)."
+effect_text = "Passive: Automatically revives Daniel at 1/3 HP upon fatal damage (once per match)."
 art_path = "res://resources/cards/ChickZero.png"
 vfx_type = "golden"
 

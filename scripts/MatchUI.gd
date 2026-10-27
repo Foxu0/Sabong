@@ -201,8 +201,8 @@ func _on_battle_started(p1_rooster: RoosterData, p2_rooster: RoosterData, vs_ai:
 		phase_manager.start_duel(player, opponent, vs_ai, arena_controller)
 	else:
 		# Fallback legacy initialization
-		player.draw_cards_up_to_max(6)
-		opponent.draw_cards_up_to_max(6)
+		player.draw_cards_up_to_max(Duelist.MAX_HAND_SIZE)
+		opponent.draw_cards_up_to_max(Duelist.MAX_HAND_SIZE)
 		player.roll_dice()
 		opponent.roll_dice()
 		_trigger_dice_roll_animation()
@@ -445,7 +445,7 @@ func _on_phase_changed(new_phase: DuelPhase.Phase) -> void:
 		DuelPhase.Phase.DRAW:
 			if arena_controller:
 				arena_controller.transition_camera_view(ArenaController.CameraViewState.TABLE_VIEW, 0.45)
-			var target: int = 6 # Always 6 cards on start of round and every round
+			var target: int = Duelist.MAX_HAND_SIZE
 			_show_phase_notification("DRAW PHASE", "DRAWING CARDS UP TO %d..." % target, Color(0.96, 0.96, 0.98), false, 0.50)
 			_refresh_all_ui(false)
 
@@ -1198,9 +1198,9 @@ func _on_end_turn_triggered() -> void:
 		player.reset_turn_for_new_round()
 		opponent.reset_turn_for_new_round()
 		
-		# Draw cards up to MAX_HAND_SIZE (6 cards) with automatic discard reshuffle
-		player.draw_cards_up_to_max(6)
-		opponent.draw_cards_up_to_max(6)
+		# Draw cards up to MAX_HAND_SIZE with automatic discard reshuffle
+		player.draw_cards_up_to_max(Duelist.MAX_HAND_SIZE)
+		opponent.draw_cards_up_to_max(Duelist.MAX_HAND_SIZE)
 		
 		# Roll new dice for both duelists
 		player.roll_dice()

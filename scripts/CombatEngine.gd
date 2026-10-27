@@ -205,7 +205,7 @@ static func _process_transformations(duelist: Duelist, events: Array[Dictionary]
 	for card in duelist.queued_cards:
 		if card.card_id == "decluck_all_for_one_cock":
 			duelist.all_for_one_active = true
-			duelist.all_for_one_turns_left = 3
+			duelist.all_for_one_turns_left = 4
 			events.append({
 				"type": EventType.TRANSFORM,
 				"duelist": duelist.duelist_id,
@@ -248,7 +248,7 @@ static func _process_transformations(duelist: Duelist, events: Array[Dictionary]
 		if card.card_id == "nechicko_demon_form":
 			duelist.demon_form_active = true
 			duelist.demon_form_turns_left = 3
-			duelist.demonic_aura_stacks = 0 # Consumes aura on activation
+			# Aura is kept: wiping it here left Peck Breaker / Ketchup Aura with nothing to spend
 			if card.buff_stat != "" and card.buff_amount > 0:
 				duelist.active_buffs.append({
 					"stat": card.buff_stat,
@@ -331,8 +331,8 @@ static func _process_shields(duelist: Duelist, _turn: int, events: Array[Diction
 			# Decluck Heart scaling with extra taya: +2 Shield per extra Taya (+4 in AFO)
 			elif card.card_id == "decluck_all_for_one_heart":
 				var spent: int = duelist.card_committed_taya.get(card.card_id, 1)
-				var per_taya: int = 4 if duelist.all_for_one_active else 2
-				s = 1 + (spent - 1) * per_taya
+				var per_taya: int = 7 if duelist.all_for_one_active else 4
+				s = 3 + (spent - 1) * per_taya
 			# Cluckey Gum Barrier gives +2 Tension (or 6 Shield in 5th Gear)
 			elif card.card_id == "cluckey_gum_barrier":
 				if not duelist.gear_5_active:
@@ -386,8 +386,8 @@ static func _calculate_attack(attacker: Duelist, _defender: Duelist, turn_number
 			# Decluck Punch: +2 ATK per extra Taya (+4 in AFO)
 			elif card.card_id == "decluck_all_for_one_punch":
 				spent_taya = attacker.card_committed_taya.get(card.card_id, 1)
-				var per_taya: int = 4 if attacker.all_for_one_active else 2
-				atk_dmg = 1 + (spent_taya - 1) * per_taya + attacker.bonus_flat_attack + titan_bonus
+				var per_taya: int = 7 if attacker.all_for_one_active else 4
+				atk_dmg = 3 + (spent_taya - 1) * per_taya + attacker.bonus_flat_attack + titan_bonus
 			# Cluckey Gum Slash
 			elif card.card_id == "cluckey_gum_slash":
 				shield_pierce = 0.5
@@ -396,14 +396,15 @@ static func _calculate_attack(attacker: Duelist, _defender: Duelist, turn_number
 			# Cocktaro Ora Ora
 			elif card.card_id == "cocktaro_ora_ora":
 				if attacker.shield > 0:
-					atk_dmg += 2 # +2 ATK if shield active
+					atk_dmg += 1 # +1 ATK if shield active
 			# Nechicko Peck Breaker
 			elif card.card_id == "nechicko_peck_breaker":
-				atk_dmg = max(1, attacker.demonic_aura_stacks)
+				atk_dmg = 3 + attacker.demonic_aura_stacks * 2
 				attacker.demonic_aura_stacks = 0
 			# Daniel Unseen Claw
 			elif card.card_id == "daniel_unseen_claw":
-				atk_dmg = 2 + (turn_number - 1)
+				# +1 every 3 turns, capped at +3 (uncapped +1/turn won 97% of simulated matches)
+				atk_dmg = 2 + mini(3, (turn_number - 1) / 3)
 
 			attacks.append({
 				"card_id": card.card_id,
@@ -485,7 +486,7 @@ static func _process_healing(duelist: Duelist, turn_number: int, events: Array[D
 				h = max(1, duelist.demonic_aura_stacks) + demon_boost
 				duelist.demonic_aura_stacks = 0
 			elif card.card_id == "daniel_chickens_heart":
-				h = max(1, 10 - (turn_number - 1)) + demon_boost
+				h = max(2, 6 - (turn_number - 1)) + demon_boost
 
 			total_heal += h
 			# Nechicko gains demonic aura stack per heal action
@@ -609,7 +610,7 @@ static func _check_revival(duelist: Duelist, events: Array[Dictionary]) -> void:
 	var has_death_save: bool = (duelist.get_passive_trigger("on_fatal_damage") != null) or (duelist.rooster_data and duelist.rooster_data.rooster_id == "daniel")
 	if duelist.hp <= 0 and has_death_save and not duelist.return_by_death_used:
 		duelist.return_by_death_used = true
-		duelist.hp = duelist.max_hp
+		duelist.hp = int(ceil(duelist.max_hp / 3.0))
 		events.append({
 			"type": EventType.REVIVE,
 			"duelist": duelist.duelist_id,

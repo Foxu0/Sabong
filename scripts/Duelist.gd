@@ -19,7 +19,7 @@ const MAX_TAYA: int = 3
 var current_dice_roll: int = 1           # 1-6 rolled at start of round
 
 # Deck & Hand state (Random Draw mechanic)
-const MAX_HAND_SIZE: int = 6
+const MAX_HAND_SIZE: int = 5
 var deck: Array[CardData] = []
 var draw_pile: Array[CardData] = []
 var hand: Array[CardData] = []
@@ -190,7 +190,7 @@ func draw_card() -> CardData:
 		return deck.pop_front()
 	return null
 
-## Draws cards from deck until hand reaches max_size (default MAX_HAND_SIZE = 6)
+## Draws cards from deck until hand reaches max_size (default MAX_HAND_SIZE)
 func draw_cards_up_to_max(max_size: int = MAX_HAND_SIZE) -> int:
 	var drawn_count: int = 0
 	while hand.size() < max_size:
