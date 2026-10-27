@@ -282,6 +282,16 @@ MIME_TYPES = {
     ".txt": "text/plain; charset=utf-8",
 }
 
+def _file_etag(file_path: str) -> str:
+    """Version tag for a static file; changes whenever a deploy replaces the file."""
+    st = os.stat(file_path)
+    return f'"{int(st.st_mtime)}-{st.st_size}"'
+
+# Game files keep the same names across builds (index.pck, index.wasm, ...), so browsers
+# must re-check them on every visit: with an ETag the check is a tiny 304 when unchanged,
+# and a long max-age instead left players on a stale (or mixed old/new) build for a day.
+STATIC_CACHE_CONTROL = "no-cache"
+
 def _read_file_sync(file_path: str) -> bytes:
     with open(file_path, "rb") as f:
         return f.read()
@@ -821,6 +831,17 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
                 ext = os.path.splitext(clean_path)[1].lower()
                 mime = MIME_TYPES.get(ext, "application/octet-stream")
                 file_size = os.path.getsize(file_to_serve)
+                etag = _file_etag(file_to_serve)
+
+                if self.headers.get("If-None-Match") == etag:
+                    self.send_response(304)
+                    self.send_header("ETag", etag)
+                    self.send_header("Cache-Control", STATIC_CACHE_CONTROL)
+                    self.send_header("Vary", "Accept-Encoding")
+                    self._send_cors_headers()
+                    self._send_coop_coep_headers()
+                    self.end_headers()
+                    return
 
                 self.send_response(200)
                 self.send_header("Content-Type", mime)
@@ -829,10 +850,9 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
                 self._send_coop_coep_headers()
                 if use_gzip:
                     self.send_header("Content-Encoding", "gzip")
-                if clean_path == "index.html":
-                    self.send_header("Cache-Control", "no-cache")
-                else:
-                    self.send_header("Cache-Control", "public, max-age=86400")
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", STATIC_CACHE_CONTROL)
+                self.send_header("Vary", "Accept-Encoding")
                 self.end_headers()
 
                 # Chunked streaming via OS socket to guarantee 100% download without timeout
@@ -886,6 +906,9 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
                 self._send_coop_coep_headers()
                 if use_gzip:
                     self.send_header("Content-Encoding", "gzip")
+                self.send_header("ETag", _file_etag(file_to_serve))
+                self.send_header("Cache-Control", STATIC_CACHE_CONTROL)
+                self.send_header("Vary", "Accept-Encoding")
                 self.end_headers()
                 return
 
