@@ -287,6 +287,17 @@ def _file_etag(file_path: str) -> str:
     st = os.stat(file_path)
     return f'"{int(st.st_mtime)}-{st.st_size}"'
 
+def _etag_matches(if_none_match: str, etag: str) -> bool:
+    """Weak comparison: Render's proxy re-compresses responses and turns our ETag into
+    W/"...", which browsers then send back, so the W/ prefix must be ignored."""
+    if not if_none_match:
+        return False
+    for candidate in if_none_match.split(","):
+        candidate = candidate.strip()
+        if candidate == "*" or candidate.removeprefix("W/") == etag:
+            return True
+    return False
+
 # Game files keep the same names across builds (index.pck, index.wasm, ...), so browsers
 # must re-check them on every visit: with an ETag the check is a tiny 304 when unchanged,
 # and a long max-age instead left players on a stale (or mixed old/new) build for a day.
@@ -833,7 +844,7 @@ class UnifiedServerHandler(BaseHTTPRequestHandler):
                 file_size = os.path.getsize(file_to_serve)
                 etag = _file_etag(file_to_serve)
 
-                if self.headers.get("If-None-Match") == etag:
+                if _etag_matches(self.headers.get("If-None-Match", ""), etag):
                     self.send_response(304)
                     self.send_header("ETag", etag)
                     self.send_header("Cache-Control", STATIC_CACHE_CONTROL)
