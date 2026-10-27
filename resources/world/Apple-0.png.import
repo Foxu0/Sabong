@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://b5iaqtltksf30"
 path.s3tc="res://.godot/imported/Apple-0.png-15d0d1b66c0b93c7cfe847272641b157.s3tc.ctex"
+path.etc2="res://.godot/imported/Apple-0.png-15d0d1b66c0b93c7cfe847272641b157.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://resources/world/Apple-0.png"
-dest_files=["res://.godot/imported/Apple-0.png-15d0d1b66c0b93c7cfe847272641b157.s3tc.ctex"]
+dest_files=["res://.godot/imported/Apple-0.png-15d0d1b66c0b93c7cfe847272641b157.s3tc.ctex", "res://.godot/imported/Apple-0.png-15d0d1b66c0b93c7cfe847272641b157.etc2.ctex"]
 
 [params]
 

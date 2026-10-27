@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bags1vifqp3fx"
 path.bptc="res://.godot/imported/BackCard.png-1ce444250c725181c1345fecb2f10dca.bptc.ctex"
+path.astc="res://.godot/imported/BackCard.png-1ce444250c725181c1345fecb2f10dca.astc.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://resources/cards/BackCard.png"
-dest_files=["res://.godot/imported/BackCard.png-1ce444250c725181c1345fecb2f10dca.bptc.ctex"]
+dest_files=["res://.godot/imported/BackCard.png-1ce444250c725181c1345fecb2f10dca.bptc.ctex", "res://.godot/imported/BackCard.png-1ce444250c725181c1345fecb2f10dca.astc.ctex"]
 
 [params]
 

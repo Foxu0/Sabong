@@ -17,6 +17,11 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="Sabong Legends: Cluck Cock"
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
+config/icon="res://icon.png"
+boot_splash/bg_color=Color(0.227, 0.141, 0.086, 1)
+boot_splash/image="res://resources/ui/splash.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
 
 [autoload]
 
@@ -48,4 +53,6 @@ pointing/emulate_touch_from_mouse=true
 
 [rendering]
 
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
 textures/default_filters/anisotropic_filtering_level=1

@@ -14,3 +14,8 @@ venv/
 out.txt
 *.zip
 scratch/
+
+# Native app builds (too large for git; ship them as release files)
+exports/windows/
+exports/android/
+*.keystore

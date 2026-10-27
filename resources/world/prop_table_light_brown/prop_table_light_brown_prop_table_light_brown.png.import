@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bf6qh6edo3h41"
 path.s3tc="res://.godot/imported/prop_table_light_brown_prop_table_light_brown.png-7351a827ed5696029f0fd822f9599417.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_table_light_brown_prop_table_light_brown.png-7351a827ed5696029f0fd822f9599417.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://resources/world/prop_table_light_brown/prop_table_light_brown_prop_table_light_brown.png"
-dest_files=["res://.godot/imported/prop_table_light_brown_prop_table_light_brown.png-7351a827ed5696029f0fd822f9599417.s3tc.ctex"]
+dest_files=["res://.godot/imported/prop_table_light_brown_prop_table_light_brown.png-7351a827ed5696029f0fd822f9599417.s3tc.ctex", "res://.godot/imported/prop_table_light_brown_prop_table_light_brown.png-7351a827ed5696029f0fd822f9599417.etc2.ctex"]
 
 [params]
 

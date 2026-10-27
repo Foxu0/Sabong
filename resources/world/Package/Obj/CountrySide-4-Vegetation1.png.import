@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://y4lncrvbblyh"
 path.s3tc="res://.godot/imported/CountrySide-4-Vegetation1.png-0842b61b5ba29a06d277eff94bb9f601.s3tc.ctex"
+path.etc2="res://.godot/imported/CountrySide-4-Vegetation1.png-0842b61b5ba29a06d277eff94bb9f601.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://resources/world/Package/Obj/CountrySide-4-Vegetation1.png"
-dest_files=["res://.godot/imported/CountrySide-4-Vegetation1.png-0842b61b5ba29a06d277eff94bb9f601.s3tc.ctex"]
+dest_files=["res://.godot/imported/CountrySide-4-Vegetation1.png-0842b61b5ba29a06d277eff94bb9f601.s3tc.ctex", "res://.godot/imported/CountrySide-4-Vegetation1.png-0842b61b5ba29a06d277eff94bb9f601.etc2.ctex"]
 
 [params]
 

@@ -39,8 +39,8 @@ var _fps_timer: float = 0.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
-	# Smart Auto-Tune: Default to LOW on Web builds, HIGH on Desktop
-	if OS.has_feature("web"):
+	# Smart Auto-Tune: Default to LOW on Web and phone builds, HIGH on Desktop
+	if OS.has_feature("web") or OS.has_feature("mobile"):
 		set_preset(QualityPreset.LOW, false)
 	else:
 		set_preset(QualityPreset.HIGH, false)

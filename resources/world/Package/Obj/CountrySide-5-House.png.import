@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://invtjeeswu4c"
 path.s3tc="res://.godot/imported/CountrySide-5-House.png-cdbbe92bde001778571fe5a2345b6cb8.s3tc.ctex"
+path.etc2="res://.godot/imported/CountrySide-5-House.png-cdbbe92bde001778571fe5a2345b6cb8.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://resources/world/Package/Obj/CountrySide-5-House.png"
-dest_files=["res://.godot/imported/CountrySide-5-House.png-cdbbe92bde001778571fe5a2345b6cb8.s3tc.ctex"]
+dest_files=["res://.godot/imported/CountrySide-5-House.png-cdbbe92bde001778571fe5a2345b6cb8.s3tc.ctex", "res://.godot/imported/CountrySide-5-House.png-cdbbe92bde001778571fe5a2345b6cb8.etc2.ctex"]
 
 [params]
 

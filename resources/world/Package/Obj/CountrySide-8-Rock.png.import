@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://238wvdeeq14o"
 path.s3tc="res://.godot/imported/CountrySide-8-Rock.png-5a8c0eeea5d5649fbb7d042043b7ec9a.s3tc.ctex"
+path.etc2="res://.godot/imported/CountrySide-8-Rock.png-5a8c0eeea5d5649fbb7d042043b7ec9a.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://resources/world/Package/Obj/CountrySide-8-Rock.png"
-dest_files=["res://.godot/imported/CountrySide-8-Rock.png-5a8c0eeea5d5649fbb7d042043b7ec9a.s3tc.ctex"]
+dest_files=["res://.godot/imported/CountrySide-8-Rock.png-5a8c0eeea5d5649fbb7d042043b7ec9a.s3tc.ctex", "res://.godot/imported/CountrySide-8-Rock.png-5a8c0eeea5d5649fbb7d042043b7ec9a.etc2.ctex"]
 
 [params]
 

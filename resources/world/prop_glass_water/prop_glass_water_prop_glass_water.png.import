@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://60e3xlus0y61"
 path.s3tc="res://.godot/imported/prop_glass_water_prop_glass_water.png-13d8bcf6154d9408994f62a4aa85eb5b.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_glass_water_prop_glass_water.png-13d8bcf6154d9408994f62a4aa85eb5b.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://resources/world/prop_glass_water/prop_glass_water_prop_glass_water.png"
-dest_files=["res://.godot/imported/prop_glass_water_prop_glass_water.png-13d8bcf6154d9408994f62a4aa85eb5b.s3tc.ctex"]
+dest_files=["res://.godot/imported/prop_glass_water_prop_glass_water.png-13d8bcf6154d9408994f62a4aa85eb5b.s3tc.ctex", "res://.godot/imported/prop_glass_water_prop_glass_water.png-13d8bcf6154d9408994f62a4aa85eb5b.etc2.ctex"]
 
 [params]
 
