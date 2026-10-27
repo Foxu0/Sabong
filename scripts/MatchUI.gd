@@ -191,6 +191,9 @@ func _on_battle_started(p1_rooster: RoosterData, p2_rooster: RoosterData, vs_ai:
 	if is_inside_tree():
 		var hold := get_tree().create_timer(0.55)
 		await _preload_card_art([p1_rooster, p2_rooster])
+		if arena_controller:
+			await ShaderWarmup.run(arena_controller, arena_controller.get_active_camera(), [p1_rooster, p2_rooster],
+				universal_cards[0] if not universal_cards.is_empty() else null)
 		if hold.time_left > 0.0:
 			await hold.timeout
 
