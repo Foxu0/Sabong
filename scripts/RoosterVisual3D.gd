@@ -39,6 +39,8 @@ static func _get_cached_material(key: String, albedo: Color, emission: Color = C
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = albedo
+	# Voxel effect meshes bake a brightness per face; this keeps their blocks readable when unshaded
+	mat.vertex_color_use_as_albedo = true
 	if emission != Color.BLACK and emission_energy > 0.0:
 		mat.emission_enabled = true
 		mat.emission = emission
@@ -76,7 +78,8 @@ func _trigger_screen_flash(flash_color: Color = Color(1.0, 0.96, 0.75, 0.65), du
 	if _global_flash_tween and _global_flash_tween.is_valid():
 		_global_flash_tween.kill()
 
-	_global_flash_rect.color = flash_color
+	# Brief tint only: strong full-screen flashes hid the action
+	_global_flash_rect.color = Color(flash_color, minf(flash_color.a, 0.35))
 	_global_flash_tween = _global_flash_rect.create_tween()
 	_global_flash_tween.tween_property(_global_flash_rect, "color:a", 0.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
@@ -91,7 +94,7 @@ func _spawn_launch_speed_burst(origin: Vector3, dir: Vector3) -> void:
 	
 	for i in range(count):
 		var angle: float = (float(i) / float(count)) * TAU
-		var line_mesh := CylinderMesh.new()
+		var line_mesh := VoxelCylinderMesh.new()
 		line_mesh.top_radius = 0.015
 		line_mesh.bottom_radius = 0.05
 		line_mesh.height = 0.85
@@ -121,7 +124,7 @@ func _spawn_red_hawk_impact_explosion(impact_pos: Vector3, dir: Vector3) -> void
 	var shock_mat := _get_cached_material("red_hawk_shock", Color(1.0, 0.35, 0.05, 0.95), Color(1.0, 0.85, 0.2), 5.0)
 	
 	# Expanding fire shockwave ring
-	var shock_mesh := TorusMesh.new()
+	var shock_mesh := VoxelTorusMesh.new()
 	shock_mesh.inner_radius = 0.3
 	shock_mesh.outer_radius = 0.65
 	var shock_inst := MeshInstance3D.new()
@@ -132,7 +135,7 @@ func _spawn_red_hawk_impact_explosion(impact_pos: Vector3, dir: Vector3) -> void
 	
 	# Expanding fireball
 	var fireball := MeshInstance3D.new()
-	var f_sphere := SphereMesh.new()
+	var f_sphere := VoxelSphereMesh.new()
 	f_sphere.radius = 0.38
 	f_sphere.height = 0.76
 	fireball.mesh = f_sphere
@@ -508,7 +511,7 @@ func _spawn_nechicko_hit_slash(target_pos: Vector3, dir: Vector3) -> void:
 
 	# Crescent Arc 1 (Obsidian Black)
 	var arc1 := MeshInstance3D.new()
-	var t_mesh1 := TorusMesh.new()
+	var t_mesh1 := VoxelTorusMesh.new()
 	t_mesh1.inner_radius = 0.45
 	t_mesh1.outer_radius = 0.80
 	t_mesh1.rings = 20
@@ -521,7 +524,7 @@ func _spawn_nechicko_hit_slash(target_pos: Vector3, dir: Vector3) -> void:
 
 	# Crescent Arc 2 (Blood Red counter arc)
 	var arc2 := MeshInstance3D.new()
-	var t_mesh2 := TorusMesh.new()
+	var t_mesh2 := VoxelTorusMesh.new()
 	t_mesh2.inner_radius = 0.45
 	t_mesh2.outer_radius = 0.80
 	t_mesh2.rings = 20
@@ -629,7 +632,7 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 	charge_root.global_position = start_pos
 
 	var charge_orb := MeshInstance3D.new()
-	var orb_mesh := SphereMesh.new()
+	var orb_mesh := VoxelSphereMesh.new()
 	orb_mesh.radius = 0.38
 	orb_mesh.height = 0.76
 	charge_orb.mesh = orb_mesh
@@ -642,7 +645,7 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 
 	# Converging Ki energy ring
 	var converge_ring := MeshInstance3D.new()
-	var c_mesh := TorusMesh.new()
+	var c_mesh := VoxelTorusMesh.new()
 	c_mesh.inner_radius = 0.5
 	c_mesh.outer_radius = 0.9
 	converge_ring.mesh = c_mesh
@@ -681,7 +684,7 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 
 		# Outer glowing beam cylinder
 		var outer_beam := MeshInstance3D.new()
-		var outer_mesh := CylinderMesh.new()
+		var outer_mesh := VoxelCylinderMesh.new()
 		outer_mesh.top_radius = 0.42
 		outer_mesh.bottom_radius = 0.42
 		outer_mesh.height = beam_dist
@@ -696,7 +699,7 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 
 		# Inner intense white-hot core
 		var core_beam := MeshInstance3D.new()
-		var core_mesh := CylinderMesh.new()
+		var core_mesh := VoxelCylinderMesh.new()
 		core_mesh.top_radius = 0.2
 		core_mesh.bottom_radius = 0.2
 		core_mesh.height = beam_dist
@@ -711,7 +714,7 @@ func play_kamecock_beam(target_pos: Vector3, on_hit_callback: Callable = Callabl
 
 		# Impact Burst Sphere at Defender
 		var impact_burst := MeshInstance3D.new()
-		var impact_mesh := SphereMesh.new()
+		var impact_mesh := VoxelSphereMesh.new()
 		impact_mesh.radius = 1.05
 		impact_mesh.height = 2.1
 		impact_burst.mesh = impact_mesh
@@ -803,7 +806,7 @@ func play_yagami_chick_note(target_pos: Vector3, target_visual: RoosterVisual3D 
 		write_tw.tween_callback(func():
 			if book_node and is_instance_valid(book_node):
 				var drop := MeshInstance3D.new()
-				var d_sphere := SphereMesh.new()
+				var d_sphere := VoxelSphereMesh.new()
 				d_sphere.radius = 0.04
 				d_sphere.height = 0.08
 				drop.mesh = d_sphere
@@ -826,7 +829,7 @@ func play_yagami_chick_note(target_pos: Vector3, target_visual: RoosterVisual3D 
 
 		# Book shockwave ring
 		var snap_ring := MeshInstance3D.new()
-		var r_mesh := TorusMesh.new()
+		var r_mesh := VoxelTorusMesh.new()
 		r_mesh.inner_radius = 0.25
 		r_mesh.outer_radius = 0.55
 		snap_ring.mesh = r_mesh
@@ -946,7 +949,7 @@ func play_yagami_chixecution(target_pos: Vector3, on_hit_callback: Callable = Ca
 		var scythe_mat := _get_cached_material("yagami_scythe", Color(0.75, 0.08, 0.95, 0.95), Color(0.85, 0.15, 0.35), 5.0, true, true)
 
 		var scythe1 := MeshInstance3D.new()
-		var arc1 := TorusMesh.new()
+		var arc1 := VoxelTorusMesh.new()
 		arc1.inner_radius = 0.60
 		arc1.outer_radius = 1.10
 		arc1.rings = 24
@@ -958,7 +961,7 @@ func play_yagami_chixecution(target_pos: Vector3, on_hit_callback: Callable = Ca
 		scythe_root.add_child(scythe1)
 
 		var scythe2 := MeshInstance3D.new()
-		var arc2 := TorusMesh.new()
+		var arc2 := VoxelTorusMesh.new()
 		arc2.inner_radius = 0.60
 		arc2.outer_radius = 1.10
 		arc2.rings = 24
@@ -986,7 +989,7 @@ func play_yagami_chixecution(target_pos: Vector3, on_hit_callback: Callable = Ca
 			blast_root.global_position = target_pos + Vector3(0, 0.5, 0)
 
 			var sphere := MeshInstance3D.new()
-			var s_mesh := SphereMesh.new()
+			var s_mesh := VoxelSphereMesh.new()
 			s_mesh.radius = 1.2
 			s_mesh.height = 2.4
 			sphere.mesh = s_mesh
@@ -995,7 +998,7 @@ func play_yagami_chixecution(target_pos: Vector3, on_hit_callback: Callable = Ca
 			blast_root.add_child(sphere)
 
 			var shock_ring := MeshInstance3D.new()
-			var r_mesh := TorusMesh.new()
+			var r_mesh := VoxelTorusMesh.new()
 			r_mesh.inner_radius = 0.8
 			r_mesh.outer_radius = 1.4
 			shock_ring.mesh = r_mesh
@@ -1488,7 +1491,7 @@ func play_cluckey_gear5_transformation(alt_path: String, banner_text: String = "
 
 	# Swirling White Steam Aura
 	var steam_mesh_inst := MeshInstance3D.new()
-	var steam_mesh := TorusMesh.new()
+	var steam_mesh := VoxelTorusMesh.new()
 	steam_mesh.inner_radius = 0.8
 	steam_mesh.outer_radius = 1.3
 	steam_mesh.rings = 24
@@ -1552,7 +1555,7 @@ func play_cluckey_gear5_exhaust_revert(banner_text: String = "5TH GEAR EXHAUSTED
 	puff_root.global_position = base_stage_pos + Vector3(0, 0.4, 0)
 
 	var puff_mesh := MeshInstance3D.new()
-	var p_sphere := SphereMesh.new()
+	var p_sphere := VoxelSphereMesh.new()
 	p_sphere.radius = 0.5
 	p_sphere.height = 1.0
 	puff_mesh.mesh = p_sphere
@@ -1599,6 +1602,15 @@ func play_revert_to_base(banner_text: String = "FORM EXPIRED") -> void:
 	tween.tween_property(self, "scale", base_scale, 0.16).set_trans(Tween.TRANS_BOUNCE)
 
 ## Helper to construct dynamic zigzag One For All emerald lightning arcs
+static var _bolt_segment_mesh: VoxelCylinderMesh = null
+static func _get_bolt_segment_mesh() -> VoxelCylinderMesh:
+	if not _bolt_segment_mesh:
+		_bolt_segment_mesh = VoxelCylinderMesh.new()
+		_bolt_segment_mesh.top_radius = 0.025
+		_bolt_segment_mesh.bottom_radius = 0.025
+		_bolt_segment_mesh.height = 1.0
+	return _bolt_segment_mesh
+
 func _spawn_decluck_zigzag_bolt(parent_node: Node3D, start_pos: Vector3, end_pos: Vector3, num_segments: int = 5, jitter: float = 0.25, mat: StandardMaterial3D = null) -> Node3D:
 	var bolt_root := Node3D.new()
 	parent_node.add_child(bolt_root)
@@ -1637,13 +1649,12 @@ func _spawn_decluck_zigzag_bolt(parent_node: Node3D, start_pos: Vector3, end_pos
 			var link_node := Node3D.new()
 			bolt_root.add_child(link_node)
 			var cyl := MeshInstance3D.new()
-			var c_mesh := CylinderMesh.new()
-			c_mesh.top_radius = 0.025
-			c_mesh.bottom_radius = 0.025
-			c_mesh.height = seg_len
-			cyl.mesh = c_mesh
+			# One shared unit-length segment stretched to each length (random lengths would
+			# otherwise build a new voxel mesh for every segment of every bolt)
+			cyl.mesh = _get_bolt_segment_mesh()
 			cyl.material_override = mat
 			cyl.rotation_degrees.x = 90.0
+			cyl.scale = Vector3(1.0, seg_len, 1.0)
 			link_node.add_child(cyl)
 			if link_node.is_inside_tree():
 				link_node.global_position = (p1 + p2) * 0.5
@@ -1721,7 +1732,7 @@ func play_decluck_all_for_one_punch(target_pos: Vector3, on_hit_callback: Callab
 		impact_root.global_position = target_pos + Vector3(0, 0.5, 0)
 
 		var shockwave := MeshInstance3D.new()
-		var s_mesh := SphereMesh.new()
+		var s_mesh := VoxelSphereMesh.new()
 		s_mesh.radius = 0.8 + float(intensity) * 0.4
 		s_mesh.height = s_mesh.radius * 2.0
 		shockwave.mesh = s_mesh
@@ -1778,7 +1789,7 @@ func play_decluck_all_for_one_heart(amount: int, taya_spent: int = 1) -> void:
 
 	# Sphere bubble
 	var sphere_inst := MeshInstance3D.new()
-	var sphere_mesh := SphereMesh.new()
+	var sphere_mesh := VoxelSphereMesh.new()
 	sphere_mesh.radius = 1.1 + float(intensity) * 0.15
 	sphere_mesh.height = sphere_mesh.radius * 2.0
 	sphere_inst.mesh = sphere_mesh
@@ -1803,7 +1814,7 @@ func play_decluck_all_for_one_heart(amount: int, taya_spent: int = 1) -> void:
 
 	# Ground energy ring
 	var ring_inst := MeshInstance3D.new()
-	var ring_mesh := TorusMesh.new()
+	var ring_mesh := VoxelTorusMesh.new()
 	ring_mesh.inner_radius = 0.95
 	ring_mesh.outer_radius = 1.35 + float(intensity) * 0.2
 	ring_inst.mesh = ring_mesh
@@ -1856,7 +1867,7 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 		tween.tween_callback(func():
 			_trigger_camera_shake(0.3, 0.15)
 			var shock_ring := MeshInstance3D.new()
-			var ring_mesh := TorusMesh.new()
+			var ring_mesh := VoxelTorusMesh.new()
 			ring_mesh.inner_radius = 0.6
 			ring_mesh.outer_radius = 1.1
 			shock_ring.mesh = ring_mesh
@@ -1912,7 +1923,7 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 
 			# Inner Golden Blast
 			var inner_ring := MeshInstance3D.new()
-			var in_mesh := TorusMesh.new()
+			var in_mesh := VoxelTorusMesh.new()
 			in_mesh.inner_radius = 0.8
 			in_mesh.outer_radius = 1.4
 			inner_ring.mesh = in_mesh
@@ -1924,7 +1935,7 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 
 			# Outer Earth & Dust Ring
 			var outer_ring := MeshInstance3D.new()
-			var out_mesh := TorusMesh.new()
+			var out_mesh := VoxelTorusMesh.new()
 			out_mesh.inner_radius = 1.2
 			out_mesh.outer_radius = 2.0
 			outer_ring.mesh = out_mesh
@@ -1940,7 +1951,7 @@ func play_eren_stomp(target_pos: Vector3, is_titan: bool = false, on_hit_callbac
 			for d in range(dust_count):
 				var d_angle: float = float(d) * (TAU / float(dust_count))
 				var puff := MeshInstance3D.new()
-				var p_mesh := SphereMesh.new()
+				var p_mesh := VoxelSphereMesh.new()
 				p_mesh.radius = 0.35
 				p_mesh.height = 0.7
 				puff.mesh = p_mesh
@@ -2003,7 +2014,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 
 	# 4. Central Luminous Heavenly Column
 	var core_column := MeshInstance3D.new()
-	var col_mesh := CylinderMesh.new()
+	var col_mesh := VoxelCylinderMesh.new()
 	col_mesh.top_radius = 0.7
 	col_mesh.bottom_radius = 1.4
 	col_mesh.height = 9.5
@@ -2049,7 +2060,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 			lightning_root.add_child(link_node)
 
 			var cyl_inst := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
+			var cyl := VoxelCylinderMesh.new()
 			cyl.top_radius = 0.07
 			cyl.bottom_radius = 0.07
 			cyl.height = dist + 0.04
@@ -2068,7 +2079,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 
 	# 6. Hand-Bite Spark Sphere at Beak
 	var spark_sphere := MeshInstance3D.new()
-	var sp_mesh := SphereMesh.new()
+	var sp_mesh := VoxelSphereMesh.new()
 	sp_mesh.radius = 0.35
 	sp_mesh.height = 0.7
 	spark_sphere.mesh = sp_mesh
@@ -2081,7 +2092,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 
 	# 7. Lightning Impact Explosion Dome
 	var dome_inst := MeshInstance3D.new()
-	var dome_mesh := SphereMesh.new()
+	var dome_mesh := VoxelSphereMesh.new()
 	dome_mesh.radius = 1.7
 	dome_mesh.height = 3.4
 	dome_inst.mesh = dome_mesh
@@ -2092,7 +2103,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 
 	# 8. Ground Crater Shockwave Ring
 	var ground_ring := MeshInstance3D.new()
-	var ring_mesh := TorusMesh.new()
+	var ring_mesh := VoxelTorusMesh.new()
 	ring_mesh.inner_radius = 0.6
 	ring_mesh.outer_radius = 1.1
 	ground_ring.mesh = ring_mesh
@@ -2113,7 +2124,7 @@ func play_eren_titan_transformation(alt_path: String, banner_text: String = "PEC
 	var steam_count: int = 4 if OS.has_feature("web") else 8
 	for s in range(steam_count):
 		var s_inst := MeshInstance3D.new()
-		var s_mesh := SphereMesh.new()
+		var s_mesh := VoxelSphereMesh.new()
 		s_mesh.radius = randf_range(0.4, 0.7)
 		s_mesh.height = s_mesh.radius * 2.0
 		s_inst.mesh = s_mesh
@@ -2215,7 +2226,7 @@ func play_eren_titan_revert(banner_text: String = "TITAN POWER EXHAUSTED") -> vo
 	var steam_puffs_count: int = 3 if OS.has_feature("web") else 7
 	for s in range(steam_puffs_count):
 		var s_inst := MeshInstance3D.new()
-		var s_mesh := SphereMesh.new()
+		var s_mesh := VoxelSphereMesh.new()
 		s_mesh.radius = randf_range(0.35, 0.6)
 		s_mesh.height = s_mesh.radius * 2.0
 		s_inst.mesh = s_mesh
@@ -2262,7 +2273,7 @@ func play_titan_upkeep_drain() -> void:
 
 	# Hissing steam puff from nape
 	var steam_inst := MeshInstance3D.new()
-	var s_mesh := SphereMesh.new()
+	var s_mesh := VoxelSphereMesh.new()
 	s_mesh.radius = 0.4
 	s_mesh.height = 0.8
 	steam_inst.mesh = s_mesh
@@ -2294,7 +2305,7 @@ func _spawn_titan_wound_steam(wound_pos: Vector3) -> void:
 
 	for i in range(3):
 		var puff := MeshInstance3D.new()
-		var s_mesh := SphereMesh.new()
+		var s_mesh := VoxelSphereMesh.new()
 		s_mesh.radius = randf_range(0.25, 0.45)
 		s_mesh.height = s_mesh.radius * 2.0
 		puff.mesh = s_mesh
@@ -2321,7 +2332,7 @@ func _spawn_titan_corpse_steam_dissolution() -> void:
 	var corpse_puffs: int = 3 if OS.has_feature("web") else 6
 	for i in range(corpse_puffs):
 		var puff := MeshInstance3D.new()
-		var s_mesh := SphereMesh.new()
+		var s_mesh := VoxelSphereMesh.new()
 		s_mesh.radius = randf_range(0.5, 0.9)
 		s_mesh.height = s_mesh.radius * 2.0
 		puff.mesh = s_mesh
@@ -2366,7 +2377,7 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 
 	# Crescent Slash Arc 1 (Obsidian Black with Red Core)
 	var slash1 := MeshInstance3D.new()
-	var arc_mesh1 := TorusMesh.new()
+	var arc_mesh1 := VoxelTorusMesh.new()
 	arc_mesh1.inner_radius = 0.55
 	arc_mesh1.outer_radius = 0.90
 	arc_mesh1.rings = 24
@@ -2379,7 +2390,7 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 
 	# Crescent Slash Arc 2 (Blazing Blood-Red Counter Slash)
 	var slash2 := MeshInstance3D.new()
-	var arc_mesh2 := TorusMesh.new()
+	var arc_mesh2 := VoxelTorusMesh.new()
 	arc_mesh2.inner_radius = 0.55
 	arc_mesh2.outer_radius = 0.90
 	arc_mesh2.rings = 24
@@ -2424,7 +2435,7 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 
 		# Inner Obsidian Blood Dome
 		var dome := MeshInstance3D.new()
-		var d_mesh := SphereMesh.new()
+		var d_mesh := VoxelSphereMesh.new()
 		d_mesh.radius = 1.25
 		d_mesh.height = 2.5
 		dome.mesh = d_mesh
@@ -2434,7 +2445,7 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 
 		# Outer Blood-Red Shockwave Ring
 		var ring := MeshInstance3D.new()
-		var r_mesh := TorusMesh.new()
+		var r_mesh := VoxelTorusMesh.new()
 		r_mesh.inner_radius = 0.7
 		r_mesh.outer_radius = 1.2
 		ring.mesh = r_mesh
@@ -2448,7 +2459,7 @@ func play_nechicko_peck_breaker(target_pos: Vector3, on_hit_callback: Callable =
 		var ember_count: int = 4 if OS.has_feature("web") else 8
 		for e in range(ember_count):
 			var ember := MeshInstance3D.new()
-			var e_mesh := SphereMesh.new()
+			var e_mesh := VoxelSphereMesh.new()
 			e_mesh.radius = 0.20
 			e_mesh.height = 0.40
 			ember.mesh = e_mesh
@@ -2551,7 +2562,7 @@ func play_daniel_unseen_claw(target_pos: Vector3, on_hit_callback: Callable = Ca
 		# 1. Thin joint spheres
 		for i in range(num_joints):
 			var sph_inst := MeshInstance3D.new()
-			var sph := SphereMesh.new()
+			var sph := VoxelSphereMesh.new()
 			var t_ratio := float(i) / float(num_joints - 1)
 			var rad: float = lerp(0.06, 0.13, t_ratio)
 			sph.radius = rad
@@ -2702,7 +2713,7 @@ func _spawn_shadow_impact_burst(impact_pos: Vector3, dir: Vector3) -> void:
 	get_parent().add_child(blast_root)
 	blast_root.global_position = impact_pos
 
-	var shock_mesh := TorusMesh.new()
+	var shock_mesh := VoxelTorusMesh.new()
 	shock_mesh.inner_radius = 0.35
 	shock_mesh.outer_radius = 0.70
 	var shock_inst := MeshInstance3D.new()
@@ -2714,7 +2725,7 @@ func _spawn_shadow_impact_burst(impact_pos: Vector3, dir: Vector3) -> void:
 	shock_inst.look_at(impact_pos + dir, Vector3.UP)
 
 	var fireball := MeshInstance3D.new()
-	var f_sphere := SphereMesh.new()
+	var f_sphere := VoxelSphereMesh.new()
 	f_sphere.radius = 0.40
 	f_sphere.height = 0.80
 	fireball.mesh = f_sphere
@@ -2851,6 +2862,26 @@ func play_daniel_revive(banner_text: String = "RETURN BY DEATH: CHICK TO ZERO!")
 	tween.parallel().tween_property(self, "rotation_degrees", base_rot, 0.14)
 
 ## Animates taking a hit / knockback
+## Voxel impact on the defender: feathers + sparks + dust for a hit, shield shards for a block.
+func _spawn_hit_debris(is_blocked: bool, damage: int) -> void:
+	var parent := get_parent()
+	var chest := global_position + Vector3(0, 0.55, 0)
+	if is_blocked:
+		VoxelBurst3D.spawn(parent, chest, [Color(0.55, 0.9, 1.0), Color(0.92, 0.98, 1.0), Color(0.3, 0.68, 1.0)], 14, 2.6, 0.08, 0.55)
+		_hit_stop(0.03)
+		return
+	var feathers := clampi(10 + damage * 3, 12, 34)
+	VoxelBurst3D.spawn(parent, chest, [Color(1, 1, 1), Color(0.95, 0.9, 0.78), Color(0.82, 0.78, 0.7)], feathers, 3.4, 0.13, 0.9)
+	VoxelBurst3D.spawn(parent, chest, [Color(1.0, 0.86, 0.3), Color(1.0, 0.52, 0.15), Color(1.0, 1.0, 0.82)], 8 + damage, 5.0, 0.055, 0.35, "burst", Vector3.ZERO, 4.0)
+	VoxelBurst3D.spawn(parent, global_position + Vector3(0, 0.05, 0), [Color(0.62, 0.52, 0.38), Color(0.5, 0.42, 0.3)], 14, 2.2, 0.08, 0.6, "ring")
+	_hit_stop(0.06 if damage >= 4 else 0.035)
+
+## Freeze-frame on impact so hits feel heavy (run by GameManager, which outlives roosters).
+func _hit_stop(seconds: float) -> void:
+	var gm := get_node_or_null("/root/GameManager")
+	if gm and gm.has_method("hit_stop"):
+		gm.hit_stop(seconds)
+
 func play_hit(damage: int, is_blocked: bool = false) -> void:
 	if is_dead:
 		return
@@ -2864,6 +2895,7 @@ func play_hit(damage: int, is_blocked: bool = false) -> void:
 	var color: Color = Color(1, 0.3, 0.3) if not is_blocked else Color(0.3, 0.8, 1.0)
 	var text: String = "-%d" % damage if not is_blocked else "BLOCKED!"
 	FloatingText3D.spawn(get_parent(), global_position, text, color)
+	_spawn_hit_debris(is_blocked, damage)
 
 	if is_transformed and rooster_data and rooster_data.rooster_id == "eren_pecker" and not is_blocked:
 		_spawn_titan_wound_steam(global_position + Vector3(0, 0.6, 0))
@@ -2895,7 +2927,7 @@ func play_kikiriki_barrier(amount: int) -> void:
 
 	# Main Semi-Transparent Ki Sphere
 	var sphere_mesh_inst := MeshInstance3D.new()
-	var sphere_mesh := SphereMesh.new()
+	var sphere_mesh := VoxelSphereMesh.new()
 	sphere_mesh.radius = 1.35
 	sphere_mesh.height = 2.7
 	sphere_mesh_inst.mesh = sphere_mesh
@@ -2906,7 +2938,7 @@ func play_kikiriki_barrier(amount: int) -> void:
 
 	# Orbiting Ki Spark Ring 1 (Diagonal 45 deg)
 	var ring1 := MeshInstance3D.new()
-	var r_mesh1 := TorusMesh.new()
+	var r_mesh1 := VoxelTorusMesh.new()
 	r_mesh1.inner_radius = 1.38
 	r_mesh1.outer_radius = 1.48
 	r_mesh1.rings = 24
@@ -2920,7 +2952,7 @@ func play_kikiriki_barrier(amount: int) -> void:
 
 	# Orbiting Ki Spark Ring 2 (Diagonal -45 deg)
 	var ring2 := MeshInstance3D.new()
-	var r_mesh2 := TorusMesh.new()
+	var r_mesh2 := VoxelTorusMesh.new()
 	r_mesh2.inner_radius = 1.38
 	r_mesh2.outer_radius = 1.48
 	r_mesh2.rings = 24
@@ -3166,7 +3198,7 @@ func play_nechicko_demon_revert(banner_text: String = "DEMON PACIFIED (SLEEPING)
 	var petal_count: int = 4 if OS.has_feature("web") else 8
 	for p in range(petal_count):
 		var p_inst := MeshInstance3D.new()
-		var p_mesh := SphereMesh.new()
+		var p_mesh := VoxelSphereMesh.new()
 		p_mesh.radius = randf_range(0.18, 0.32)
 		p_mesh.height = p_mesh.radius * 2.0
 		p_inst.mesh = p_mesh
@@ -3237,7 +3269,7 @@ func play_nechicko_ketchup_aura(amount: int) -> void:
 	if not ketchup_node:
 		# Fallback stylized voxel bottle if model missing
 		ketchup_node = Node3D.new()
-		var fb_mesh := CylinderMesh.new()
+		var fb_mesh := VoxelCylinderMesh.new()
 		fb_mesh.top_radius = 0.08
 		fb_mesh.bottom_radius = 0.12
 		fb_mesh.height = 0.45
@@ -3322,7 +3354,7 @@ func play_nechicko_ketchup_aura(amount: int) -> void:
 				# Red ketchup droplets pouring from nozzle (0.0, 0.20, 0.50) into beak (0.0, 0.12, 0.46)
 				for _d in range(3):
 					var drop := MeshInstance3D.new()
-					var drop_mesh := SphereMesh.new()
+					var drop_mesh := VoxelSphereMesh.new()
 					drop_mesh.radius = 0.035
 					drop_mesh.height = 0.07
 					drop.mesh = drop_mesh
@@ -3411,7 +3443,7 @@ func _spawn_shield_bubble(theme: String = "") -> void:
 
 	# Sphere bubble
 	var sphere_inst := MeshInstance3D.new()
-	var sphere_mesh := SphereMesh.new()
+	var sphere_mesh := VoxelSphereMesh.new()
 	sphere_mesh.radius = 1.15
 	sphere_mesh.height = 2.3
 	sphere_mesh.radial_segments = 24
@@ -3424,7 +3456,7 @@ func _spawn_shield_bubble(theme: String = "") -> void:
 
 	# Ground energy ring
 	var ring_inst := MeshInstance3D.new()
-	var ring_mesh := TorusMesh.new()
+	var ring_mesh := VoxelTorusMesh.new()
 	ring_mesh.inner_radius = 0.95
 	ring_mesh.outer_radius = 1.3
 	ring_mesh.rings = 24
@@ -3509,7 +3541,7 @@ func play_decluck_power_transformation(alt_path: String, banner_text: String = "
 			lightning_root.add_child(link_node)
 
 			var cyl_inst := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
+			var cyl := VoxelCylinderMesh.new()
 			cyl.top_radius = 0.06
 			cyl.bottom_radius = 0.06
 			cyl.height = dist + 0.04
@@ -3528,7 +3560,7 @@ func play_decluck_power_transformation(alt_path: String, banner_text: String = "
 
 	# 5. Lightning Impact Burst Sphere at Decluck center
 	var impact_sphere := MeshInstance3D.new()
-	var sph_mesh := SphereMesh.new()
+	var sph_mesh := VoxelSphereMesh.new()
 	sph_mesh.radius = 1.5
 	sph_mesh.height = 3.0
 	impact_sphere.mesh = sph_mesh
@@ -3539,7 +3571,7 @@ func play_decluck_power_transformation(alt_path: String, banner_text: String = "
 
 	# 6. Ground Emerald Shockwave Ring
 	var ground_ring := MeshInstance3D.new()
-	var ring_mesh := TorusMesh.new()
+	var ring_mesh := VoxelTorusMesh.new()
 	ring_mesh.inner_radius = 0.5
 	ring_mesh.outer_radius = 0.9
 	ground_ring.mesh = ring_mesh
@@ -3629,7 +3661,7 @@ func play_golden_transformation(alt_path: String, banner_text: String = "GOLDEN 
 
 	# Golden Ki Cylinder Aura
 	var ki_cylinder := MeshInstance3D.new()
-	var cyl_mesh := CylinderMesh.new()
+	var cyl_mesh := VoxelCylinderMesh.new()
 	cyl_mesh.top_radius = 1.0
 	cyl_mesh.bottom_radius = 1.2
 	cyl_mesh.height = 3.0
@@ -3642,7 +3674,7 @@ func play_golden_transformation(alt_path: String, banner_text: String = "GOLDEN 
 
 	# Ground Shockwave Ring
 	var ground_ring := MeshInstance3D.new()
-	var ring_mesh := TorusMesh.new()
+	var ring_mesh := VoxelTorusMesh.new()
 	ring_mesh.inner_radius = 0.4
 	ring_mesh.outer_radius = 0.7
 	ground_ring.mesh = ring_mesh
@@ -3735,7 +3767,7 @@ func _spawn_fried_chicken_poof_vfx(origin: Vector3) -> void:
 	var puff_count: int = 6 if OS.has_feature("web") else 12
 	for i in range(puff_count):
 		var puff := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
+		var sphere := VoxelSphereMesh.new()
 		sphere.radius = randf_range(0.18, 0.32)
 		sphere.height = sphere.radius * 2.0
 		puff.mesh = sphere
@@ -3783,7 +3815,7 @@ func _spawn_fried_chicken_steam_loop() -> void:
 
 	for i in range(3):
 		var puff := MeshInstance3D.new()
-		var sp := SphereMesh.new()
+		var sp := VoxelSphereMesh.new()
 		sp.radius = 0.09
 		sp.height = 0.18
 		puff.mesh = sp

@@ -348,7 +348,7 @@ func set_taya_coins_primed_glow(player_id: int, primed_count: int) -> void:
 			if not aura:
 				aura = MeshInstance3D.new()
 				aura.name = "TayaAuraRing"
-				var t_mesh := TorusMesh.new()
+				var t_mesh := VoxelTorusMesh.new()
 				t_mesh.inner_radius = 0.22
 				t_mesh.outer_radius = 0.36
 				aura.mesh = t_mesh

@@ -64,6 +64,19 @@ func get_rooster_by_id(rooster_id: String) -> RoosterData:
 			return r
 	return null
 
+var _hit_stop_active: bool = false
+
+## Briefly slows the game to near-still on a heavy hit. Lives here (always loaded) so time
+## can't stay slowed if the rooster that triggered it is freed mid-freeze.
+func hit_stop(seconds: float) -> void:
+	if _hit_stop_active:
+		return
+	_hit_stop_active = true
+	Engine.time_scale = 0.05
+	await get_tree().create_timer(seconds, true, false, true).timeout
+	Engine.time_scale = 1.0
+	_hit_stop_active = false
+
 var _changing_scene: bool = false
 var _loading_layer: CanvasLayer = null
 
@@ -73,6 +86,7 @@ func change_scene(target_path: String) -> void:
 	if _changing_scene:
 		return
 	_changing_scene = true
+	Engine.time_scale = 1.0
 	var mm = get_node_or_null("/root/MusicManager")
 	if mm and mm.has_method("handle_scene_transition"):
 		mm.handle_scene_transition(target_path)

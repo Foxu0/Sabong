@@ -33,6 +33,11 @@ const VFX_DATA := {
 	"chickenheart":   { "path": "res://resources/models/daniel/chickenheart.png",      "cols": 8,  "rows": 1 },
 }
 
+const VOXEL_CHUNKS := {
+	"normalpoop": [Color(0.45, 0.3, 0.15), Color(0.6, 0.42, 0.2), Color(0.35, 0.22, 0.1)],
+	"poopturd": [Color(0.45, 0.3, 0.15), Color(0.6, 0.42, 0.2), Color(0.35, 0.22, 0.1)],
+}
+
 ## FPS tuned by frame count: fewer frames = slower playback so each frame is visible.
 static func _fps_for_frames(n: int) -> float:
 	match n:
@@ -87,6 +92,10 @@ static func play_effect(parent: Node3D, pos: Vector3, vfx_key: String, _duration
 	sprite.sprite_frames = frames_res
 	parent.add_child(sprite)
 	sprite.play("play")
+
+	# Solid voxel chunks alongside the flat sprite so the effect has volume
+	if VOXEL_CHUNKS.has(vfx_key):
+		VoxelBurst3D.spawn(parent, pos + Vector3(0, 0.6, 0), VOXEL_CHUNKS[vfx_key], 16, 2.6, 0.1, 0.8)
 
 	# Fade out just before the last frame, then free
 	var anim_duration: float = float(total_frames) / fps
